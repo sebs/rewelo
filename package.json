@@ -1,0 +1,44 @@
+{
+  "name": "rewelo",
+  "version": "0.3.4",
+  "description": "Prioritisation tool using the relative weight method with DuckDB",
+  "main": "dist/index.js",
+  "bin": {
+    "rw": "dist/index.js"
+  },
+  "scripts": {
+    "build": "node scripts/inject-version.mjs && tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/index.js",
+    "site:build": "node site/build.mjs",
+    "site:serve": "node site/serve.mjs"
+  },
+  "files": [
+    "dist/",
+    "db/create.sql",
+    "db/model.dbml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "prioritization",
+    "backlog",
+    "relative-weight",
+    "duckdb",
+    "mcp",
+    "cli"
+  ],
+  "author": "Sebastian Schürmann",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "commander": "^14.0.3",
+    "duckdb": "^1.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,10 @@
+site/public
+node_modules/
+dist/
+*.js.map
+*.tsbuildinfo
+.env
+.env.*
+*.duckdb
+*.duckdb.wal
+.claude/settings.json

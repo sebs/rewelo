@@ -1,0 +1,109 @@
+Project RelativeWeightCLI {
+  database_type: 'DuckDB'
+  Note: 'Relative Weight CLI - prioritization tool using agile Fibonacci scoring'
+}
+
+Table projects {
+  id integer [pk, default: `nextval('rw.projects_id_seq')`]
+  project_uuid uuid [unique, not null, default: `gen_random_uuid()`]
+  name text [unique, not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'Top-level grouping. Each project has its own set of tickets.'
+}
+
+Table tickets {
+  id bigint [pk, default: `nextval('rw.tickets_id_seq')`]
+  ticket_uuid uuid [unique, not null, default: `gen_random_uuid()`]
+  project_id integer [not null, ref: > projects.id]
+  title text [not null]
+  description text
+  benefit smallint [not null, default: 1, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  penalty smallint [not null, default: 1, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  estimate smallint [not null, default: 1, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  risk smallint [not null, default: 1, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'Stories/tickets scored with relative weight dimensions (B, P, E, R).'
+}
+
+Table tags {
+  id integer [pk, default: `nextval('rw.tags_id_seq')`]
+  project_id integer [not null, ref: > projects.id]
+  prefix text [not null, note: 'e.g. state, feature, team']
+  value text [not null, note: 'e.g. backlog, wip, done, foo']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (project_id, prefix, value) [unique]
+  }
+
+  Note: 'Reusable labels scoped to a project. prefix:value pairs like state:backlog, feature:foo.'
+}
+
+Table tag_revisions {
+  id bigint [pk, default: `nextval('rw.tag_revisions_id_seq')`]
+  tag_id integer [not null, ref: > tags.id]
+  prefix text [not null]
+  value text [not null]
+  revised_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (tag_id, revised_at)
+  }
+
+  Note: 'Snapshot of tag content before each change.'
+}
+
+Table ticket_tags {
+  ticket_id bigint [not null, ref: > tickets.id]
+  tag_id integer [not null, ref: > tags.id]
+  assigned_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (ticket_id, tag_id) [pk]
+  }
+
+  Note: 'Current tags assigned to a ticket.'
+}
+
+Enum tag_action {
+  added
+  removed
+}
+
+Table ticket_tag_changes {
+  id bigint [pk, default: `nextval('rw.ticket_tag_changes_id_seq')`]
+  ticket_id bigint [not null, ref: > tickets.id]
+  tag_id integer [not null, ref: > tags.id]
+  action tag_action [not null]
+  changed_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (ticket_id, changed_at)
+    (tag_id, changed_at)
+  }
+
+  Note: 'Audit log of every tag assignment/removal on a ticket.'
+}
+
+Table ticket_revisions {
+  id bigint [pk, default: `nextval('rw.ticket_revisions_id_seq')`]
+  ticket_id bigint [not null, ref: > tickets.id]
+  title text [not null]
+  description text
+  benefit smallint [not null, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  penalty smallint [not null, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  estimate smallint [not null, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  risk smallint [not null, note: 'CHECK IN (1,2,3,5,8,13,21)']
+  tags json [not null, note: 'Snapshot of tags as [{prefix, value}] at time of revision']
+  revised_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (ticket_id, revised_at)
+  }
+
+  Note: 'Snapshot of ticket content and tags before each change. Enables full revision history.'
+}

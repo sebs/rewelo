@@ -1,0 +1,256 @@
+/* -- Reset & Base -- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #e8e6e3;
+  --text-muted: #8a8a8a;
+  --accent: #c4a35a;
+  --accent-dim: rgba(196, 163, 90, 0.15);
+  --code-bg: rgba(255, 255, 255, 0.05);
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+  --max-w: 820px;
+  --gutter: clamp(1.5rem, 5vw, 4rem);
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* -- WebGL Canvas -- */
+#gl-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* -- Content Layer -- */
+.content {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: var(--gutter);
+}
+
+/* -- Typography -- */
+h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+
+h2 {
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-top: 4rem;
+  margin-bottom: 1rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+p {
+  margin-bottom: 1.25rem;
+  color: var(--text-muted);
+}
+
+strong { color: var(--text); font-weight: 500; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+a:hover { opacity: 0.75; }
+
+/* -- Hero links (CTA buttons) -- */
+h1 + p > a {
+  display: inline-block;
+  padding: 0.6rem 1.6rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  transition: all 0.25s;
+}
+
+h1 + p > a:first-child {
+  background: var(--accent);
+  color: var(--bg);
+}
+h1 + p > a:first-child:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+h1 + p > a:last-child {
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+h1 + p > a:last-child:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* -- Horizontal rules -- */
+hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 3.5rem 0;
+}
+
+/* -- Blockquote -- */
+blockquote {
+  border-left: 2px solid var(--accent);
+  padding: 1rem 1.5rem;
+  margin: 1.5rem 0;
+  background: var(--surface);
+  border-radius: 0 6px 6px 0;
+}
+blockquote p {
+  color: var(--text);
+  font-style: italic;
+  margin-bottom: 0;
+}
+
+/* -- Code -- */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--code-bg);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  margin: 1.25rem 0 1.75rem;
+  line-height: 1.5;
+}
+pre code {
+  background: none;
+  padding: 0;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+/* -- Tables -- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0 1.75rem;
+  font-size: 0.9rem;
+}
+
+th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+tr:last-child td { border-bottom: none; }
+
+/* -- Lists -- */
+ul, ol {
+  margin: 1rem 0 1.5rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 0.6rem;
+  color: var(--text-muted);
+}
+
+li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  opacity: 0.5;
+}
+
+/* -- Fade-in on scroll -- */
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* -- Footer area (last paragraph) -- */
+.content > :last-child {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* -- Responsive -- */
+@media (max-width: 600px) {
+  h1 + p > a {
+    display: block;
+    text-align: center;
+    margin-right: 0;
+  }
+
+  table { font-size: 0.8rem; }
+  th, td { padding: 0.5rem 0.6rem; }
+}

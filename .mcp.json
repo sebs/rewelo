@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rewelo": {
+      "command": "bash",
+      "args": ["-c", "docker rm -f rw-mcp >/dev/null 2>&1; docker run --rm -i --init --name rw-mcp --cap-drop=ALL --read-only --tmpfs /tmp --memory=256m -v rw-data:/data ghcr.io/sebs/rewelo-mcp:latest serve"]
+    }
+  }
+}

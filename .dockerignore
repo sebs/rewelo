@@ -1,0 +1,16 @@
+node_modules
+*.duckdb
+*.duckdb.wal
+.git
+.claude
+test
+features
+plan
+adr
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
+LICENSE
+.gitignore
+.dockerignore
+.mcp.json
