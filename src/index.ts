@@ -55,8 +55,6 @@ import { getProjectSummary } from "./reports/summary.js";
 import { groupByTagPrefix } from "./reports/group.js";
 import { getDistribution } from "./reports/distribution.js";
 import { getBacklogHealth } from "./reports/health.js";
-import { getDashboardData } from "./reports/dashboard.js";
-import { renderDashboardHtml } from "./reports/dashboard-template.js";
 import { validateExportPath } from "./validation/paths.js";
 import { writeFileSync, readFileSync } from "fs";
 import { VERSION } from "./version.generated.js";
@@ -998,28 +996,6 @@ reportCmd
         });
         console.log(formatTable(["Title", "Lead Time", "Cycle Time"], rows));
         if (avg !== undefined) console.log(`\nAverage lead time: ${avg}d`);
-      }
-    });
-  });
-
-reportCmd
-  .command("dashboard")
-  .description("generate a self-contained HTML dashboard report")
-  .requiredOption("--project <name>", "project name")
-  .requiredOption("--output <path>", "output file path (.html)")
-  .action(async (cmdOpts: any, cmd: Command) => {
-    const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
-      const data = await getDashboardData(db, project.id, project.name);
-      const html = renderDashboardHtml(data);
-      const outPath = validateExportPath(cmdOpts.output);
-      writeFileSync(outPath, html, "utf-8");
-      if (opts.json) {
-        console.log(JSON.stringify({ path: outPath, tickets: data.tickets.length, relations: data.relations.length }));
-      } else {
-        console.log(`Dashboard written to ${outPath}`);
-        console.log(`  ${data.tickets.length} tickets, ${data.relations.length} relations`);
       }
     });
   });

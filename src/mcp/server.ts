@@ -49,8 +49,6 @@ import {
 } from "../relations/repository.js";
 import { getProjectSummary } from "../reports/summary.js";
 import { getBacklogHealth } from "../reports/health.js";
-import { getDashboardData } from "../reports/dashboard.js";
-import { renderDashboardHtml } from "../reports/dashboard-template.js";
 import { getEventLog } from "../reports/event-log.js";
 import { getProjectDiff } from "../reports/diff.js";
 import {
@@ -753,27 +751,6 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
           const proj = await getProjectByName(db, project);
           if (!proj) throw new Error("Project not found");
           return getBacklogHealth(db, proj.id, threshold ?? 1.5);
-        });
-        return textResult(result);
-      } catch (err) {
-        return errorResult(err);
-      }
-    }
-  );
-
-  server.tool(
-    "report_dashboard",
-    "Generate a self-contained HTML dashboard with priority tables, score distributions, health indicators, and an interactive dependency graph. Returns the full HTML string.",
-    {
-      project: z.string().describe("Project name"),
-    },
-    async ({ project }) => {
-      try {
-        const result = await withDb(async (db) => {
-          const proj = await getProjectByName(db, project);
-          if (!proj) throw new Error("Project not found");
-          const data = await getDashboardData(db, proj.id, proj.name);
-          return renderDashboardHtml(data);
         });
         return textResult(result);
       } catch (err) {

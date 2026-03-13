@@ -10,9 +10,7 @@
     "build": "node scripts/inject-version.mjs && tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "start": "node dist/index.js",
-    "site:build": "node site/build.mjs",
-    "site:serve": "node site/serve.mjs"
+    "start": "node dist/index.js"
   },
   "files": [
     "dist/",
