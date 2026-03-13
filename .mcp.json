@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "rewelo": {
-      "command": "node",
-      "args": ["dist/index.js", "serve"]
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "rewelo:latest", "serve"]
     }
   }
 }
