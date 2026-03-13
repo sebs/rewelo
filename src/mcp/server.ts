@@ -484,15 +484,15 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const results = await withDb(async (db) => {
           const proj = await getProjectByName(db, project);
           if (!proj) throw new Error("Project not found");
-          const out: { ticket: string; tag: string; assigned: boolean }[] = [];
+          const out: { ticket: string; tag: string; status: "assigned" | "already_assigned" }[] = [];
           for (const title of allTickets) {
             const ticket = await getTicketByTitle(db, proj.id, title);
             if (!ticket) throw new Error(`Ticket "${title}" not found`);
             for (const t of validatedTags) {
               let tag = await getTag(db, proj.id, t.prefix, t.value);
               if (!tag) tag = await createTag(db, proj.id, t.prefix, t.value);
-              const assigned = await assignTag(db, ticket.id, tag.id);
-              out.push({ ticket: title, tag: `${t.prefix}:${t.value}`, assigned });
+              const newlyAssigned = await assignTag(db, ticket.id, tag.id);
+              out.push({ ticket: title, tag: `${t.prefix}:${t.value}`, status: newlyAssigned ? "assigned" : "already_assigned" });
             }
           }
           return out;
@@ -524,9 +524,10 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
           if (!ticket) throw new Error("Ticket not found");
           const tag = await getTag(db, proj.id, validPrefix, validValue);
           if (!tag) throw new Error("Tag not found");
-          return removeTag(db, ticket.id, tag.id);
+          const wasRemoved = await removeTag(db, ticket.id, tag.id);
+          return { ticket: ticketTitle, tag: `${validPrefix}:${validValue}`, status: wasRemoved ? "removed" : "was_not_assigned" };
         });
-        return textResult({ removed: result });
+        return textResult(result);
       } catch (err) {
         return errorResult(err);
       }

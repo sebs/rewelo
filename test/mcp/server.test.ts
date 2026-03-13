@@ -97,7 +97,7 @@ describe("MCP server", () => {
       arguments: { project: "Acme", ticket: "T1", prefix: "state", value: "backlog" },
     });
     const assigned = JSON.parse((assignResult.content as any)[0].text);
-    expect(assigned[0].assigned).toBe(true);
+    expect(assigned[0].status).toBe("assigned");
 
     const tagList = await client.callTool({
       name: "tag_list",
@@ -126,8 +126,8 @@ describe("MCP server", () => {
     });
     const out = JSON.parse((result.content as any)[0].text);
     expect(out).toHaveLength(2);
-    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", assigned: true });
-    expect(out[1]).toEqual({ ticket: "T1", tag: "team:backend", assigned: true });
+    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", status: "assigned" });
+    expect(out[1]).toEqual({ ticket: "T1", tag: "team:backend", status: "assigned" });
   });
 
   it("assigns one tag to multiple tickets", async () => {
@@ -145,8 +145,8 @@ describe("MCP server", () => {
     });
     const out = JSON.parse((result.content as any)[0].text);
     expect(out).toHaveLength(2);
-    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", assigned: true });
-    expect(out[1]).toEqual({ ticket: "T2", tag: "state:backlog", assigned: true });
+    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", status: "assigned" });
+    expect(out[1]).toEqual({ ticket: "T2", tag: "state:backlog", status: "assigned" });
   });
 
   it("assigns multiple tags to multiple tickets", async () => {
