@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.5
+
+### Fixes
+
+- use the locl image
+- docker build hanging
+
+### Documentation
+
+- a little more info for the public
+
+### Chores
+
+- remove weird features
+
+### Other
+
+- 0.3.5
+- feauture: initial commit
+
 ## 0.3.3
 
 - Multi-arch Docker builds (linux/amd64, linux/arm64) in release pipeline
