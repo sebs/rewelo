@@ -1,6 +1,23 @@
-FROM node:22-slim
+# ---- builder: install once, build, prune ----
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+COPY scripts/ scripts/
+COPY src/ src/
+COPY tsconfig.json ./
 
 ARG APP_VERSION
+RUN APP_VERSION=${APP_VERSION:-$(node -p "require('./package.json').version")} \
+       node scripts/inject-version.mjs \
+    && npx tsc \
+    && npm prune --omit=dev
+
+# ---- runtime: copy only what's needed ----
+FROM node:22-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
@@ -9,20 +26,9 @@ RUN groupadd -r rw && useradd -r -g rw -d /app -s /sbin/nologin rw
 
 WORKDIR /app
 
-# Install production deps only (gets correct native duckdb for container arch)
-COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
-
-# Copy source and build inside container (bakes version at build time)
-COPY scripts/ scripts/
-COPY src/ src/
-COPY tsconfig.json ./
-RUN --mount=type=cache,target=/root/.npm npm install --include=dev \
-    && APP_VERSION=${APP_VERSION:-$(node -p "require('./package.json').version")} \
-       node scripts/inject-version.mjs \
-    && npx tsc \
-    && npm prune --omit=dev
-
+COPY --from=builder /app/node_modules/ node_modules/
+COPY --from=builder /app/dist/ dist/
+COPY --from=builder /app/package.json ./
 COPY db/ db/
 
 # Create data directory for database persistence
@@ -34,6 +40,7 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=192"
 
 # OCI image label
+ARG APP_VERSION
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 
 # Drop privileges
