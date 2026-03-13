@@ -49,6 +49,7 @@ db/             SQL schema and DBML model
 - Follow existing code patterns (no classes, plain functions, explicit types)
 - Keep commits focused -- one logical change per commit
 - Run `npm test` before submitting a pull request
+- Keep pull requests small and focused -- large PRs will not be reviewed
 
 ## Architecture Decisions
 

@@ -1,5 +1,7 @@
 # Rewelo
 
+> **Warning:** This is experimental software. It comes without support and is not intended for production use.
+
 A prioritization tool that uses the **relative weight** method to rank stories and tickets by different criteria. Built on DuckDB for embedded, zero-dependency data storage, exposed through a CLI or as a Docker-based MCP server.
 
 ## How It Works
