@@ -105,12 +105,25 @@ Score parameters (`benefit`, `penalty`, `estimate`, `risk`) must be Fibonacci va
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
 | `tag_create`      | Create a tag                       | `project`, `prefix`, `value`              |
-| `tag_assign`      | Assign a tag to a ticket           | `project`, `ticket`, `prefix`, `value`    |
+| `tag_assign`      | Assign tags to tickets             | `project`, `ticket?`, `tickets?`, `prefix?`, `value?`, `tags?` |
 | `tag_remove`      | Remove a tag from a ticket         | `project`, `ticket`, `prefix`, `value`    |
 | `tag_list`        | List all tags in a project         | `project`                                 |
 | `tag_rename`      | Rename a tag value (assignments carry over) | `project`, `prefix`, `oldValue`, `newValue` |
 
 Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, `in-progress`).
+
+`tag_assign` supports batch operations. Provide either `ticket` (single) or `tickets` (array) for targets, and either `prefix`+`value` (single tag) or `tags` (array of `{prefix, value}`) for tags. Every tag is assigned to every ticket.
+
+```json
+// single tag, single ticket (backward compatible)
+{ "project": "Acme", "ticket": "Login page", "prefix": "state", "value": "backlog" }
+
+// multiple tags on one ticket
+{ "project": "Acme", "ticket": "Login page", "tags": [{"prefix": "state", "value": "backlog"}, {"prefix": "team", "value": "backend"}] }
+
+// one tag on multiple tickets
+{ "project": "Acme", "tickets": ["Login page", "Signup flow"], "prefix": "state", "value": "done" }
+```
 
 ### Weight Configuration
 

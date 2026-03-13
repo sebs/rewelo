@@ -413,23 +413,30 @@ tagCmd
   });
 
 tagCmd
-  .command("assign <tag>")
-  .description("assign a tag to a ticket")
+  .command("assign <tags...>")
+  .description("assign one or more tags to one or more tickets")
   .requiredOption("--project <name>", "project name")
-  .requiredOption("--ticket <title>", "ticket title")
-  .action(async (tagStr: string, cmdOpts: any, cmd: Command) => {
+  .option("--ticket <title>", "ticket title (repeatable)", (val: string, prev: string[]) => [...prev, val], [] as string[])
+  .action(async (tagStrs: string[], cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    const [rawPrefix, rawValue] = tagStr.split(":");
-    const prefix = validateTagPrefix(rawPrefix || "");
-    const value = validateTagValue(rawValue || "");
+    const tickets: string[] = cmdOpts.ticket;
+    if (tickets.length === 0) { console.error("At least one --ticket is required"); process.exit(1); }
+    const parsedTags = tagStrs.map((s: string) => {
+      const [rawPrefix, rawValue] = s.split(":");
+      return { raw: s, prefix: validateTagPrefix(rawPrefix || ""), value: validateTagValue(rawValue || "") };
+    });
     await withDb(opts, async (db) => {
       const project = await requireProject(db, cmdOpts.project);
-      const ticket = await getTicketByTitle(db, project.id, cmdOpts.ticket);
-      if (!ticket) { console.error(`Ticket "${cmdOpts.ticket}" not found`); process.exit(1); }
-      let tag = await getTag(db, project.id, prefix, value);
-      if (!tag) tag = await createTag(db, project.id, prefix, value);
-      const assigned = await assignTag(db, ticket.id, tag.id);
-      console.log(assigned ? `Assigned "${tagStr}" to "${cmdOpts.ticket}"` : `Tag "${tagStr}" already assigned`);
+      for (const ticketTitle of tickets) {
+        const ticket = await getTicketByTitle(db, project.id, ticketTitle);
+        if (!ticket) { console.error(`Ticket "${ticketTitle}" not found`); process.exit(1); }
+        for (const t of parsedTags) {
+          let tag = await getTag(db, project.id, t.prefix, t.value);
+          if (!tag) tag = await createTag(db, project.id, t.prefix, t.value);
+          const assigned = await assignTag(db, ticket.id, tag.id);
+          console.log(assigned ? `Assigned "${t.raw}" to "${ticketTitle}"` : `Tag "${t.raw}" already assigned to "${ticketTitle}"`);
+        }
+      }
     });
   });
 

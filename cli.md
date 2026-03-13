@@ -68,14 +68,27 @@ Tags use a `prefix:value` format (e.g. `state:wip`, `team:backend`).
 
 ```bash
 rw tag create <prefix:value> --project <name>
-rw tag assign <prefix:value> --project <name> --ticket <title>
+rw tag assign <tags...> --project <name> --ticket <title> [--ticket <title>...]
 rw tag remove <prefix:value> --project <name> --ticket <title>
 rw tag list --project <name>
 rw tag rename --project <name> --prefix <prefix> --old <value> --new <value>
 rw tag log --project <name> --ticket <title>
 ```
 
-`tag assign` auto-creates the tag if it doesn't exist. `tag log` shows the audit trail of tag changes on a ticket.
+`tag assign` auto-creates tags if they don't exist. It accepts multiple tags and multiple `--ticket` flags, assigning every tag to every ticket:
+
+```bash
+# multiple tags on one ticket
+rw tag assign state:backlog priority:p1 --project Acme --ticket "Login page"
+
+# one tag on multiple tickets
+rw tag assign state:done --project Acme --ticket "Login page" --ticket "Signup flow"
+
+# both combined (cross product)
+rw tag assign state:wip team:backend --project Acme --ticket "Login page" --ticket "Signup flow"
+```
+
+`tag log` shows the audit trail of tag changes on a ticket.
 
 ### config
 

@@ -453,27 +453,51 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "tag_assign",
-    "Assign a tag to a ticket",
+    "Assign one or more tags to one or more tickets. Provide either (prefix + value) for a single tag or tags[] for multiple. Provide either ticket for a single ticket or tickets[] for multiple.",
     {
       project: z.string().describe("Project name"),
-      ticket: z.string().describe("Ticket title"),
-      prefix: z.string().describe("Tag prefix"),
-      value: z.string().describe("Tag value"),
+      ticket: z.string().optional().describe("Ticket title (single)"),
+      tickets: z.array(z.string()).optional().describe("Ticket titles (multiple)"),
+      prefix: z.string().optional().describe("Tag prefix (single tag)"),
+      value: z.string().optional().describe("Tag value (single tag)"),
+      tags: z.array(z.object({ prefix: z.string(), value: z.string() })).optional().describe("Multiple tags to assign"),
     },
-    async ({ project, ticket: ticketTitle, prefix, value }) => {
+    async ({ project, ticket: ticketTitle, tickets: ticketTitles, prefix, value, tags: tagList }) => {
       try {
-        const validPrefix = validateTagPrefix(prefix);
-        const validValue = validateTagValue(value);
-        const result = await withDb(async (db) => {
+        // Collect tickets
+        const allTickets: string[] = [];
+        if (ticketTitle) allTickets.push(ticketTitle);
+        if (ticketTitles) allTickets.push(...ticketTitles);
+        if (allTickets.length === 0) throw new Error("Provide ticket or tickets");
+
+        // Collect tags
+        const allTags: { prefix: string; value: string }[] = [];
+        if (prefix && value) allTags.push({ prefix, value });
+        if (tagList) allTags.push(...tagList);
+        if (allTags.length === 0) throw new Error("Provide prefix+value or tags");
+
+        const validatedTags = allTags.map(t => ({
+          prefix: validateTagPrefix(t.prefix),
+          value: validateTagValue(t.value),
+        }));
+
+        const results = await withDb(async (db) => {
           const proj = await getProjectByName(db, project);
           if (!proj) throw new Error("Project not found");
-          const ticket = await getTicketByTitle(db, proj.id, ticketTitle);
-          if (!ticket) throw new Error("Ticket not found");
-          let tag = await getTag(db, proj.id, validPrefix, validValue);
-          if (!tag) tag = await createTag(db, proj.id, validPrefix, validValue);
-          return assignTag(db, ticket.id, tag.id);
+          const out: { ticket: string; tag: string; assigned: boolean }[] = [];
+          for (const title of allTickets) {
+            const ticket = await getTicketByTitle(db, proj.id, title);
+            if (!ticket) throw new Error(`Ticket "${title}" not found`);
+            for (const t of validatedTags) {
+              let tag = await getTag(db, proj.id, t.prefix, t.value);
+              if (!tag) tag = await createTag(db, proj.id, t.prefix, t.value);
+              const assigned = await assignTag(db, ticket.id, tag.id);
+              out.push({ ticket: title, tag: `${t.prefix}:${t.value}`, assigned });
+            }
+          }
+          return out;
         });
-        return textResult({ assigned: result });
+        return textResult(results);
       } catch (err) {
         return errorResult(err);
       }

@@ -97,7 +97,7 @@ describe("MCP server", () => {
       arguments: { project: "Acme", ticket: "T1", prefix: "state", value: "backlog" },
     });
     const assigned = JSON.parse((assignResult.content as any)[0].text);
-    expect(assigned.assigned).toBe(true);
+    expect(assigned[0].assigned).toBe(true);
 
     const tagList = await client.callTool({
       name: "tag_list",
@@ -105,6 +105,86 @@ describe("MCP server", () => {
     });
     const tags = JSON.parse((tagList.content as any)[0].text);
     expect(tags.some((t: any) => t.prefix === "state" && t.value === "backlog")).toBe(true);
+  });
+
+  it("assigns multiple tags to a single ticket", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({
+      name: "ticket_create",
+      arguments: { project: "Acme", title: "T1" },
+    });
+    const result = await client.callTool({
+      name: "tag_assign",
+      arguments: {
+        project: "Acme",
+        ticket: "T1",
+        tags: [
+          { prefix: "state", value: "backlog" },
+          { prefix: "team", value: "backend" },
+        ],
+      },
+    });
+    const out = JSON.parse((result.content as any)[0].text);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", assigned: true });
+    expect(out[1]).toEqual({ ticket: "T1", tag: "team:backend", assigned: true });
+  });
+
+  it("assigns one tag to multiple tickets", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
+    const result = await client.callTool({
+      name: "tag_assign",
+      arguments: {
+        project: "Acme",
+        tickets: ["T1", "T2"],
+        prefix: "state",
+        value: "backlog",
+      },
+    });
+    const out = JSON.parse((result.content as any)[0].text);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", assigned: true });
+    expect(out[1]).toEqual({ ticket: "T2", tag: "state:backlog", assigned: true });
+  });
+
+  it("assigns multiple tags to multiple tickets", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
+    const result = await client.callTool({
+      name: "tag_assign",
+      arguments: {
+        project: "Acme",
+        tickets: ["T1", "T2"],
+        tags: [
+          { prefix: "state", value: "backlog" },
+          { prefix: "team", value: "frontend" },
+        ],
+      },
+    });
+    const out = JSON.parse((result.content as any)[0].text);
+    expect(out).toHaveLength(4);
+  });
+
+  it("rejects tag_assign with no ticket specified", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    const result = await client.callTool({
+      name: "tag_assign",
+      arguments: { project: "Acme", prefix: "state", value: "backlog" },
+    });
+    expect(result.isError).toBe(true);
+  });
+
+  it("rejects tag_assign with no tag specified", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
+    const result = await client.callTool({
+      name: "tag_assign",
+      arguments: { project: "Acme", ticket: "T1" },
+    });
+    expect(result.isError).toBe(true);
   });
 
   it("calculates priorities", async () => {
