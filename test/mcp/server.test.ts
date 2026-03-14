@@ -79,10 +79,10 @@ describe("MCP server", () => {
       name: "ticket_list",
       arguments: { project: "Acme" },
     });
-    const tickets = JSON.parse((listResult.content as any)[0].text);
-    expect(tickets).toHaveLength(1);
-    expect(tickets[0].title).toBe("Login page");
-    expect(tickets[0].priority).toBeCloseTo(1.57, 1);
+    const ticketResult = JSON.parse((listResult.content as any)[0].text);
+    expect(ticketResult.items).toHaveLength(1);
+    expect(ticketResult.items[0].title).toBe("Login page");
+    expect(ticketResult.items[0].priority).toBeCloseTo(1.57, 1);
   });
 
   it("creates and assigns tags", async () => {
@@ -206,6 +206,93 @@ describe("MCP server", () => {
     expect(priorities).toHaveLength(2);
     // A should rank higher
     expect(priorities[0].title).toBe("A");
+  });
+
+  it("filters by multiple tags (intersection)", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T3" } });
+    await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T1", prefix: "state", value: "backlog" } });
+    await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T2", prefix: "state", value: "backlog" } });
+    await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T1", prefix: "team", value: "backend" } });
+
+    // T1 has both tags, T2 only has state:backlog
+    const result = await client.callTool({
+      name: "ticket_list",
+      arguments: { project: "Acme", tags: ["state:backlog", "team:backend"] },
+    });
+    const data = JSON.parse((result.content as any)[0].text);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].title).toBe("T1");
+  });
+
+  it("excludes tickets by tag", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
+    await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T1", prefix: "state", value: "done" } });
+
+    const result = await client.callTool({
+      name: "ticket_list",
+      arguments: { project: "Acme", excludeTags: ["state:done"] },
+    });
+    const data = JSON.parse((result.content as any)[0].text);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].title).toBe("T2");
+  });
+
+  it("searches tickets by title", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "Login page" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "Signup flow" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "Dashboard" } });
+
+    const result = await client.callTool({
+      name: "ticket_list",
+      arguments: { project: "Acme", search: "log" },
+    });
+    const data = JSON.parse((result.content as any)[0].text);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].title).toBe("Login page");
+  });
+
+  it("paginates with limit and offset", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "A", benefit: 13, penalty: 8, estimate: 3, risk: 2 } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "B", benefit: 8, penalty: 5, estimate: 5, risk: 3 } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "C", benefit: 3, penalty: 2, estimate: 8, risk: 5 } });
+
+    const result = await client.callTool({
+      name: "ticket_list",
+      arguments: { project: "Acme", sort: "priority", limit: 2, offset: 0 },
+    });
+    const data = JSON.parse((result.content as any)[0].text);
+    expect(data.total).toBe(3);
+    expect(data.items).toHaveLength(2);
+
+    // Page 2
+    const page2 = await client.callTool({
+      name: "ticket_list",
+      arguments: { project: "Acme", sort: "priority", limit: 2, offset: 2 },
+    });
+    const data2 = JSON.parse((page2.content as any)[0].text);
+    expect(data2.total).toBe(3);
+    expect(data2.items).toHaveLength(1);
+  });
+
+  it("filters by min-priority threshold", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "High", benefit: 13, penalty: 8, estimate: 3, risk: 2 } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "Low", benefit: 1, penalty: 1, estimate: 13, risk: 8 } });
+
+    const result = await client.callTool({
+      name: "ticket_list",
+      arguments: { project: "Acme", minPriority: 2.0 },
+    });
+    const data = JSON.parse((result.content as any)[0].text);
+    expect(data.items).toHaveLength(1);
+    expect(data.items[0].title).toBe("High");
   });
 
   it("returns error for invalid project name", async () => {

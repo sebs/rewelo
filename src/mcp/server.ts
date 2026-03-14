@@ -229,28 +229,59 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "ticket_list",
-    "List tickets in a project. Returns each ticket with its four base scores (benefit, penalty, estimate, risk) plus two calculated fields: value (benefit + penalty) and cost (estimate + risk), and priority (value / cost). Use the sort parameter to answer different questions: sort by 'priority' for best value-per-effort, by 'risk' desc to find items to de-risk first, by 'estimate' to find quick wins, or by 'benefit' to see highest-impact items.",
+    "List tickets in a project with filtering, search, and pagination. Returns each ticket with base scores plus calculated value, cost, and priority. Supports multiple tag filters (intersection), exclude-tags, title search, score thresholds, and limit/offset pagination. Response includes total count for paging.",
     {
       project: z.string().describe("Project name"),
-      tag: z.string().optional().describe("Filter by tag (prefix:value)"),
-      sort: z.string().optional().describe("Sort descending by: priority (value/cost), benefit, penalty, estimate, risk, value (benefit+penalty), cost (estimate+risk)"),
+      tag: z.string().optional().describe("Filter by tag (prefix:value) — single tag, kept for backward compat"),
+      tags: z.array(z.string()).optional().describe("Filter by multiple tags (intersection). Each as prefix:value"),
+      excludeTags: z.array(z.string()).optional().describe("Exclude tickets with these tags. Each as prefix:value"),
+      search: z.string().optional().describe("Filter by title substring (case-insensitive)"),
+      sort: z.string().optional().describe("Sort descending by: priority, benefit, penalty, estimate, risk, value, cost"),
+      limit: z.number().optional().describe("Max number of results to return"),
+      offset: z.number().optional().describe("Skip first N results (for pagination)"),
+      minPriority: z.number().optional().describe("Minimum priority threshold"),
+      minValue: z.number().optional().describe("Minimum value (benefit+penalty) threshold"),
+      maxCost: z.number().optional().describe("Maximum cost (estimate+risk) threshold"),
     },
-    async ({ project, tag, sort }) => {
+    async ({ project, tag, tags: tagFilters, excludeTags, search, sort, limit, offset, minPriority, minValue, maxCost }) => {
       try {
         const result = await withDb(async (db) => {
           const proj = await getProjectByName(db, project);
           if (!proj) throw new Error("Project not found");
           let tickets = await listTickets(db, proj.id);
 
-          if (tag) {
-            const [prefix, value] = tag.split(":");
+          // Collect all include-tag filters
+          const allTags: string[] = [];
+          if (tag) allTags.push(tag);
+          if (tagFilters) allTags.push(...tagFilters);
+
+          for (const tagStr of allTags) {
+            const [prefix, value] = tagStr.split(":");
             const tagObj = await getTag(db, proj.id, prefix, value);
             if (tagObj) {
-              const ids = await listTicketsByTag(db, proj.id, tagObj.id);
-              tickets = tickets.filter((t) => ids.includes(t.id));
+              const ids = new Set(await listTicketsByTag(db, proj.id, tagObj.id));
+              tickets = tickets.filter((t) => ids.has(t.id));
             } else {
               tickets = [];
             }
+          }
+
+          // Exclude-tag filters
+          if (excludeTags) {
+            for (const tagStr of excludeTags) {
+              const [prefix, value] = tagStr.split(":");
+              const tagObj = await getTag(db, proj.id, prefix, value);
+              if (tagObj) {
+                const ids = new Set(await listTicketsByTag(db, proj.id, tagObj.id));
+                tickets = tickets.filter((t) => !ids.has(t.id));
+              }
+            }
+          }
+
+          // Title search
+          if (search) {
+            const needle = search.toLowerCase();
+            tickets = tickets.filter((t) => t.title.toLowerCase().includes(needle));
           }
 
           const enriched = tickets.map((t) => ({
@@ -260,12 +291,24 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
             priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
           }));
 
+          // Score threshold filters
+          let filtered = enriched;
+          if (minPriority != null) filtered = filtered.filter((t) => t.priority >= minPriority);
+          if (minValue != null) filtered = filtered.filter((t) => t.value >= minValue);
+          if (maxCost != null) filtered = filtered.filter((t) => t.cost <= maxCost);
+
           if (sort) {
-            const key = sort as keyof (typeof enriched)[0];
-            enriched.sort((a, b) => (b[key] as number) - (a[key] as number));
+            const key = sort as keyof (typeof filtered)[0];
+            filtered.sort((a, b) => (b[key] as number) - (a[key] as number));
           }
 
-          return enriched;
+          // Pagination
+          const total = filtered.length;
+          const off = offset ?? 0;
+          let page = filtered.slice(off);
+          if (limit != null) page = page.slice(0, limit);
+
+          return { total, offset: off, items: page };
         });
         return textResult(result);
       } catch (err) {

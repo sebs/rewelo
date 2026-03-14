@@ -40,8 +40,10 @@ rw project delete <name> [--force]
 rw ticket create --project <name> --title <title> [--description <text>] \
   [--benefit <n>] [--penalty <n>] [--estimate <n>] [--risk <n>]
 
-rw ticket list --project <name> [--tag <prefix:value>] \
-  [--sort <field>]
+rw ticket list --project <name> [--tag <prefix:value>...] \
+  [--exclude-tag <prefix:value>...] [--search <text>] \
+  [--sort <field>] [--limit <n>] [--offset <n>] \
+  [--min-priority <n>] [--min-value <n>] [--max-cost <n>]
 
 rw ticket update --project <name> --title <title> [--new-title <title>] \
   [--description <text>] [--benefit <n>] [--penalty <n>] \
@@ -60,7 +62,29 @@ Scores use the Fibonacci scale: 1, 2, 3, 5, 8, 13, 21.
 
 Sort fields: `priority`, `value`, `cost`, `benefit`, `penalty`, `estimate`, `risk`.
 
-`ticket list` supports `--csv` output. `ticket history` shows the revision log for a ticket.
+`ticket list` supports filtering, search, pagination, and score thresholds:
+
+```bash
+# multiple tag filters (intersection)
+rw ticket list --project Acme --tag state:backlog --tag team:backend
+
+# exclude done items
+rw ticket list --project Acme --exclude-tag state:done
+
+# search by title
+rw ticket list --project Acme --search "login"
+
+# pagination
+rw ticket list --project Acme --sort priority --limit 20
+rw ticket list --project Acme --sort priority --limit 20 --offset 20
+
+# score thresholds
+rw ticket list --project Acme --min-priority 1.5
+rw ticket list --project Acme --max-cost 5       # quick wins
+rw ticket list --project Acme --min-value 10      # high-value items
+```
+
+JSON output includes `{ total, offset, items }` for pagination. `ticket list` also supports `--csv` output. `ticket history` shows the revision log for a ticket.
 
 ### tag
 

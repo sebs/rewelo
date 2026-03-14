@@ -92,13 +92,23 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data r
 | Tool              | Description                        | Parameters                                                         |
 |-------------------|------------------------------------|--------------------------------------------------------------------|
 | `ticket_create`   | Create a new ticket                | `project`, `title`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
-| `ticket_list`     | List tickets with calculated priority | `project`, `tag?`, `sort?`                                     |
+| `ticket_list`     | List tickets with filtering and pagination | `project`, `tag?`, `tags?`, `excludeTags?`, `search?`, `sort?`, `limit?`, `offset?`, `minPriority?`, `minValue?`, `maxCost?` |
 | `ticket_update`   | Update a ticket                    | `project`, `title`, `newTitle?`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
 | `ticket_upsert`   | Create or update by title (idempotent) | `project`, `title`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
 | `ticket_delete`   | Delete a ticket                    | `project`, `title`                                                |
 | `ticket_history`  | Show revision history              | `project`, `title?`, `id?`                                       |
 
 Score parameters (`benefit`, `penalty`, `estimate`, `risk`) must be Fibonacci values: 1, 2, 3, 5, 8, 13, or 21.
+
+`ticket_list` supports large backlogs with filtering, search, and pagination:
+
+- **Tag intersection**: `tags: ["state:backlog", "team:backend"]` — only tickets matching all tags
+- **Exclude tags**: `excludeTags: ["state:done"]` — hide completed items
+- **Title search**: `search: "login"` — case-insensitive substring match
+- **Score thresholds**: `minPriority`, `minValue`, `maxCost` — filter by calculated fields
+- **Pagination**: `limit` + `offset` — response includes `{ total, offset, items }` for paging
+
+The legacy `tag` parameter (single string) is still supported alongside the new `tags` array.
 
 ### Tags
 

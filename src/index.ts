@@ -238,23 +238,47 @@ ticketCmd
   .command("list")
   .description("list tickets in a project")
   .requiredOption("--project <name>", "project name")
-  .option("--tag <prefix:value>", "filter by tag")
+  .option("--tag <prefix:value>", "filter by tag (repeatable, intersection)", (val: string, prev: string[]) => [...prev, val], [] as string[])
+  .option("--exclude-tag <prefix:value>", "exclude tickets with tag (repeatable)", (val: string, prev: string[]) => [...prev, val], [] as string[])
+  .option("--search <text>", "filter by title substring (case-insensitive)")
   .option("--sort <field>", "sort by: priority, value, cost, benefit, penalty, estimate, risk")
+  .option("--limit <n>", "max number of results", parseInt)
+  .option("--offset <n>", "skip first N results", parseInt, 0)
+  .option("--min-priority <n>", "minimum priority threshold", parseFloat)
+  .option("--min-value <n>", "minimum value (benefit+penalty) threshold", parseFloat)
+  .option("--max-cost <n>", "maximum cost (estimate+risk) threshold", parseFloat)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withDb(opts, async (db) => {
       const project = await requireProject(db, cmdOpts.project);
       let tickets = await listTickets(db, project.id);
 
-      if (cmdOpts.tag) {
-        const [prefix, value] = cmdOpts.tag.split(":");
+      // Tag intersection filter
+      for (const tagStr of (cmdOpts.tag as string[])) {
+        const [prefix, value] = tagStr.split(":");
         const tag = await getTag(db, project.id, prefix, value);
         if (tag) {
-          const ids = await listTicketsByTag(db, project.id, tag.id);
-          tickets = tickets.filter((t) => ids.includes(t.id));
+          const ids = new Set(await listTicketsByTag(db, project.id, tag.id));
+          tickets = tickets.filter((t) => ids.has(t.id));
         } else {
           tickets = [];
         }
+      }
+
+      // Exclude-tag filter
+      for (const tagStr of (cmdOpts.excludeTag as string[])) {
+        const [prefix, value] = tagStr.split(":");
+        const tag = await getTag(db, project.id, prefix, value);
+        if (tag) {
+          const ids = new Set(await listTicketsByTag(db, project.id, tag.id));
+          tickets = tickets.filter((t) => !ids.has(t.id));
+        }
+      }
+
+      // Title search
+      if (cmdOpts.search) {
+        const needle = cmdOpts.search.toLowerCase();
+        tickets = tickets.filter((t) => t.title.toLowerCase().includes(needle));
       }
 
       const enriched = tickets.map((t) => ({
@@ -264,27 +288,40 @@ ticketCmd
         priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
       }));
 
+      // Score threshold filters
+      let filtered = enriched;
+      if (cmdOpts.minPriority != null) filtered = filtered.filter((t) => t.priority >= cmdOpts.minPriority);
+      if (cmdOpts.minValue != null) filtered = filtered.filter((t) => t.value >= cmdOpts.minValue);
+      if (cmdOpts.maxCost != null) filtered = filtered.filter((t) => t.cost <= cmdOpts.maxCost);
+
       if (cmdOpts.sort) {
-        const key = cmdOpts.sort as keyof (typeof enriched)[0];
-        enriched.sort((a, b) => (b[key] as number) - (a[key] as number));
+        const key = cmdOpts.sort as keyof (typeof filtered)[0];
+        filtered.sort((a, b) => (b[key] as number) - (a[key] as number));
       }
 
+      // Pagination
+      const total = filtered.length;
+      const offset = cmdOpts.offset || 0;
+      if (offset > 0) filtered = filtered.slice(offset);
+      if (cmdOpts.limit != null) filtered = filtered.slice(0, cmdOpts.limit);
+
       if (opts.json) {
-        console.log(JSON.stringify(enriched));
+        console.log(JSON.stringify({ total, offset, items: filtered }));
       } else if (opts.quiet) {
-        enriched.forEach((t) => console.log(t.title));
+        filtered.forEach((t) => console.log(t.title));
       } else if (opts.csv) {
         console.log("title,benefit,penalty,estimate,risk,value,cost,priority");
-        enriched.forEach((t) =>
+        filtered.forEach((t) =>
           console.log(`${t.title},${t.benefit},${t.penalty},${t.estimate},${t.risk},${t.value},${t.cost},${t.priority}`)
         );
-      } else if (enriched.length === 0) {
+      } else if (filtered.length === 0) {
         console.log("No tickets found.");
       } else {
+        if (total > filtered.length) console.log(`Showing ${filtered.length} of ${total} tickets\n`);
         console.log(
           formatTable(
             ["Title", "B", "P", "E", "R", "Value", "Cost", "Priority"],
-            enriched.map((t) => [
+            filtered.map((t) => [
               t.title, String(t.benefit), String(t.penalty), String(t.estimate),
               String(t.risk), String(t.value), String(t.cost), t.priority.toFixed(2),
             ])

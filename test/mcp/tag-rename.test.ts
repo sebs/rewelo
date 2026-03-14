@@ -51,8 +51,8 @@ describe("MCP tag rename tool", () => {
       arguments: { project: "Acme", tag: "feature:auth" },
     });
     const tickets = JSON.parse((listResult.content as any)[0].text);
-    expect(tickets).toHaveLength(1);
-    expect(tickets[0].title).toBe("Login page");
+    expect(tickets.items).toHaveLength(1);
+    expect(tickets.items[0].title).toBe("Login page");
 
     // Old tag should return no tickets
     const oldResult = await client.callTool({
@@ -60,7 +60,7 @@ describe("MCP tag rename tool", () => {
       arguments: { project: "Acme", tag: "feature:login" },
     });
     const oldTickets = JSON.parse((oldResult.content as any)[0].text);
-    expect(oldTickets).toHaveLength(0);
+    expect(oldTickets.items).toHaveLength(0);
   });
 
   it("returns error for non-existent tag", async () => {
