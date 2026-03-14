@@ -2,7 +2,7 @@
   "mcpServers": {
     "rewelo": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "rewelo:latest", "serve"]
+      "args": ["run", "--rm", "-v", "rewelo-data:/data", "-i", "rewelo:latest", "serve"]
     }
   }
 }
