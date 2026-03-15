@@ -111,3 +111,4 @@ jobs:
             rewelo-*.tgz
             rewelo-mcp-*-oci.tar.gz
             sbom.json
+            CHANGELOG.md
