@@ -227,6 +227,31 @@ export async function listRelations(
   return result;
 }
 
+export interface ProjectRelationView {
+  id: number;
+  source_id: number;
+  source_title: string;
+  target_id: number;
+  target_title: string;
+  relation_type: string;
+}
+
+export async function listProjectRelations(
+  db: DB,
+  projectId: number
+): Promise<ProjectRelationView[]> {
+  return db.all<ProjectRelationView>(
+    `SELECT r.id, r.source_id, s.title AS source_title,
+            r.target_id, t.title AS target_title, r.relation_type
+     FROM rw.ticket_relations r
+     JOIN rw.tickets s ON s.id = r.source_id
+     JOIN rw.tickets t ON t.id = r.target_id
+     WHERE r.project_id = ?
+     ORDER BY r.created_at`,
+    projectId
+  );
+}
+
 export async function deleteRelationsForTicket(
   db: DB,
   ticketId: number

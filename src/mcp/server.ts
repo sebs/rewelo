@@ -46,6 +46,7 @@ import {
   createRelation,
   removeRelation,
   listRelations,
+  listProjectRelations,
 } from "../relations/repository.js";
 import { getProjectSummary } from "../reports/summary.js";
 import { getBacklogHealth } from "../reports/health.js";
@@ -1046,6 +1047,26 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
           const t = await getTicketByTitle(db, proj.id, ticket);
           if (!t) throw new Error(`Ticket "${ticket}" not found`);
           return listRelations(db, proj.id, t.id);
+        });
+        return textResult(result);
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.tool(
+    "relation_list_all",
+    "List all relations in a project. Returns every relation with source/target ticket IDs, titles, and relation type. Use this instead of calling relation_list per ticket.",
+    {
+      project: z.string().describe("Project name"),
+    },
+    async ({ project }) => {
+      try {
+        const result = await withDb(async (db) => {
+          const proj = await getProjectByName(db, project);
+          if (!proj) throw new Error("Project not found");
+          return listProjectRelations(db, proj.id);
         });
         return textResult(result);
       } catch (err) {
