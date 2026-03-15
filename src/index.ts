@@ -65,7 +65,7 @@ async function withDb<T>(
   opts: { db?: string },
   fn: (db: DB) => Promise<T>
 ): Promise<T> {
-  const dbPath = validateDbPath(opts.db ?? DEFAULT_DB);
+  const dbPath = validateDbPath(opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB);
   const db = await DB.open(dbPath);
   try {
     await migrate(db);
