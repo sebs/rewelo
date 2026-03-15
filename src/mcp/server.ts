@@ -23,10 +23,8 @@ import { createTag, getTag, listTags, renameTag } from "../tags/repository.js";
 import {
   assignTag,
   removeTag,
-  getTicketTags,
   listTicketsByTag,
 } from "../tags/assignment.js";
-import { getTagChangeLog } from "../tags/audit.js";
 import { createRevision, listRevisions, listProjectRevisions } from "../revisions/repository.js";
 import { priority } from "../calculations/priority.js";
 import {
@@ -139,7 +137,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "server_version",
-    "Return the application version. Useful to verify which build is running.",
+    "Return the server version string. Use to verify which build is running.",
     {},
     async () => {
       return textResult({ version: VERSION });
@@ -152,7 +150,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "project_create",
-    "Create a new project",
+    "Create a new project. Name must be unique, alphanumeric with hyphens/underscores.",
     { name: z.string().describe("Project name") },
     async ({ name }) => {
       try {
@@ -165,7 +163,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     }
   );
 
-  server.tool("project_list", "List all projects", {}, async () => {
+  server.tool("project_list", "List all projects with their IDs and creation dates.", {}, async () => {
     try {
       const result = await withDb((db) => listProjects(db));
       return textResult(result);
@@ -176,7 +174,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "project_delete",
-    "Delete a project and all its data",
+    "Delete a project and all its tickets, tags, relations, and history. Irreversible.",
     { name: z.string().describe("Project name") },
     async ({ name }) => {
       try {
@@ -194,7 +192,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "ticket_create",
-    "Create a new ticket. Scores use the Fibonacci scale (1, 2, 3, 5, 8, 13, 21). Benefit and penalty form the value side (why do it), estimate and risk form the cost side (what it takes). Priority = value / cost.",
+    "Create a new ticket with Fibonacci scores (1,2,3,5,8,13,21). Title must be unique per project. Omitted scores default to 1. Priority = (benefit + penalty) / (estimate + risk). Use ticket_upsert instead if the title may already exist.",
     {
       project: z.string().describe("Project name"),
       title: z.string().describe("Ticket title (max 500 chars)"),
@@ -230,7 +228,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "ticket_list",
-    "List tickets in a project with filtering, search, and pagination. Returns each ticket with base scores plus calculated value, cost, and priority. Supports multiple tag filters (intersection), exclude-tags, title search, score thresholds, and limit/offset pagination. Response includes total count for paging.",
+    "List tickets with calculated value, cost, and priority. Supports tag filters (intersection), exclude-tags, title search, score thresholds, sort, and limit/offset pagination. Returns {total, offset, items[]}.",
     {
       project: z.string().describe("Project name"),
       tag: z.string().optional().describe("Filter by tag (prefix:value) — single tag, kept for backward compat"),
@@ -327,7 +325,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "ticket_update",
-    "Update a ticket",
+    "Update a ticket's title, description, or scores. Only provided fields are changed. Identified by current title.",
     {
       project: z.string().describe("Project name"),
       title: z.string().describe("Current ticket title"),
@@ -366,7 +364,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "ticket_upsert",
-    "Create a ticket if it does not exist, or update it if it does. Matches by exact title. Returns the ticket and whether it was 'created' or 'updated'. Useful for idempotent workflows that should not fail on duplicate titles.",
+    "Create or update a ticket matched by exact title. Returns {ticket, action: 'created'|'updated'}. Idempotent — safe to call repeatedly without duplicate errors.",
     {
       project: z.string().describe("Project name"),
       title: z.string().describe("Ticket title (used as the unique key)"),
@@ -404,7 +402,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "ticket_delete",
-    "Delete a ticket",
+    "Delete a ticket and its relations, revisions, and tag assignments. Irreversible.",
     {
       project: z.string().describe("Project name"),
       title: z.string().describe("Ticket title"),
@@ -427,7 +425,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "ticket_history",
-    "Show revision history for a ticket. Provide either title or id to identify the ticket.",
+    "Show revision history for a single ticket. Provide title or id. For project-wide history, use project_history instead.",
     {
       project: z.string().describe("Project name"),
       title: z.string().optional().describe("Ticket title (provide title or id)"),
@@ -454,7 +452,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "project_history",
-    "Show revision history across all tickets in a project, sorted chronologically. Avoids the need to call ticket_history for each ticket individually.",
+    "List revision history across all tickets in a project, newest first. Use instead of calling ticket_history per ticket. Supports since/limit filters.",
     {
       project: z.string().describe("Project name"),
       since: z.string().optional().describe("Only show revisions after this ISO timestamp"),
@@ -480,7 +478,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "tag_create",
-    "Create a tag (prefix:value)",
+    "Create a tag (prefix:value). Required before using tag_assign. Prefix and value must be lowercase alphanumeric/hyphens. Must be unique per project.",
     {
       project: z.string().describe("Project name"),
       prefix: z.string().describe("Tag prefix"),
@@ -504,7 +502,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "tag_assign",
-    "Assign one or more tags to one or more tickets. Provide either (prefix + value) for a single tag or tags[] for multiple. Provide either ticket for a single ticket or tickets[] for multiple.",
+    "Assign existing tags to tickets. Prerequisite: create tags first with tag_create. Supports batch: single or multiple tags × single or multiple tickets in one call.",
     {
       project: z.string().describe("Project name"),
       ticket: z.string().optional().describe("Ticket title (single)"),
@@ -557,7 +555,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "tag_remove",
-    "Remove a tag from a ticket",
+    "Remove a tag assignment from a ticket. The tag itself is not deleted.",
     {
       project: z.string().describe("Project name"),
       ticket: z.string().describe("Ticket title"),
@@ -587,7 +585,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "tag_list",
-    "List all tags in a project",
+    "List all tags defined in a project, sorted by prefix then value.",
     { project: z.string().describe("Project name") },
     async ({ project }) => {
       try {
@@ -605,7 +603,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "tag_rename",
-    "Rename a tag's value. All ticket assignments carry over to the new name. The old tag ceases to exist.",
+    "Rename a tag's value. All ticket assignments carry over. New value must not conflict with an existing tag under the same prefix.",
     {
       project: z.string().describe("Project name"),
       prefix: z.string().describe("Tag prefix"),
@@ -637,7 +635,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "weight_get",
-    "View the current weight configuration for a project. Returns w1-w4 values (defaults are all 1.5).",
+    "Get the weight configuration (w1-w4) for a project. Defaults are all 1.5 if not customized.",
     { project: z.string().describe("Project name") },
     async ({ project }) => {
       try {
@@ -655,7 +653,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "weight_set",
-    "Set weight configuration for a project. Weights must be non-negative numbers. Only provided weights are changed; omitted weights keep their current value.",
+    "Set weight configuration (w1-w4) for a project. Range: 0-100. Only provided weights change; omitted ones keep their current value.",
     {
       project: z.string().describe("Project name"),
       w1: z.number().optional().describe("Benefit weight"),
@@ -687,7 +685,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "weight_reset",
-    "Reset weight configuration for a project back to defaults (all 1.5).",
+    "Reset weight configuration to defaults (all 1.5).",
     { project: z.string().describe("Project name") },
     async ({ project }) => {
       try {
@@ -709,7 +707,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "calc_priority",
-    "Calculate weighted priorities for all tickets. Weights tune how much each factor contributes: w1/w2 scale the value side (benefit/penalty), w3/w4 scale the cost side (estimate/risk). Defaults are all 1.5. Increasing a cost weight (w3/w4) penalises tickets high in that factor. Setting a weight to 0 disables that factor. For 'de-risk first' sorting, use ticket_list with sort='risk' instead — weights cannot invert risk from cost to value.",
+    "Calculate weighted priorities for all tickets, sorted descending. Inline w1-w4 override stored weights for this call only. Returns {title, priority, weighted} per ticket. For de-risk-first ordering, use ticket_list with sort='risk' instead.",
     {
       project: z.string().describe("Project name"),
       w1: z.number().optional().describe("Benefit weight (default 1.5). Higher = benefit matters more in value."),
@@ -746,7 +744,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "calc_weights",
-    "Calculate relative weights for each ticket as a percentage of total value and cost across the project. Useful for understanding how each ticket compares to the whole backlog rather than just its absolute score.",
+    "Calculate each ticket's relative share of total value and cost as percentages. Shows how one ticket compares to the whole backlog.",
     {
       project: z.string().describe("Project name"),
     },
@@ -775,7 +773,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "report_summary",
-    "Project summary: total ticket count, breakdown by state tag, and top-N tickets by priority. Good starting point to understand a project's current status.",
+    "Get project overview: total tickets, breakdown by state tag, and top-N by priority. Good starting point for any project.",
     {
       project: z.string().describe("Project name"),
       topN: z.number().optional().describe("Number of top tickets"),
@@ -796,7 +794,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "report_times",
-    "Lead time (created to done) and cycle time (wip to done) for each ticket, plus average lead time. Requires state tags (state:wip, state:done) to be assigned to tickets.",
+    "Calculate lead time (created→done) and cycle time (wip→done) per ticket, plus averages. Prerequisite: assign state:wip and state:done tags to tickets.",
     { project: z.string().describe("Project name") },
     async ({ project }) => {
       try {
@@ -816,7 +814,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "report_health",
-    "Backlog health: ratio of high-priority to low-priority tickets, total backlog cost, and flags for imbalances. Use to assess whether the backlog needs grooming.",
+    "Assess backlog health: high/low priority ratio, open ticket count, total cost. highToLowRatio is null when all tickets are high priority.",
     {
       project: z.string().describe("Project name"),
       threshold: z.number().optional().describe("High priority threshold"),
@@ -841,7 +839,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "event_log",
-    "Unified chronological event stream for a project. Combines ticket creations, score/title updates, and tag changes into one feed. Use 'since' to poll for new events since the last check. Returns newest events first.",
+    "Get a unified event stream combining ticket creates, updates, and tag changes. Newest first. Use 'since' to poll incrementally.",
     {
       project: z.string().describe("Project name"),
       since: z.string().optional().describe("Only events after this ISO timestamp"),
@@ -863,7 +861,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "project_diff",
-    "Compare the current project state against a point in time. Returns new tickets, score/title changes, and tag changes since the given timestamp. Ideal for standup digests, change reviews, and agent polling loops.",
+    "Compare project state against a point in time. Returns new tickets, score/title changes, and tag changes since the timestamp.",
     {
       project: z.string().describe("Project name"),
       since: z.string().describe("ISO timestamp to diff from (e.g. '2026-03-10T00:00:00Z')"),
@@ -888,7 +886,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "export_csv",
-    "Export project tickets as CSV",
+    "Export all tickets as CSV. Optionally includes calculated value, cost, and priority columns.",
     {
       project: z.string().describe("Project name"),
       withCalculations: z.boolean().optional().describe("Include value/cost/priority columns"),
@@ -909,7 +907,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "export_json",
-    "Export project data as JSON",
+    "Export project tickets, tags, and optionally revision history as JSON. Use for backups of a single project.",
     {
       project: z.string().describe("Project name"),
       withHistory: z.boolean().optional().describe("Include revisions and audit log"),
@@ -930,7 +928,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "import_csv",
-    "Import tickets from CSV data",
+    "Import tickets from CSV string. Only 'title' column is required; missing score columns default to 1. Tags column optional (comma-separated prefix:value).",
     {
       project: z.string().describe("Project name"),
       csv: z.string().describe("CSV content"),
@@ -952,7 +950,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "import_json",
-    "Import project data from JSON",
+    "Import tickets and tags from a JSON object with a 'tickets' array. Tags are auto-created during import.",
     {
       project: z.string().describe("Project name"),
       json: z.string().describe("JSON content"),
@@ -978,7 +976,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "relation_create",
-    "Create a typed, bidirectional relation between two tickets. Valid types: blocks, depends-on, relates-to, duplicates, supersedes, precedes, tests, implements, addresses, splits-into, informs, see-also",
+    "Create a bidirectional relation between two tickets. Types: blocks, depends-on, relates-to, duplicates, supersedes, precedes, tests, implements, addresses, splits-into, informs, see-also.",
     {
       project: z.string().describe("Project name"),
       source: z.string().describe("Source ticket title"),
@@ -1006,7 +1004,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "relation_remove",
-    "Remove a relation between two tickets (removes both directions)",
+    "Remove a relation between two tickets (removes both directions). Errors if the relation does not exist.",
     {
       project: z.string().describe("Project name"),
       source: z.string().describe("Source ticket title"),
@@ -1034,7 +1032,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "relation_list",
-    "List all relations for a ticket",
+    "List relations for a single ticket. For all relations in a project, use relation_list_all instead.",
     {
       project: z.string().describe("Project name"),
       ticket: z.string().describe("Ticket title"),
@@ -1057,7 +1055,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "relation_list_all",
-    "List all relations in a project. Returns every relation with source/target ticket IDs, titles, and relation type. Use this instead of calling relation_list per ticket.",
+    "List every relation in a project in one call. Returns source/target IDs, titles, and relation type. Use instead of calling relation_list per ticket.",
     {
       project: z.string().describe("Project name"),
     },
@@ -1081,7 +1079,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "backup",
-    "Backup all projects, tickets, tags, and weights to JSON",
+    "Export all projects, tickets, tags, relations, and weights as a single JSON backup. Use restore to reimport.",
     {},
     async () => {
       try {
@@ -1095,7 +1093,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   server.tool(
     "restore",
-    "Restore all projects from a backup JSON string. Target database must not contain projects with the same names.",
+    "Restore projects from a backup JSON string. Fails if any project name already exists in the database.",
     {
       json: z.string().describe("Backup JSON content"),
     },

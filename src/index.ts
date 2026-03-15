@@ -23,7 +23,7 @@ import {
 } from "./tags/repository.js";
 import { assignTag, removeTag, getTicketTags, listTicketsByTag } from "./tags/assignment.js";
 import { getTagChangeLog } from "./tags/audit.js";
-import { createRevision, listRevisions } from "./revisions/repository.js";
+import { createRevision, listRevisions, listProjectRevisions } from "./revisions/repository.js";
 import { priority } from "./calculations/priority.js";
 import {
   calculateRelativeWeights,
@@ -49,12 +49,15 @@ import { importCsv } from "./import/csv.js";
 import { importJson } from "./import/json.js";
 import { backup } from "./backup/backup.js";
 import { restore } from "./backup/restore.js";
-import { createRelation, removeRelation, listRelations } from "./relations/repository.js";
+import { createRelation, removeRelation, listRelations, listProjectRelations } from "./relations/repository.js";
 import { getRelationType } from "./relations/types.js";
 import { getProjectSummary } from "./reports/summary.js";
 import { groupByTagPrefix } from "./reports/group.js";
 import { getDistribution } from "./reports/distribution.js";
 import { getBacklogHealth } from "./reports/health.js";
+import { getEventLog } from "./reports/event-log.js";
+import { getProjectDiff } from "./reports/diff.js";
+import { upsertTicket } from "./tickets/repository.js";
 import { validateExportPath } from "./validation/paths.js";
 import { writeFileSync, readFileSync } from "fs";
 import { VERSION } from "./version.generated.js";
@@ -187,6 +190,73 @@ projectCmd
       } else {
         console.error(`Project "${name}" not found`);
         process.exit(1);
+      }
+    });
+  });
+
+projectCmd
+  .command("history")
+  .description("show revision history across all tickets in a project")
+  .requiredOption("--project <name>", "project name")
+  .option("--since <timestamp>", "only show revisions after this ISO timestamp")
+  .option("--limit <n>", "maximum number of revisions", parseInt)
+  .action(async (cmdOpts: any, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    await withDb(opts, async (db) => {
+      const project = await requireProject(db, cmdOpts.project);
+      const revisions = await listProjectRevisions(db, project.id, cmdOpts.since, cmdOpts.limit);
+      if (opts.json) {
+        console.log(JSON.stringify(revisions));
+      } else if (revisions.length === 0) {
+        console.log("No revisions found.");
+      } else {
+        console.log(
+          formatTable(
+            ["Ticket", "Title (at revision)", "B", "P", "E", "R", "Revised At"],
+            revisions.map((r) => [
+              r.ticket_title, r.title, String(r.benefit), String(r.penalty),
+              String(r.estimate), String(r.risk), r.revised_at,
+            ])
+          )
+        );
+      }
+    });
+  });
+
+projectCmd
+  .command("diff")
+  .description("compare project state against a point in time")
+  .requiredOption("--project <name>", "project name")
+  .requiredOption("--since <timestamp>", "ISO timestamp to diff from")
+  .action(async (cmdOpts: any, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    await withDb(opts, async (db) => {
+      const project = await requireProject(db, cmdOpts.project);
+      const diff = await getProjectDiff(db, project.id, cmdOpts.since);
+      if (opts.json) {
+        console.log(JSON.stringify(diff));
+      } else {
+        if (diff.newTickets.length > 0) {
+          console.log(`New tickets (${diff.newTickets.length}):`);
+          diff.newTickets.forEach((t: any) => console.log(`  + ${t.title} (priority: ${t.priority})`));
+        }
+        if (diff.updatedTickets.length > 0) {
+          console.log(`Updated tickets (${diff.updatedTickets.length}):`);
+          diff.updatedTickets.forEach((t: any) => {
+            console.log(`  ~ ${t.title}`);
+            t.changes.forEach((c: any) => console.log(`    ${c.field}: ${c.from} → ${c.to}`));
+          });
+        }
+        if (diff.tagChanges.length > 0) {
+          console.log(`Tag changes (${diff.tagChanges.length}):`);
+          diff.tagChanges.forEach((t: any) => {
+            if (t.added.length > 0) console.log(`  ${t.ticketTitle}: +${t.added.join(", +")}`);
+            if (t.removed.length > 0) console.log(`  ${t.ticketTitle}: -${t.removed.join(", -")}`);
+          });
+        }
+        if (diff.newTickets.length === 0 && diff.updatedTickets.length === 0 && diff.tagChanges.length === 0) {
+          console.log("No changes since " + cmdOpts.since);
+        }
       }
     });
   });
@@ -424,6 +494,44 @@ ticketCmd
     });
   });
 
+ticketCmd
+  .command("upsert")
+  .description("create a ticket if it does not exist, or update it if it does (matched by title)")
+  .requiredOption("--project <name>", "project name")
+  .requiredOption("--title <title>", "ticket title (used as unique key)")
+  .option("--description <text>", "ticket description")
+  .option("--benefit <n>", "benefit score (Fibonacci)", parseInt)
+  .option("--penalty <n>", "penalty score (Fibonacci)", parseInt)
+  .option("--estimate <n>", "estimate score (Fibonacci)", parseInt)
+  .option("--risk <n>", "risk score (Fibonacci)", parseInt)
+  .action(async (cmdOpts: any, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    const validTitle = validateTicketTitle(cmdOpts.title);
+    const validDesc = validateTicketDescription(cmdOpts.description);
+    await withDb(opts, async (db) => {
+      const project = await requireProject(db, cmdOpts.project);
+      const existing = await getTicketByTitle(db, project.id, validTitle);
+      if (existing) {
+        await createRevision(db, existing);
+      }
+      const result = await upsertTicket(db, project.id, validTitle, {
+        description: validDesc,
+        benefit: cmdOpts.benefit,
+        penalty: cmdOpts.penalty,
+        estimate: cmdOpts.estimate,
+        risk: cmdOpts.risk,
+      });
+      if (opts.json) {
+        console.log(JSON.stringify(result));
+      } else {
+        const t = result.ticket;
+        console.log(
+          `${result.action === "created" ? "Created" : "Updated"} ticket "${t.title}" (${t.ticket_uuid}) [B:${t.benefit} P:${t.penalty} E:${t.estimate} R:${t.risk}]`
+        );
+      }
+    });
+  });
+
 // =============================================================================
 //  TAG COMMANDS
 // =============================================================================
@@ -656,6 +764,30 @@ relationCmd
           formatTable(
             ["Type", "Direction", "Ticket"],
             relations.map((r) => [r.relation_type, r.direction, r.ticket_title])
+          )
+        );
+      }
+    });
+  });
+
+relationCmd
+  .command("list-all")
+  .description("list all relations in a project")
+  .requiredOption("--project <name>", "project name")
+  .action(async (cmdOpts: any, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    await withDb(opts, async (db) => {
+      const project = await requireProject(db, cmdOpts.project);
+      const relations = await listProjectRelations(db, project.id);
+      if (opts.json) {
+        console.log(JSON.stringify(relations));
+      } else if (relations.length === 0) {
+        console.log("No relations found.");
+      } else {
+        console.log(
+          formatTable(
+            ["Source", "Type", "Target"],
+            relations.map((r) => [r.source_title, r.relation_type, r.target_title])
           )
         );
       }
@@ -1007,7 +1139,7 @@ reportCmd
         console.log(`Project: ${project.name}`);
         console.log(`Total: ${health.totalTickets} | Done: ${health.doneTickets} | Open: ${health.openTickets}`);
         console.log(`High priority: ${health.highPriorityCount} | Low priority: ${health.lowPriorityCount}`);
-        if (health.highToLowRatio !== undefined) {
+        if (health.highToLowRatio !== null) {
           console.log(`High:Low ratio: ${health.highToLowRatio}`);
         }
         console.log(`Total backlog cost: ${health.totalBacklogCost}`);
@@ -1042,6 +1174,30 @@ reportCmd
         });
         console.log(formatTable(["Title", "Lead Time", "Cycle Time"], rows));
         if (avg !== undefined) console.log(`\nAverage lead time: ${avg}d`);
+      }
+    });
+  });
+
+reportCmd
+  .command("event-log")
+  .description("unified chronological event stream for a project")
+  .requiredOption("--project <name>", "project name")
+  .option("--since <timestamp>", "only events after this ISO timestamp")
+  .option("--limit <n>", "maximum number of events", parseInt, 50)
+  .action(async (cmdOpts: any, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    await withDb(opts, async (db) => {
+      const project = await requireProject(db, cmdOpts.project);
+      const events = await getEventLog(db, project.id, cmdOpts.since, cmdOpts.limit);
+      if (opts.json) {
+        console.log(JSON.stringify(events));
+      } else if (events.length === 0) {
+        console.log("No events found.");
+      } else {
+        for (const e of events) {
+          const detail = typeof e.detail === "object" ? JSON.stringify(e.detail) : String(e.detail);
+          console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${e.ticketTitle}  ${detail}`);
+        }
       }
     });
   });
