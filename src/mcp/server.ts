@@ -298,15 +298,22 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
           if (maxCost != null) filtered = filtered.filter((t) => t.cost <= maxCost);
 
           if (sort) {
+            const validSortFields = ["priority", "benefit", "penalty", "estimate", "risk", "value", "cost"];
+            if (!validSortFields.includes(sort)) {
+              throw new Error(`Invalid sort field "${sort}". Valid fields: ${validSortFields.join(", ")}`);
+            }
             const key = sort as keyof (typeof filtered)[0];
             filtered.sort((a, b) => (b[key] as number) - (a[key] as number));
           }
 
           // Pagination
           const total = filtered.length;
-          const off = offset ?? 0;
+          const off = Math.max(0, offset ?? 0);
           let page = filtered.slice(off);
-          if (limit != null) page = page.slice(0, limit);
+          if (limit != null) {
+            if (limit < 0) throw new Error("limit must be a non-negative number");
+            page = page.slice(0, limit);
+          }
 
           return { total, offset: off, items: page };
         });
@@ -532,8 +539,8 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
             const ticket = await getTicketByTitle(db, proj.id, title);
             if (!ticket) throw new Error(`Ticket "${title}" not found`);
             for (const t of validatedTags) {
-              let tag = await getTag(db, proj.id, t.prefix, t.value);
-              if (!tag) tag = await createTag(db, proj.id, t.prefix, t.value);
+              const tag = await getTag(db, proj.id, t.prefix, t.value);
+              if (!tag) throw new Error(`Tag "${t.prefix}:${t.value}" not found. Create it first with tag_create.`);
               const newlyAssigned = await assignTag(db, ticket.id, tag.id);
               out.push({ ticket: title, tag: `${t.prefix}:${t.value}`, status: newlyAssigned ? "assigned" : "already_assigned" });
             }

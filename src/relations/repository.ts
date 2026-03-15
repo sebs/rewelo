@@ -110,6 +110,19 @@ export async function removeRelation(
     normTarget = sourceId;
   }
 
+  // Check if the relation exists
+  const existing = await db.all<Relation>(
+    `SELECT * FROM rw.ticket_relations
+     WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
+    projectId,
+    normSource,
+    normTarget,
+    relationType
+  );
+  if (existing.length === 0) {
+    throw new ValidationError("Relation not found");
+  }
+
   // Delete forward
   await db.run(
     `DELETE FROM rw.ticket_relations

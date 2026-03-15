@@ -72,10 +72,15 @@ export async function resetWeights(
   return { project_id: projectId, ...DEFAULTS };
 }
 
+const MAX_WEIGHT = 100;
+
 function validateWeights(w1: number, w2: number, w3: number, w4: number): void {
   for (const [name, val] of [["w1", w1], ["w2", w2], ["w3", w3], ["w4", w4]] as const) {
     if (typeof val !== "number" || val < 0) {
       throw new Error(`Weight ${name} must be a non-negative number`);
+    }
+    if (val > MAX_WEIGHT) {
+      throw new Error(`Weight ${name} must not exceed ${MAX_WEIGHT}`);
     }
   }
 }

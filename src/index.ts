@@ -414,7 +414,9 @@ ticketCmd
             ["#", "Title", "B", "P", "E", "R", "Tags", "Revised At"],
             revisions.map((r, i) => [
               String(i + 1), r.title, String(r.benefit), String(r.penalty),
-              String(r.estimate), String(r.risk), r.tags, r.revised_at,
+              String(r.estimate), String(r.risk),
+              Array.isArray(r.tags) ? r.tags.map((t) => `${t.prefix}:${t.value}`).join(", ") : String(r.tags),
+              r.revised_at,
             ])
           )
         );

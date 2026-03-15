@@ -65,11 +65,19 @@ Bad,4,3,5,2`;
     await expect(importCsv(db, projectId, csv)).rejects.toThrow("Row 3");
   });
 
-  it("rejects CSV missing required columns", async () => {
+  it("imports CSV with only title and partial scores (defaults to 1)", async () => {
     const csv = `title,benefit
 Login,8`;
 
-    await expect(importCsv(db, projectId, csv)).rejects.toThrow("Missing required CSV column");
+    const result = await importCsv(db, projectId, csv);
+    expect(result.imported).toBe(1);
+  });
+
+  it("rejects CSV missing title column", async () => {
+    const csv = `benefit,penalty
+8,3`;
+
+    await expect(importCsv(db, projectId, csv)).rejects.toThrow("Missing required CSV column: title");
   });
 
   it("rejects empty CSV", async () => {

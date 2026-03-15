@@ -59,6 +59,6 @@ describe("backlog health report", () => {
   it("highToLowRatio is undefined when no low priority tickets", async () => {
     await createTicket(db, { projectId, title: "High", benefit: 13, penalty: 8, estimate: 1, risk: 1 });
     const health = await getBacklogHealth(db, projectId);
-    expect(health.highToLowRatio).toBeUndefined();
+    expect(health.highToLowRatio).toBeNull();
   });
 });

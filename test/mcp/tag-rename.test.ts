@@ -32,6 +32,10 @@ describe("MCP tag rename tool", () => {
   it("renames a tag and carries over assignments", async () => {
     // Create and assign original tag
     await client.callTool({
+      name: "tag_create",
+      arguments: { project: "Acme", prefix: "feature", value: "login" },
+    });
+    await client.callTool({
       name: "tag_assign",
       arguments: { project: "Acme", ticket: "Login page", prefix: "feature", value: "login" },
     });

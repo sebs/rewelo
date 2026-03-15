@@ -91,6 +91,10 @@ describe("MCP server", () => {
       name: "ticket_create",
       arguments: { project: "Acme", title: "T1" },
     });
+    await client.callTool({
+      name: "tag_create",
+      arguments: { project: "Acme", prefix: "state", value: "backlog" },
+    });
 
     const assignResult = await client.callTool({
       name: "tag_assign",
@@ -113,6 +117,8 @@ describe("MCP server", () => {
       name: "ticket_create",
       arguments: { project: "Acme", title: "T1" },
     });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "state", value: "backlog" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "team", value: "backend" } });
     const result = await client.callTool({
       name: "tag_assign",
       arguments: {
@@ -134,6 +140,7 @@ describe("MCP server", () => {
     await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "state", value: "backlog" } });
     const result = await client.callTool({
       name: "tag_assign",
       arguments: {
@@ -153,6 +160,8 @@ describe("MCP server", () => {
     await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "state", value: "backlog" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "team", value: "frontend" } });
     const result = await client.callTool({
       name: "tag_assign",
       arguments: {
@@ -213,6 +222,8 @@ describe("MCP server", () => {
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T3" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "state", value: "backlog" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "team", value: "backend" } });
     await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T1", prefix: "state", value: "backlog" } });
     await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T2", prefix: "state", value: "backlog" } });
     await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T1", prefix: "team", value: "backend" } });
@@ -231,6 +242,7 @@ describe("MCP server", () => {
     await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T1" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "T2" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Acme", prefix: "state", value: "done" } });
     await client.callTool({ name: "tag_assign", arguments: { project: "Acme", ticket: "T1", prefix: "state", value: "done" } });
 
     const result = await client.callTool({

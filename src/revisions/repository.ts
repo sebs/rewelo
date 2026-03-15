@@ -2,7 +2,7 @@ import { DB } from "../db/connection.js";
 import { Ticket } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
 
-export interface TicketRevision {
+export interface TicketRevisionRaw {
   id: number;
   ticket_id: number;
   title: string;
@@ -13,6 +13,29 @@ export interface TicketRevision {
   risk: number;
   tags: string;
   revised_at: string;
+}
+
+export interface TicketRevision {
+  id: number;
+  ticket_id: number;
+  title: string;
+  description: string | null;
+  benefit: number;
+  penalty: number;
+  estimate: number;
+  risk: number;
+  tags: Array<{ prefix: string; value: string }>;
+  revised_at: string;
+}
+
+function parseRevisionTags(raw: TicketRevisionRaw): TicketRevision {
+  let tags: Array<{ prefix: string; value: string }> = [];
+  try {
+    tags = typeof raw.tags === "string" ? JSON.parse(raw.tags) : raw.tags;
+  } catch {
+    tags = [];
+  }
+  return { ...raw, tags };
 }
 
 export async function createRevision(
@@ -42,10 +65,11 @@ export async function listRevisions(
   db: DB,
   ticketId: number
 ): Promise<TicketRevision[]> {
-  return db.all<TicketRevision>(
+  const rows = await db.all<TicketRevisionRaw>(
     `SELECT * FROM rw.ticket_revisions WHERE ticket_id = ? ORDER BY revised_at, id`,
     ticketId
   );
+  return rows.map(parseRevisionTags);
 }
 
 export async function listProjectRevisions(
@@ -72,5 +96,9 @@ export async function listProjectRevisions(
     params.push(limit);
   }
 
-  return db.all<TicketRevision & { ticket_title: string }>(sql, ...params);
+  const rows = await db.all<TicketRevisionRaw & { ticket_title: string }>(sql, ...params);
+  return rows.map((row) => ({
+    ...parseRevisionTags(row),
+    ticket_title: row.ticket_title,
+  }));
 }

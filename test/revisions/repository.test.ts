@@ -51,8 +51,7 @@ describe("ticket revisions", () => {
     await createRevision(db, ticket);
 
     const revisions = await listRevisions(db, ticket.id);
-    const tags = JSON.parse(revisions[0].tags);
-    expect(tags).toEqual([{ prefix: "state", value: "backlog" }]);
+    expect(revisions[0].tags).toEqual([{ prefix: "state", value: "backlog" }]);
   });
 
   it("creates multiple revisions in order", async () => {

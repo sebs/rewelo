@@ -95,6 +95,7 @@ export async function restore(db: DB, json: string): Promise<RestoreResult> {
   const data = validateBackupData(parsed);
 
   let totalTickets = 0;
+  let totalTags = 0;
 
   for (const proj of data.projects) {
     const existing = await getProjectByName(db, proj.name);
@@ -106,6 +107,7 @@ export async function restore(db: DB, json: string): Promise<RestoreResult> {
 
     const result = await importProjectData(db, project.id, proj.tickets, proj.tags);
     totalTickets += result.imported;
+    totalTags += result.tagsCreated;
 
     if (proj.weights) {
       await setWeights(db, project.id, proj.weights.w1, proj.weights.w2, proj.weights.w3, proj.weights.w4);
@@ -115,6 +117,6 @@ export async function restore(db: DB, json: string): Promise<RestoreResult> {
   return {
     projects: data.projects.length,
     tickets: totalTickets,
-    tags: data.projects.reduce((sum, p) => sum + p.tags.length, 0),
+    tags: totalTags,
   };
 }

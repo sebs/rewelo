@@ -56,11 +56,8 @@ function parseRows(csv: string): CsvRow[] {
   if (lines.length === 0) throw new ValidationError("CSV is empty");
 
   const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
-  const required = ["title", "benefit", "penalty", "estimate", "risk"];
-  for (const r of required) {
-    if (!headers.includes(r)) {
-      throw new ValidationError(`Missing required CSV column: ${r}`);
-    }
+  if (!headers.includes("title")) {
+    throw new ValidationError("Missing required CSV column: title");
   }
 
   if (lines.length - 1 > MAX_ROWS) {
@@ -75,10 +72,10 @@ function parseRows(csv: string): CsvRow[] {
       row[h] = fields[idx]?.trim() ?? "";
     });
 
-    const benefit = parseInt(row.benefit, 10);
-    const penalty = parseInt(row.penalty, 10);
-    const estimate = parseInt(row.estimate, 10);
-    const risk = parseInt(row.risk, 10);
+    const benefit = row.benefit ? parseInt(row.benefit, 10) : 1;
+    const penalty = row.penalty ? parseInt(row.penalty, 10) : 1;
+    const estimate = row.estimate ? parseInt(row.estimate, 10) : 1;
+    const risk = row.risk ? parseInt(row.risk, 10) : 1;
 
     try {
       assertFibonacci(benefit, "benefit");

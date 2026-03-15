@@ -2,6 +2,7 @@ import { DB } from "../db/connection.js";
 
 interface TimeResult {
   ticketId: number;
+  ticketTitle: string;
   leadTimeDays: number | undefined;
   cycleTimeDays: number | undefined;
 }
@@ -17,8 +18,8 @@ export async function getTicketTimes(
   db: DB,
   ticketId: number
 ): Promise<TimeResult> {
-  const ticket = await db.all<{ created_at: string }>(
-    `SELECT created_at FROM rw.tickets WHERE id = ?`,
+  const ticket = await db.all<{ created_at: string; title: string }>(
+    `SELECT created_at, title FROM rw.tickets WHERE id = ?`,
     ticketId
   );
   if (ticket.length === 0) throw new Error("Ticket not found");
@@ -50,6 +51,7 @@ export async function getTicketTimes(
 
   return {
     ticketId,
+    ticketTitle: ticket[0].title,
     leadTimeDays: doneAt ? daysBetween(createdAt, doneAt) : undefined,
     cycleTimeDays: wipAt && doneAt ? daysBetween(wipAt, doneAt) : undefined,
   };

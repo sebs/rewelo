@@ -19,12 +19,17 @@ export async function importProjectData(
   projectId: number,
   tickets: ImportableTicket[],
   projectTags?: TagPair[]
-): Promise<{ imported: number }> {
+): Promise<{ imported: number; tagsCreated: number }> {
+  let tagsCreated = 0;
+
   // Pre-create any project-level tags
   if (projectTags) {
     for (const tagDef of projectTags) {
       const existing = await getTag(db, projectId, tagDef.prefix, tagDef.value);
-      if (!existing) await createTag(db, projectId, tagDef.prefix, tagDef.value);
+      if (!existing) {
+        await createTag(db, projectId, tagDef.prefix, tagDef.value);
+        tagsCreated++;
+      }
     }
   }
 
@@ -42,11 +47,14 @@ export async function importProjectData(
     if (t.tags) {
       for (const tagDef of t.tags) {
         let tag = await getTag(db, projectId, tagDef.prefix, tagDef.value);
-        if (!tag) tag = await createTag(db, projectId, tagDef.prefix, tagDef.value);
+        if (!tag) {
+          tag = await createTag(db, projectId, tagDef.prefix, tagDef.value);
+          tagsCreated++;
+        }
         await assignTag(db, ticket.id, tag.id);
       }
     }
   }
 
-  return { imported: tickets.length };
+  return { imported: tickets.length, tagsCreated };
 }

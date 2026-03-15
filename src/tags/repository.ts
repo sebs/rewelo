@@ -1,4 +1,5 @@
 import { DB } from "../db/connection.js";
+import { ValidationError } from "../validation/strings.js";
 
 export interface Tag {
   id: number;
@@ -15,6 +16,11 @@ export async function createTag(
   prefix: string,
   value: string
 ): Promise<Tag> {
+  const existing = await getTag(db, projectId, prefix, value);
+  if (existing) {
+    throw new ValidationError(`Tag "${prefix}:${value}" already exists`);
+  }
+
   const rows = await db.all<Tag>(
     `INSERT INTO rw.tags (project_id, prefix, value) VALUES (?, ?, ?) RETURNING *`,
     projectId,
@@ -68,6 +74,11 @@ export async function renameTag(
 ): Promise<Tag> {
   const current = await getTagById(db, projectId, tagId);
   if (!current) throw new Error("Tag not found");
+
+  const conflict = await getTag(db, projectId, newPrefix, newValue);
+  if (conflict) {
+    throw new ValidationError(`Tag "${newPrefix}:${newValue}" already exists`);
+  }
 
   // Snapshot before change
   await db.run(

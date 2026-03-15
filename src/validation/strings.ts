@@ -52,6 +52,9 @@ export function validateTicketTitle(title: string): string {
   if (hasNullBytes(title)) {
     throw new ValidationError("Ticket title must not contain null bytes");
   }
+  if (/[\n\r]/.test(title)) {
+    throw new ValidationError("Ticket title must not contain newline characters");
+  }
   const normalized = normalize(title.trim());
   if (normalized.length > MAX_TICKET_TITLE) {
     throw new ValidationError(

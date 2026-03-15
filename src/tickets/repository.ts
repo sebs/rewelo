@@ -1,5 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Fibonacci, assertFibonacci } from "../db/types.js";
+import { ValidationError } from "../validation/strings.js";
 
 export interface Ticket {
   id: number;
@@ -51,6 +52,11 @@ export async function createTicket(
   input: CreateTicketInput
 ): Promise<Ticket> {
   validateScores(input);
+
+  const existing = await getTicketByTitle(db, input.projectId, input.title);
+  if (existing) {
+    throw new ValidationError(`A ticket with title "${input.title}" already exists in this project`);
+  }
 
   const rows = await db.all<Ticket>(
     `INSERT INTO rw.tickets (project_id, title, description, benefit, penalty, estimate, risk)

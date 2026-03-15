@@ -9,7 +9,7 @@ export interface BacklogHealth {
   openTickets: number;
   highPriorityCount: number;
   lowPriorityCount: number;
-  highToLowRatio: number | undefined;
+  highToLowRatio: number | null;
   totalBacklogCost: number;
 }
 
@@ -48,7 +48,7 @@ export async function getBacklogHealth(
     openTickets: tickets.length - doneCount,
     highPriorityCount: highCount,
     lowPriorityCount: lowCount,
-    highToLowRatio: lowCount > 0 ? Math.round((highCount / lowCount) * 100) / 100 : undefined,
+    highToLowRatio: lowCount > 0 ? Math.round((highCount / lowCount) * 100) / 100 : null,
     totalBacklogCost: backlogCost,
   };
 }
