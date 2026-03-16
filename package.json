@@ -1,6 +1,6 @@
 {
   "name": "rewelo",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "description": "Prioritisation tool using the relative weight method with DuckDB",
   "main": "dist/index.js",
   "bin": {
