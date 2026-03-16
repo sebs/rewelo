@@ -4,6 +4,10 @@
 
 A prioritization tool that uses the **relative weight** method to rank stories and tickets by different criteria. Built on DuckDB for embedded, zero-dependency data storage, exposed through a CLI or as a Docker-based MCP server.
 
+* [Blogpost](https://dev.to/sebs/i-was-so-angry-i-actually-shipped-it-2m19)
+* [Initial Idea](https://dev.to/sebs/i-was-so-angry-i-built-my-own-4mj1)
+
+
 ## How It Works
 
 Each ticket is scored on four dimensions using the agile Fibonacci scale (1, 2, 3, 5, 8, 13, 21):
