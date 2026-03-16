@@ -131,3 +131,7 @@ Use a named volume (`rw-data`) or a bind mount to persist the database across co
 ## MCP Server
 
 The CLI doubles as an MCP server over stdio, letting AI assistants manage projects, tickets, tags, and calculations directly. See [mcp.md](mcp.md) for client configuration, available tools, and troubleshooting.
+
+## Examples
+
+See [examples.md](examples.md) for step-by-step usage examples with copy-pasteable prompts for Claude Code, covering CSV import, dependency mapping, and priority calculation with custom weights.
