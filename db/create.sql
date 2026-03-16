@@ -145,6 +145,28 @@ CREATE TABLE rw.ticket_relations (
     UNIQUE (project_id, source_id, target_id, relation_type)
 );
 
+-- =============================================================================
+--  9. AUTH TOKENS (bearer tokens with optional project scoping + expiry)
+-- =============================================================================
+
+CREATE SEQUENCE rw.tokens_id_seq;
+
+CREATE TABLE rw.tokens (
+    id          INTEGER PRIMARY KEY DEFAULT nextval('rw.tokens_id_seq'),
+    token_hash  TEXT NOT NULL UNIQUE,
+    label       TEXT NOT NULL UNIQUE,
+    readonly    BOOLEAN NOT NULL DEFAULT false,
+    expires_at  TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE rw.token_projects (
+    token_id    INTEGER NOT NULL,
+    project_id  INTEGER NOT NULL,
+
+    PRIMARY KEY (token_id, project_id)
+);
+
 -- #############################################################################
 -- #  End of Schema Definition
 -- #############################################################################

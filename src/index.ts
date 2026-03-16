@@ -42,7 +42,7 @@ import {
 } from "./validation/strings.js";
 import { validateDbPath } from "./validation/paths.js";
 import { sanitizeError } from "./validation/errors.js";
-import { startMcpServer } from "./mcp/server.js";
+import { startMcpServer, startHttpServer } from "./mcp/server.js";
 import { exportCsv } from "./export/csv.js";
 import { exportJson } from "./export/json.js";
 import { importCsv } from "./import/csv.js";
@@ -57,6 +57,7 @@ import { getDistribution } from "./reports/distribution.js";
 import { getBacklogHealth } from "./reports/health.js";
 import { getEventLog } from "./reports/event-log.js";
 import { getProjectDiff } from "./reports/diff.js";
+import { createToken, listTokens, revokeToken } from "./auth/repository.js";
 import { upsertTicket } from "./tickets/repository.js";
 import { validateExportPath } from "./validation/paths.js";
 import { writeFileSync, readFileSync } from "fs";
@@ -1239,16 +1240,123 @@ program
   });
 
 // =============================================================================
+//  TOKEN COMMANDS
+// =============================================================================
+
+const tokenCmd = program.command("token").description("manage auth tokens");
+
+tokenCmd
+  .command("create")
+  .description("create a new bearer token")
+  .requiredOption("--label <label>", "human-readable name for the token")
+  .option("--project <names...>", "restrict to specific projects (omit for all)")
+  .option("--readonly", "read-only access", false)
+  .option("--expires <days>", "expire after N days")
+  .action(async (_opts: unknown, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    const dbPath = opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB;
+    const db = await DB.open(dbPath);
+    try {
+      await migrate(db);
+
+      // Resolve project names to IDs
+      let projectIds: number[] | undefined;
+      if (opts.project) {
+        projectIds = [];
+        for (const name of opts.project) {
+          const p = await getProjectByName(db, name);
+          if (!p) {
+            console.error(`Project not found: ${name}`);
+            process.exit(1);
+          }
+          projectIds.push(p.id);
+        }
+      }
+
+      const raw = await createToken(db, opts.label, {
+        readonly: opts.readonly,
+        projectIds,
+        expiresInDays: opts.expires ? parseInt(opts.expires, 10) : undefined,
+      });
+
+      console.log(`Token created. Store it securely — it will not be shown again:\n`);
+      console.log(`  ${raw}\n`);
+      if (opts.readonly) console.log("  Scope: read-only");
+      if (opts.project) console.log(`  Projects: ${opts.project.join(", ")}`);
+      if (opts.expires) console.log(`  Expires in: ${opts.expires} days`);
+    } finally {
+      await db.close();
+    }
+  });
+
+tokenCmd
+  .command("list")
+  .description("list all tokens")
+  .action(async (_opts: unknown, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    const dbPath = opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB;
+    const db = await DB.open(dbPath);
+    try {
+      await migrate(db);
+      const tokens = await listTokens(db);
+      if (tokens.length === 0) {
+        console.log("No tokens configured.");
+        return;
+      }
+      for (const t of tokens) {
+        const scope = t.projects.length > 0 ? t.projects.join(", ") : "all projects";
+        const ro = t.readonly ? " (read-only)" : "";
+        const exp = t.expires_at ? ` expires ${t.expires_at}` : "";
+        console.log(`  ${t.label} → ${scope}${ro}${exp}  [created ${t.created_at}]`);
+      }
+    } finally {
+      await db.close();
+    }
+  });
+
+tokenCmd
+  .command("revoke <label>")
+  .description("revoke a token by label")
+  .action(async (label: string, _opts: unknown, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    const dbPath = opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB;
+    const db = await DB.open(dbPath);
+    try {
+      await migrate(db);
+      const ok = await revokeToken(db, label);
+      if (ok) {
+        console.log(`Revoked token "${label}"`);
+      } else {
+        console.error(`Token "${label}" not found`);
+        process.exit(1);
+      }
+    } finally {
+      await db.close();
+    }
+  });
+
+// =============================================================================
 //  MCP SERVER COMMAND
 // =============================================================================
 
 program
   .command("serve")
-  .description("start MCP server (stdio transport)")
+  .description("start MCP server (stdio transport for CLI-based clients)")
   .action(async (_opts: unknown, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     const dbPath = opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB;
     await startMcpServer(dbPath);
+  });
+
+program
+  .command("server")
+  .description("start HTTP server with MCP endpoint + dashboard UI")
+  .option("-p, --port <port>", "port to listen on", "3000")
+  .action(async (_opts: unknown, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    const dbPath = opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB;
+    const port = parseInt(opts.port ?? "3000", 10);
+    await startHttpServer(dbPath, port);
   });
 
 program.parseAsync().catch((err) => {
