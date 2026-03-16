@@ -19,7 +19,6 @@ export async function migrate(db: DB): Promise<void> {
 
   // Incremental migrations for tables added after initial release
   await migrateTicketRelations(db);
-  await migrateTokens(db);
 }
 
 async function migrateTicketRelations(db: DB): Promise<void> {
@@ -40,33 +39,6 @@ async function migrateTicketRelations(db: DB): Promise<void> {
         created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
 
         UNIQUE (project_id, source_id, target_id, relation_type)
-    );
-  `);
-}
-
-async function migrateTokens(db: DB): Promise<void> {
-  const tables = await db.all(
-    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'rw' AND table_name = 'tokens'"
-  );
-  if (tables.length > 0) return;
-
-  await db.exec(`
-    CREATE SEQUENCE IF NOT EXISTS rw.tokens_id_seq;
-
-    CREATE TABLE rw.tokens (
-        id          INTEGER PRIMARY KEY DEFAULT nextval('rw.tokens_id_seq'),
-        token_hash  TEXT NOT NULL UNIQUE,
-        label       TEXT NOT NULL UNIQUE,
-        readonly    BOOLEAN NOT NULL DEFAULT false,
-        expires_at  TIMESTAMPTZ,
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-
-    CREATE TABLE rw.token_projects (
-        token_id    INTEGER NOT NULL,
-        project_id  INTEGER NOT NULL,
-
-        PRIMARY KEY (token_id, project_id)
     );
   `);
 }

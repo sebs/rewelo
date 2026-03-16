@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "rewelo": {
-      "type": "streamable-http",
-      "url": "http://localhost:3000/mcp"
+      "command": "docker",
+      "args": ["run", "--rm", "-v", "rewelo-data:/data", "-i", "rewelo-mcp:0.3.11", "serve"]
     }
   }
 }

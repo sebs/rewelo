@@ -46,12 +46,9 @@ LABEL org.opencontainers.image.version="${APP_VERSION}"
 # Drop privileges
 USER rw
 
-# Expose HTTP port for MCP + dashboard
-EXPOSE 3000
-
-# Default: HTTP server mode (MCP + dashboard)
+# Default: CLI mode
 ENTRYPOINT ["node", "dist/index.js"]
-CMD ["server", "--port", "3000"]
+CMD ["--help"]
 
 # Volume for database persistence
 VOLUME ["/data"]
