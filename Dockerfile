@@ -37,7 +37,7 @@ RUN mkdir -p /data && chown rw:rw /data
 # Environment
 ENV RW_DB_PATH=/data/relative-weight.duckdb
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=192"
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
 # OCI image label
 ARG APP_VERSION
