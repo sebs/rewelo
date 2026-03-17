@@ -7,6 +7,7 @@ import {
   listProjects,
   deleteProject,
   getProjectByName,
+  Project,
 } from "./projects/repository.js";
 import {
   createTicket,
@@ -21,9 +22,9 @@ import {
   listTags,
   renameTag,
 } from "./tags/repository.js";
-import { assignTag, removeTag, getTicketTags, listTicketsByTag } from "./tags/assignment.js";
+import { assignTag, removeTag, listTicketsByTag } from "./tags/assignment.js";
 import { getTagChangeLog } from "./tags/audit.js";
-import { createRevision, listRevisions, listProjectRevisions } from "./revisions/repository.js";
+import { listRevisions, listProjectRevisions } from "./revisions/repository.js";
 import { priority } from "./calculations/priority.js";
 import {
   calculateRelativeWeights,
@@ -40,7 +41,7 @@ import {
   validateTagValue,
   ValidationError,
 } from "./validation/strings.js";
-import { validateDbPath } from "./validation/paths.js";
+import { validateDbPath, validateExportPath } from "./validation/paths.js";
 import { sanitizeError } from "./validation/errors.js";
 import { startMcpServer } from "./mcp/server.js";
 import { exportCsv } from "./export/csv.js";
@@ -57,9 +58,7 @@ import { getDistribution } from "./reports/distribution.js";
 import { getBacklogHealth } from "./reports/health.js";
 import { getEventLog } from "./reports/event-log.js";
 import { getProjectDiff } from "./reports/diff.js";
-
 import { upsertTicket } from "./tickets/repository.js";
-import { validateExportPath } from "./validation/paths.js";
 import { writeFileSync, readFileSync } from "fs";
 import { VERSION } from "./version.generated.js";
 
@@ -85,13 +84,19 @@ async function withDb<T>(
   }
 }
 
-async function requireProject(db: DB, name: string) {
-  const project = await getProjectByName(db, name);
-  if (!project) {
-    console.error(`Project "${name}" not found`);
-    process.exit(1);
-  }
-  return project;
+async function withProject<T>(
+  opts: { db?: string },
+  projectName: string,
+  fn: (db: DB, project: Project) => Promise<T>
+): Promise<T> {
+  return withDb(opts, async (db) => {
+    const project = await getProjectByName(db, projectName);
+    if (!project) {
+      console.error(`Project "${projectName}" not found`);
+      process.exit(1);
+    }
+    return fn(db, project);
+  });
 }
 
 function formatTable(headers: string[], rows: string[][]): string {
@@ -203,8 +208,7 @@ projectCmd
   .option("--limit <n>", "maximum number of revisions", parseInt)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const revisions = await listProjectRevisions(db, project.id, cmdOpts.since, cmdOpts.limit);
       if (opts.json) {
         console.log(JSON.stringify(revisions));
@@ -231,8 +235,7 @@ projectCmd
   .requiredOption("--since <timestamp>", "ISO timestamp to diff from")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const diff = await getProjectDiff(db, project.id, cmdOpts.since);
       if (opts.json) {
         console.log(JSON.stringify(diff));
@@ -282,8 +285,7 @@ ticketCmd
     const opts = cmd.optsWithGlobals();
     const validTitle = validateTicketTitle(cmdOpts.title);
     const validDesc = validateTicketDescription(cmdOpts.description);
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await createTicket(db, {
         projectId: project.id,
         title: validTitle,
@@ -320,37 +322,22 @@ ticketCmd
   .option("--max-cost <n>", "maximum cost (estimate+risk) threshold", parseFloat)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
-      let tickets = await listTickets(db, project.id);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
+      // Build tag filter arrays
+      const includeTags = (cmdOpts.tag as string[]).map((s: string) => {
+        const [prefix, value] = s.split(":");
+        return { prefix, value };
+      });
+      const excludeTagPairs = (cmdOpts.excludeTag as string[]).map((s: string) => {
+        const [prefix, value] = s.split(":");
+        return { prefix, value };
+      });
 
-      // Tag intersection filter
-      for (const tagStr of (cmdOpts.tag as string[])) {
-        const [prefix, value] = tagStr.split(":");
-        const tag = await getTag(db, project.id, prefix, value);
-        if (tag) {
-          const ids = new Set(await listTicketsByTag(db, project.id, tag.id));
-          tickets = tickets.filter((t) => ids.has(t.id));
-        } else {
-          tickets = [];
-        }
-      }
-
-      // Exclude-tag filter
-      for (const tagStr of (cmdOpts.excludeTag as string[])) {
-        const [prefix, value] = tagStr.split(":");
-        const tag = await getTag(db, project.id, prefix, value);
-        if (tag) {
-          const ids = new Set(await listTicketsByTag(db, project.id, tag.id));
-          tickets = tickets.filter((t) => !ids.has(t.id));
-        }
-      }
-
-      // Title search
-      if (cmdOpts.search) {
-        const needle = cmdOpts.search.toLowerCase();
-        tickets = tickets.filter((t) => t.title.toLowerCase().includes(needle));
-      }
+      const tickets = await listTickets(db, project.id, {
+        includeTags: includeTags.length > 0 ? includeTags : undefined,
+        excludeTags: excludeTagPairs.length > 0 ? excludeTagPairs : undefined,
+        search: cmdOpts.search,
+      });
 
       const enriched = tickets.map((t) => ({
         ...t,
@@ -417,14 +404,12 @@ ticketCmd
     const opts = cmd.optsWithGlobals();
     const validNewTitle = cmdOpts.newTitle ? validateTicketTitle(cmdOpts.newTitle) : undefined;
     const validDesc = validateTicketDescription(cmdOpts.description);
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.title);
       if (!ticket) {
         console.error(`Ticket "${cmdOpts.title}" not found`);
         process.exit(1);
       }
-      await createRevision(db, ticket);
       const updated = await updateTicket(db, project.id, ticket.id, {
         title: validNewTitle,
         description: validDesc,
@@ -448,8 +433,7 @@ ticketCmd
   .requiredOption("--title <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.title);
       if (!ticket) {
         console.error(`Ticket "${cmdOpts.title}" not found`);
@@ -467,8 +451,7 @@ ticketCmd
   .requiredOption("--title <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.title);
       if (!ticket) {
         console.error(`Ticket "${cmdOpts.title}" not found`);
@@ -509,12 +492,7 @@ ticketCmd
     const opts = cmd.optsWithGlobals();
     const validTitle = validateTicketTitle(cmdOpts.title);
     const validDesc = validateTicketDescription(cmdOpts.description);
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
-      const existing = await getTicketByTitle(db, project.id, validTitle);
-      if (existing) {
-        await createRevision(db, existing);
-      }
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const result = await upsertTicket(db, project.id, validTitle, {
         description: validDesc,
         benefit: cmdOpts.benefit,
@@ -552,8 +530,7 @@ tagCmd
     }
     const prefix = validateTagPrefix(rawPrefix);
     const value = validateTagValue(rawValue);
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const tag = await createTag(db, project.id, prefix, value);
       if (opts.json) console.log(JSON.stringify(tag));
       else console.log(`Created tag "${prefix}:${value}"`);
@@ -573,8 +550,7 @@ tagCmd
       const [rawPrefix, rawValue] = s.split(":");
       return { raw: s, prefix: validateTagPrefix(rawPrefix || ""), value: validateTagValue(rawValue || "") };
     });
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       for (const ticketTitle of tickets) {
         const ticket = await getTicketByTitle(db, project.id, ticketTitle);
         if (!ticket) { console.error(`Ticket "${ticketTitle}" not found`); process.exit(1); }
@@ -598,8 +574,7 @@ tagCmd
     const [rawPrefix, rawValue] = tagStr.split(":");
     const prefix = validateTagPrefix(rawPrefix || "");
     const value = validateTagValue(rawValue || "");
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.ticket);
       if (!ticket) { console.error(`Ticket "${cmdOpts.ticket}" not found`); process.exit(1); }
       const tag = await getTag(db, project.id, prefix, value);
@@ -615,8 +590,7 @@ tagCmd
   .requiredOption("--project <name>", "project name")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const tags = await listTags(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(tags));
@@ -647,8 +621,7 @@ tagCmd
     const prefix = validateTagPrefix(cmdOpts.prefix);
     const oldValue = validateTagValue(cmdOpts.old);
     const newValue = validateTagValue(cmdOpts.new);
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const tag = await getTag(db, project.id, prefix, oldValue);
       if (!tag) {
         console.error(`Tag "${prefix}:${oldValue}" not found`);
@@ -670,8 +643,7 @@ tagCmd
   .requiredOption("--ticket <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.ticket);
       if (!ticket) { console.error(`Ticket "${cmdOpts.ticket}" not found`); process.exit(1); }
       const log = await getTagChangeLog(db, ticket.id);
@@ -705,8 +677,7 @@ relationCmd
   .requiredOption("--target <title>", "target ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const source = await getTicketByTitle(db, project.id, cmdOpts.source);
       if (!source) { console.error(`Ticket "${cmdOpts.source}" not found`); process.exit(1); }
       const target = await getTicketByTitle(db, project.id, cmdOpts.target);
@@ -729,8 +700,7 @@ relationCmd
   .requiredOption("--target <title>", "target ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const source = await getTicketByTitle(db, project.id, cmdOpts.source);
       if (!source) { console.error(`Ticket "${cmdOpts.source}" not found`); process.exit(1); }
       const target = await getTicketByTitle(db, project.id, cmdOpts.target);
@@ -751,8 +721,7 @@ relationCmd
   .requiredOption("--ticket <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.ticket);
       if (!ticket) { console.error(`Ticket "${cmdOpts.ticket}" not found`); process.exit(1); }
       const relations = await listRelations(db, project.id, ticket.id);
@@ -777,8 +746,7 @@ relationCmd
   .requiredOption("--project <name>", "project name")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const relations = await listProjectRelations(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(relations));
@@ -813,9 +781,7 @@ configCmd
   .option("--w4 <n>", "risk weight", parseFloat)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
-
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       if (cmdOpts.reset) {
         const config = await resetWeights(db, project.id);
         if (opts.json) {
@@ -864,8 +830,7 @@ calcCmd
   .option("--tag <prefix:value>", "scope to a tag")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       let tickets = await listTickets(db, project.id);
 
       if (cmdOpts.tag) {
@@ -913,8 +878,7 @@ calcCmd
   .option("--w4 <n>", "risk weight", parseFloat)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const tickets = await listTickets(db, project.id);
       const config = await getWeights(db, project.id);
       const w1 = cmdOpts.w1 ?? config.w1;
@@ -959,8 +923,7 @@ exportCmd
   .option("--with-calculations", "include value, cost, priority columns")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const csv = await exportCsv(db, project.id, {
         withCalculations: cmdOpts.withCalculations,
       });
@@ -982,8 +945,7 @@ exportCmd
   .option("--with-history", "include revisions and tag change log")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const data = await exportJson(db, project.id, {
         withHistory: cmdOpts.withHistory,
       });
@@ -1010,8 +972,7 @@ importCmd
   .requiredOption("--project <name>", "project name")
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const csv = readFileSync(file, "utf-8");
       const result = await importCsv(db, project.id, csv);
       if (opts.json) {
@@ -1028,8 +989,7 @@ importCmd
   .requiredOption("--project <name>", "project name")
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const json = readFileSync(file, "utf-8");
       const result = await importJson(db, project.id, json);
       if (opts.json) {
@@ -1053,8 +1013,7 @@ reportCmd
   .option("--top <n>", "number of top tickets to show", parseInt, 5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const summary = await getProjectSummary(db, project.id, cmdOpts.top);
       if (opts.json) {
         console.log(JSON.stringify(summary));
@@ -1081,8 +1040,7 @@ reportCmd
   .requiredOption("--prefix <prefix>", "tag prefix to group by")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const groups = await groupByTagPrefix(db, project.id, cmdOpts.prefix);
       if (opts.json) {
         console.log(JSON.stringify(groups));
@@ -1105,8 +1063,7 @@ reportCmd
   .requiredOption("--project <name>", "project name")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const dist = await getDistribution(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(dist));
@@ -1131,8 +1088,7 @@ reportCmd
   .option("--threshold <n>", "high priority threshold", parseFloat, 1.5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const health = await getBacklogHealth(db, project.id, cmdOpts.threshold);
       if (opts.json) {
         console.log(JSON.stringify(health));
@@ -1154,8 +1110,7 @@ reportCmd
   .requiredOption("--project <name>", "project name")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const tickets = await listTickets(db, project.id);
       const times = await Promise.all(tickets.map((t) => getTicketTimes(db, t.id)));
       const withDone = times.filter((t) => t.leadTimeDays !== undefined);
@@ -1187,8 +1142,7 @@ reportCmd
   .option("--limit <n>", "maximum number of events", parseInt, 50)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const project = await requireProject(db, cmdOpts.project);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
       const events = await getEventLog(db, project.id, cmdOpts.since, cmdOpts.limit);
       if (opts.json) {
         console.log(JSON.stringify(events));

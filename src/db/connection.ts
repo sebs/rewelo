@@ -56,6 +56,18 @@ export class DB {
     });
   }
 
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    await this.exec("BEGIN TRANSACTION");
+    try {
+      const result = await fn();
+      await this.exec("COMMIT");
+      return result;
+    } catch (err) {
+      await this.exec("ROLLBACK");
+      throw err;
+    }
+  }
+
   async close(): Promise<void> {
     return new Promise((res, rej) => {
       this.conn.close((err) => {

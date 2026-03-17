@@ -43,7 +43,6 @@ describe("JSON export", () => {
 
   it("includes history when requested", async () => {
     const ticket = await createTicket(db, { projectId, title: "Rev", benefit: 3, penalty: 2, estimate: 5, risk: 3 });
-    await createRevision(db, ticket);
     await updateTicket(db, projectId, ticket.id, { benefit: 8 });
 
     const data = await exportJson(db, projectId, { withHistory: true });

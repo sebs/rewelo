@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeError } from "../../src/validation/errors.js";
-import { ValidationError } from "../../src/validation/strings.js";
+import { AppError, ValidationError } from "../../src/validation/strings.js";
 
 describe("sanitizeError", () => {
   it("passes through ValidationError messages", () => {
@@ -8,11 +8,11 @@ describe("sanitizeError", () => {
     expect(sanitizeError(err)).toBe("Project name must not be empty");
   });
 
-  it("passes through known application errors", () => {
-    expect(sanitizeError(new Error("Ticket not found"))).toBe("Ticket not found");
-    expect(sanitizeError(new Error("Tag not found"))).toBe("Tag not found");
-    expect(sanitizeError(new Error("benefit must be a Fibonacci number"))).toContain("Fibonacci");
-    expect(sanitizeError(new Error("denominator is zero"))).toContain("denominator is zero");
+  it("passes through AppError messages", () => {
+    expect(sanitizeError(new AppError("Ticket not found"))).toBe("Ticket not found");
+    expect(sanitizeError(new AppError("Tag not found"))).toBe("Tag not found");
+    expect(sanitizeError(new AppError("benefit must be a Fibonacci number"))).toContain("Fibonacci");
+    expect(sanitizeError(new AppError("denominator is zero"))).toContain("denominator is zero");
   });
 
   it("hides database errors from user", () => {

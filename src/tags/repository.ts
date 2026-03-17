@@ -1,5 +1,5 @@
 import { DB } from "../db/connection.js";
-import { ValidationError } from "../validation/strings.js";
+import { AppError, ValidationError } from "../validation/strings.js";
 
 export interface Tag {
   id: number;
@@ -73,7 +73,7 @@ export async function renameTag(
   newValue: string
 ): Promise<Tag> {
   const current = await getTagById(db, projectId, tagId);
-  if (!current) throw new Error("Tag not found");
+  if (!current) throw new AppError("Tag not found");
 
   const conflict = await getTag(db, projectId, newPrefix, newValue);
   if (conflict) {
@@ -106,7 +106,7 @@ export async function deleteTag(
   const tag = await getTagById(db, projectId, tagId);
   if (!tag) return false;
 
-  // DuckDB: manual cascade
+  // DuckDB: manual cascade (no FK on these child tables, so no transaction needed)
   await db.run(`DELETE FROM rw.ticket_tag_changes WHERE tag_id = ?`, tagId);
   await db.run(`DELETE FROM rw.ticket_tags WHERE tag_id = ?`, tagId);
   await db.run(`DELETE FROM rw.tag_revisions WHERE tag_id = ?`, tagId);

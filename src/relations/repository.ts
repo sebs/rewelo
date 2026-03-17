@@ -195,20 +195,20 @@ export async function listRelations(
     rows.push(...symmetricRows);
   }
 
-  // Collect all related ticket IDs
+  // Collect all related ticket IDs and fetch titles in one query
   const ticketIds = new Set<number>();
   for (const r of rows) {
     ticketIds.add(r.source_id === ticketId ? r.target_id : r.source_id);
   }
 
-  // Fetch titles
   const titleMap = new Map<number, string>();
-  for (const id of ticketIds) {
-    const tickets = await db.all<{ id: number; title: string }>(
-      `SELECT id, title FROM rw.tickets WHERE id = ?`,
-      id
+  if (ticketIds.size > 0) {
+    const placeholders = [...ticketIds].map(() => "?").join(", ");
+    const titleRows = await db.all<{ id: number; title: string }>(
+      `SELECT id, title FROM rw.tickets WHERE id IN (${placeholders})`,
+      ...ticketIds
     );
-    if (tickets.length > 0) titleMap.set(id, tickets[0].title);
+    for (const row of titleRows) titleMap.set(row.id, row.title);
   }
 
   const result: RelationView[] = [];

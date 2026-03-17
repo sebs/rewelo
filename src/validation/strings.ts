@@ -17,7 +17,14 @@ function normalize(s: string): string {
   return s.normalize("NFC");
 }
 
-export class ValidationError extends Error {
+export class AppError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+export class ValidationError extends AppError {
   constructor(message: string) {
     super(message);
     this.name = "ValidationError";

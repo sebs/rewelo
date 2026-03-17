@@ -22,7 +22,7 @@ describe("ticket revisions", () => {
     await db.close();
   });
 
-  it("creates a revision before updating scores", async () => {
+  it("creates a revision automatically when updating scores", async () => {
     const ticket = await createTicket(db, {
       projectId,
       title: "Login page",
@@ -32,7 +32,6 @@ describe("ticket revisions", () => {
       risk: 3,
     });
 
-    await createRevision(db, ticket);
     await updateTicket(db, projectId, ticket.id, { benefit: 8 });
 
     const revisions = await listRevisions(db, ticket.id);
@@ -64,13 +63,11 @@ describe("ticket revisions", () => {
       risk: 3,
     });
 
-    await createRevision(db, ticket);
     const updated = await updateTicket(db, projectId, ticket.id, {
       benefit: 5,
       penalty: 3,
     });
 
-    await createRevision(db, updated);
     await updateTicket(db, projectId, ticket.id, { benefit: 8 });
 
     const revisions = await listRevisions(db, ticket.id);
@@ -82,7 +79,6 @@ describe("ticket revisions", () => {
   it("stores previous title in revision", async () => {
     const ticket = await createTicket(db, { projectId, title: "Login page" });
 
-    await createRevision(db, ticket);
     await updateTicket(db, projectId, ticket.id, { title: "Login page v2" });
 
     const revisions = await listRevisions(db, ticket.id);

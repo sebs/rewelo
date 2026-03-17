@@ -47,13 +47,17 @@ export async function deleteProject(db: DB, name: string): Promise<boolean> {
 
   // DuckDB does not support ON DELETE CASCADE, so we cascade manually.
   // Order matters: delete children before parents.
-  await db.run(`DELETE FROM rw.ticket_relations WHERE project_id = ?`, project.id);
-  await db.run(`DELETE FROM rw.ticket_revisions WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, project.id);
-  await db.run(`DELETE FROM rw.ticket_tag_changes WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, project.id);
-  await db.run(`DELETE FROM rw.ticket_tags WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, project.id);
-  await db.run(`DELETE FROM rw.tag_revisions WHERE tag_id IN (SELECT id FROM rw.tags WHERE project_id = ?)`, project.id);
-  await db.run(`DELETE FROM rw.tickets WHERE project_id = ?`, project.id);
-  await db.run(`DELETE FROM rw.tags WHERE project_id = ?`, project.id);
-  await db.run(`DELETE FROM rw.projects WHERE id = ?`, project.id);
+  // Note: DuckDB's FK checks don't see uncommitted deletes within explicit
+  // transactions, so we use individual statements with auto-commit instead.
+  const pid = project.id;
+  await db.run(`DELETE FROM rw.ticket_relations WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM rw.ticket_revisions WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM rw.ticket_tag_changes WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM rw.ticket_tags WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM rw.tag_revisions WHERE tag_id IN (SELECT id FROM rw.tags WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM rw.tickets WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM rw.tags WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM rw.weight_configs WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM rw.projects WHERE id = ?`, pid);
   return true;
 }
