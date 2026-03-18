@@ -1,7 +1,7 @@
 Feature: Export and Import
   As a user
   I want to export and import project data
-  So that I can share data, create backups, or migrate between environments
+  So that I can share data or migrate between environments
 
   Background:
     Given a project "Acme" exists
@@ -62,53 +62,3 @@ Feature: Export and Import
     When I import a JSON file as project "NewProject"
     Then the project "NewProject" should be created
     And all tickets, tags, and assignments should be restored
-
-  # -- Backup and restore across version upgrades --
-
-  Scenario: Backup exports all projects with metadata envelope
-    Given a project "Acme" with tickets, tags, and assignments
-    And a project "Globex" with tickets, tags, and assignments
-    When I run "backup --output backup.json"
-    Then a JSON file should be created with:
-      | field         | value                          |
-      | schemaVersion | 1                              |
-      | appVersion    | the current application version|
-      | createdAt     | an ISO 8601 timestamp          |
-    And it should contain 2 projects with their tickets, tags, and assignments
-
-  Scenario: Backup includes weight configuration
-    Given a project "Acme" with custom weights w1=2, w2=3, w3=1, w4=1
-    When I run "backup --output backup.json"
-    Then the backup for "Acme" should include weights { w1: 2, w2: 3, w3: 1, w4: 1 }
-
-  Scenario: Backup omits default weights
-    Given a project "Acme" with default weights
-    When I run "backup --output backup.json"
-    Then the backup for "Acme" should have weights as null
-
-  Scenario: Restore from backup into a fresh database
-    Given a JSON backup file with schemaVersion 1
-    And an empty database
-    When I run "restore backup.json"
-    Then all projects should be restored
-    And all tickets should be restored with their original scores
-    And all tags and assignments should be restored
-    And weight configurations should be restored
-
-  Scenario: Restore rejects duplicate project names
-    Given a project "Acme" already exists in the database
-    And a backup file containing a project "Acme"
-    When I run "restore backup.json"
-    Then I should see an error that project "Acme" already exists
-
-  Scenario: Restore aborts cleanly on schema mismatch
-    Given a JSON backup file with schemaVersion 99
-    When I run "restore backup.json"
-    Then I should see an error about incompatible schema version
-    And the database should remain unchanged
-
-  Scenario: Full roundtrip preserves all data
-    Given a project "Acme" with tickets, tags, assignments, and custom weights
-    When I run "backup --output backup.json"
-    And I restore the backup into a fresh database
-    Then the restored data should match the original exactly

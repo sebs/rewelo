@@ -86,8 +86,6 @@ rw export  csv|json                 Export project data
 rw import  csv|json                 Import project data
 rw report  summary|group|distribution|health|times|dashboard
                                     Reporting and HTML dashboard generation
-rw backup                           Backup all projects to JSON
-rw restore <file>                   Restore from a backup file
 rw serve                            Start MCP server (stdio transport)
 ```
 

@@ -48,8 +48,6 @@ import { exportCsv } from "./export/csv.js";
 import { exportJson } from "./export/json.js";
 import { importCsv } from "./import/csv.js";
 import { importJson } from "./import/json.js";
-import { backup } from "./backup/backup.js";
-import { restore } from "./backup/restore.js";
 import { createRelation, removeRelation, listRelations, listProjectRelations } from "./relations/repository.js";
 import { getRelationType } from "./relations/types.js";
 import { getProjectSummary } from "./reports/summary.js";
@@ -1153,42 +1151,6 @@ reportCmd
           const detail = typeof e.detail === "object" ? JSON.stringify(e.detail) : String(e.detail);
           console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${e.ticketTitle}  ${detail}`);
         }
-      }
-    });
-  });
-
-// =============================================================================
-//  BACKUP / RESTORE COMMANDS
-// =============================================================================
-
-program
-  .command("backup")
-  .description("backup all projects to a JSON file")
-  .requiredOption("--output <path>", "output file path (.json)")
-  .action(async (cmdOpts: any, cmd: Command) => {
-    const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const data = await backup(db);
-      const output = JSON.stringify(data, null, 2);
-      const outPath = validateExportPath(cmdOpts.output);
-      writeFileSync(outPath, output, "utf-8");
-      console.log(`Backup created: ${outPath}`);
-      console.log(`  ${data.projects.length} project(s), schema version ${data.schemaVersion}`);
-    });
-  });
-
-program
-  .command("restore <file>")
-  .description("restore all projects from a backup JSON file")
-  .action(async (file: string, _cmdOpts: any, cmd: Command) => {
-    const opts = cmd.optsWithGlobals();
-    await withDb(opts, async (db) => {
-      const json = readFileSync(file, "utf-8");
-      const result = await restore(db, json);
-      if (opts.json) {
-        console.log(JSON.stringify(result));
-      } else {
-        console.log(`Restored ${result.projects} project(s), ${result.tickets} ticket(s), ${result.tags} tag(s)`);
       }
     });
   });

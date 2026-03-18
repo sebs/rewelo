@@ -185,13 +185,6 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 | `import_csv`      | Import tickets from CSV string     | `project`, `csv`                          |
 | `import_json`     | Import project data from JSON      | `project`, `json`                         |
 
-### Backup / Restore
-
-| Tool              | Description                        | Parameters                                |
-|-------------------|------------------------------------|-------------------------------------------|
-| `backup`          | Backup all projects to JSON        |                                           |
-| `restore`         | Restore from a backup JSON string  | `json`                                    |
-
 ## Example Session
 
 ```

@@ -39,8 +39,6 @@ import { exportCsv } from "../export/csv.js";
 import { exportJson } from "../export/json.js";
 import { importCsv } from "../import/csv.js";
 import { importJson } from "../import/json.js";
-import { backup } from "../backup/backup.js";
-import { restore } from "../backup/restore.js";
 import {
   createRelation,
   removeRelation,
@@ -766,28 +764,6 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     safe(({ project }) => withProject(project, (db, proj) => listProjectRelations(db, proj.id)))
   );
 
-  // =========================================================================
-  //  BACKUP / RESTORE
-  // =========================================================================
-
-  server.tool(
-    "backup",
-    "Export all projects, tickets, tags, relations, and weights as a single JSON backup. Use restore to reimport.",
-    {},
-    safe(() => withDb((db) => backup(db)))
-  );
-
-  server.tool(
-    "restore",
-    "Restore projects from a backup JSON string. Fails if any project name already exists in the database.",
-    {
-      json: z.string().describe("Backup JSON content"),
-    },
-    safe(async ({ json }) => {
-      checkPayloadSize({ json });
-      return withDb((db) => restore(db, json));
-    })
-  );
 
   return server;
 }

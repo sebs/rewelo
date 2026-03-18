@@ -186,15 +186,6 @@ rw report dashboard --project <name> --output <path>
 
 `times` requires `state:wip` and `state:done` tags to be assigned to tickets.
 
-### backup / restore
-
-```bash
-rw backup --output <path>
-rw restore <file>
-```
-
-`backup` exports all projects, tickets, tags, and weights to a JSON file. `restore` imports from a backup file; target database must not contain projects with the same names.
-
 ### serve (MCP)
 
 ```bash

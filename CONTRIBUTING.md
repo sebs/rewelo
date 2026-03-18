@@ -35,7 +35,6 @@ src/
   export/       CSV and JSON export
   import/       CSV and JSON import
   reports/      Summary, health, distribution, dashboard
-  backup/       Full backup and restore
   mcp/          MCP server (stdio transport)
   serialization/ Project export/import serialization
 test/           Mirror of src/ with *.test.ts files

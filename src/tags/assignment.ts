@@ -20,6 +20,29 @@ export async function assignTag(
   );
   if (existing.length > 0) return false;
 
+  // Remove any existing tag with the same prefix (exclusive per prefix)
+  const samePrefix = await db.all<{ tag_id: number }>(
+    `SELECT tt.tag_id FROM rw.ticket_tags tt
+     JOIN rw.tags t ON t.id = tt.tag_id
+     JOIN rw.tags new_tag ON new_tag.id = ?
+     WHERE tt.ticket_id = ? AND t.prefix = new_tag.prefix AND tt.tag_id != ?`,
+    tagId,
+    ticketId,
+    tagId
+  );
+  for (const row of samePrefix) {
+    await db.run(
+      `DELETE FROM rw.ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
+      ticketId,
+      row.tag_id
+    );
+    await db.run(
+      `INSERT INTO rw.ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'removed')`,
+      ticketId,
+      row.tag_id
+    );
+  }
+
   await db.run(
     `INSERT INTO rw.ticket_tags (ticket_id, tag_id) VALUES (?, ?)`,
     ticketId,

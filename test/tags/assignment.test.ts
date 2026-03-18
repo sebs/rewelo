@@ -70,7 +70,7 @@ describe("tag assignment", () => {
     expect(removed).toBe(false);
   });
 
-  it("supports multiple tags on one ticket", async () => {
+  it("supports multiple tags with different prefixes on one ticket", async () => {
     const tag2 = await createTag(db, projectId, "feature", "auth");
     const tag3 = await createTag(db, projectId, "team", "platform");
     await assignTag(db, ticketId, tagId);
@@ -78,6 +78,28 @@ describe("tag assignment", () => {
     await assignTag(db, ticketId, tag3.id);
     const tags = await getTicketTags(db, ticketId);
     expect(tags).toHaveLength(3);
+  });
+
+  it("replaces existing tag with same prefix on assign", async () => {
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, ticketId, tagId); // state:backlog
+    await assignTag(db, ticketId, wip.id); // state:wip replaces state:backlog
+    const tags = await getTicketTags(db, ticketId);
+    expect(tags).toHaveLength(1);
+    expect(tags[0].prefix).toBe("state");
+    expect(tags[0].value).toBe("wip");
+  });
+
+  it("logs removal of replaced same-prefix tag", async () => {
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, ticketId, tagId); // state:backlog
+    await assignTag(db, ticketId, wip.id); // replaces state:backlog
+    const log = await getTagChangeLog(db, ticketId);
+    expect(log.map((e) => `${e.action}:${e.prefix}:${e.value}`)).toEqual([
+      "added:state:backlog",
+      "removed:state:backlog",
+      "added:state:wip",
+    ]);
   });
 
   it("lists tickets by tag", async () => {
@@ -135,12 +157,14 @@ describe("tag audit log", () => {
     const wip = await createTag(db, projectId, "state", "wip");
 
     await assignTag(db, ticketId, backlog.id);
-    await assignTag(db, ticketId, wip.id);
+    await assignTag(db, ticketId, wip.id); // auto-removes backlog
 
     const log = await getTagChangeLog(db, ticketId);
-    expect(log).toHaveLength(2);
-    expect(new Date(log[0].changed_at).getTime()).toBeLessThanOrEqual(
-      new Date(log[1].changed_at).getTime()
-    );
+    expect(log).toHaveLength(3);
+    for (let i = 1; i < log.length; i++) {
+      expect(new Date(log[i - 1].changed_at).getTime()).toBeLessThanOrEqual(
+        new Date(log[i].changed_at).getTime()
+      );
+    }
   });
 });
