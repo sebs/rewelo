@@ -7,9 +7,8 @@ on:
 permissions:
   contents: write
   packages: write
-  # TODO: uncomment after making the repo public (attestations require public repos)
-  # id-token: write
-  # attestations: write
+  id-token: write
+  attestations: write
 
 env:
   # softprops/action-gh-release has no Node 24 release yet
@@ -47,12 +46,11 @@ jobs:
       - name: Generate SBOM
         run: npx @cyclonedx/cdxgen@latest -t npm --required-only -o sbom.json
 
-      # TODO: uncomment after making the repo public
-      # - name: Attest npm tarball with SBOM
-      #   uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2.4.0
-      #   with:
-      #     subject-path: rewelo-*.tgz
-      #     sbom-path: sbom.json
+      - name: Attest npm tarball with SBOM
+        uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2.4.0
+        with:
+          subject-path: rewelo-*.tgz
+          sbom-path: sbom.json
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
@@ -92,12 +90,11 @@ jobs:
             .
           gzip rewelo-mcp-"$VERSION"-oci.tar
 
-      # TODO: uncomment after making the repo public
-      # - name: Attest Docker image with SBOM
-      #   uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2.4.0
-      #   with:
-      #     subject-path: rewelo-mcp-*-oci.tar.gz
-      #     sbom-path: sbom.json
+      - name: Attest Docker image with SBOM
+        uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2.4.0
+        with:
+          subject-path: rewelo-mcp-*-oci.tar.gz
+          sbom-path: sbom.json
 
       - name: Generate changelog
         run: |
