@@ -1,3 +1,5 @@
+import { AppError } from "../validation/strings.js";
+
 export function weightedPriority(
   benefit: number,
   penalty: number,
@@ -12,7 +14,7 @@ export function weightedPriority(
   const denominator = w3 * estimate + w4 * risk;
 
   if (denominator === 0) {
-    throw new Error("Weighted priority denominator is zero: w3*estimate + w4*risk = 0");
+    throw new AppError("Weighted priority denominator is zero: w3*estimate + w4*risk = 0");
   }
 
   return Math.round((numerator / denominator) * 100) / 100;

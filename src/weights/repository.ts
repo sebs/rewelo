@@ -84,4 +84,7 @@ function validateWeights(w1: number, w2: number, w3: number, w4: number): void {
       throw new AppError(`Weight ${name} must not exceed ${MAX_WEIGHT}`);
     }
   }
+  if (w3 === 0 && w4 === 0) {
+    throw new AppError("Cost weights w3 and w4 cannot both be zero (would cause division by zero in priority calculation)");
+  }
 }

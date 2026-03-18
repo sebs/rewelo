@@ -70,9 +70,27 @@ describe("weight configuration", () => {
     ).rejects.toThrow("non-negative");
   });
 
-  it("allows zero weights", async () => {
+  it("allows zero weights when not both cost weights", async () => {
     await setWeights(db, projectId, 0, 1.5, 1.5, 1.5);
     const config = await getWeights(db, projectId);
     expect(config.w1).toBe(0);
+  });
+
+  it("allows w3=0 when w4 is non-zero", async () => {
+    await setWeights(db, projectId, 1.5, 1.5, 0, 1.5);
+    const config = await getWeights(db, projectId);
+    expect(config.w3).toBe(0);
+  });
+
+  it("allows w4=0 when w3 is non-zero", async () => {
+    await setWeights(db, projectId, 1.5, 1.5, 1.5, 0);
+    const config = await getWeights(db, projectId);
+    expect(config.w4).toBe(0);
+  });
+
+  it("rejects w3=0 and w4=0 simultaneously", async () => {
+    await expect(
+      setWeights(db, projectId, 1.5, 1.5, 0, 0)
+    ).rejects.toThrow("w3 and w4 cannot both be zero");
   });
 });
