@@ -47,7 +47,7 @@ jobs:
         run: npx @cyclonedx/cdxgen@latest -t npm --required-only -o sbom.json
 
       - name: Attest npm tarball with SBOM
-        uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2.4.0
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-path: rewelo-*.tgz
           sbom-path: sbom.json
@@ -91,7 +91,7 @@ jobs:
           gzip rewelo-mcp-"$VERSION"-oci.tar
 
       - name: Attest Docker image with SBOM
-        uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b # v2.4.0
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-path: rewelo-mcp-*-oci.tar.gz
           sbom-path: sbom.json
