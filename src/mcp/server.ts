@@ -123,7 +123,10 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   const server = new McpServer(
     { name: "rewelo", version: VERSION },
-    { capabilities: { tools: {} } }
+    {
+      capabilities: { tools: {} },
+      instructions: "If a .rewelo.json file exists in the working directory (or any parent), its \"project\" field is used as the default project name. This means the project parameter can be omitted from most tool calls when a .rewelo.json is present.",
+    }
   );
 
   // Shared connection for the lifetime of the server (important for :memory: DBs)
