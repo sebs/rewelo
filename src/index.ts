@@ -127,6 +127,16 @@ function parseIntOption(value: string): number {
   return n;
 }
 
+// Scores must be exact integers. `parseInt` would silently accept lossy input
+// (8.5 -> 8, "13xyz" -> 13, "0x8" -> 8) before Fibonacci validation ever ran,
+// so validate the raw string is a plain integer first.
+function parseScoreOption(value: string): number {
+  if (!/^[+-]?\d+$/.test(value.trim())) {
+    throw new ValidationError(`Score "${value}" must be an integer`);
+  }
+  return parseInt(value, 10);
+}
+
 const program = new Command();
 
 program
@@ -293,10 +303,10 @@ ticketCmd
   .requiredOption("--project <name>", "project name")
   .requiredOption("--title <title>", "ticket title")
   .option("--description <text>", "ticket description")
-  .option("--benefit <n>", "benefit score (Fibonacci)", parseInt)
-  .option("--penalty <n>", "penalty score (Fibonacci)", parseInt)
-  .option("--estimate <n>", "estimate score (Fibonacci)", parseInt)
-  .option("--risk <n>", "risk score (Fibonacci)", parseInt)
+  .option("--benefit <n>", "benefit score (Fibonacci)", parseScoreOption)
+  .option("--penalty <n>", "penalty score (Fibonacci)", parseScoreOption)
+  .option("--estimate <n>", "estimate score (Fibonacci)", parseScoreOption)
+  .option("--risk <n>", "risk score (Fibonacci)", parseScoreOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     const validTitle = validateTicketTitle(cmdOpts.title);
@@ -412,10 +422,10 @@ ticketCmd
   .requiredOption("--title <title>", "ticket to update (by current title)")
   .option("--new-title <title>", "new title")
   .option("--description <text>", "new description")
-  .option("--benefit <n>", "benefit score", parseInt)
-  .option("--penalty <n>", "penalty score", parseInt)
-  .option("--estimate <n>", "estimate score", parseInt)
-  .option("--risk <n>", "risk score", parseInt)
+  .option("--benefit <n>", "benefit score", parseScoreOption)
+  .option("--penalty <n>", "penalty score", parseScoreOption)
+  .option("--estimate <n>", "estimate score", parseScoreOption)
+  .option("--risk <n>", "risk score", parseScoreOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     const validNewTitle = cmdOpts.newTitle ? validateTicketTitle(cmdOpts.newTitle) : undefined;
@@ -500,10 +510,10 @@ ticketCmd
   .requiredOption("--project <name>", "project name")
   .requiredOption("--title <title>", "ticket title (used as unique key)")
   .option("--description <text>", "ticket description")
-  .option("--benefit <n>", "benefit score (Fibonacci)", parseInt)
-  .option("--penalty <n>", "penalty score (Fibonacci)", parseInt)
-  .option("--estimate <n>", "estimate score (Fibonacci)", parseInt)
-  .option("--risk <n>", "risk score (Fibonacci)", parseInt)
+  .option("--benefit <n>", "benefit score (Fibonacci)", parseScoreOption)
+  .option("--penalty <n>", "penalty score (Fibonacci)", parseScoreOption)
+  .option("--estimate <n>", "estimate score (Fibonacci)", parseScoreOption)
+  .option("--risk <n>", "risk score (Fibonacci)", parseScoreOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     const validTitle = validateTicketTitle(cmdOpts.title);
