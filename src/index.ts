@@ -115,6 +115,18 @@ function formatTable(headers: string[], rows: unknown[][]): string {
   return `${head}\n${sep}\n${body}`;
 }
 
+// Commander invokes an option's coercion callback as fn(value, previousValue),
+// so passing bare `parseInt` makes the option's default value act as the radix
+// (e.g. `--top 12` with default 5 => parseInt("12", 5) === 7). Always parse
+// base 10 and reject non-integers.
+function parseIntOption(value: string): number {
+  const n = parseInt(value, 10);
+  if (!Number.isInteger(n)) {
+    throw new ValidationError(`"${value}" is not a valid integer`);
+  }
+  return n;
+}
+
 const program = new Command();
 
 program
@@ -209,7 +221,7 @@ projectCmd
   .description("show revision history across all tickets in a project")
   .requiredOption("--project <name>", "project name")
   .option("--since <timestamp>", "only show revisions after this ISO timestamp")
-  .option("--limit <n>", "maximum number of revisions", parseInt)
+  .option("--limit <n>", "maximum number of revisions", parseIntOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -319,8 +331,8 @@ ticketCmd
   .option("--exclude-tag <prefix:value>", "exclude tickets with tag (repeatable)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .option("--search <text>", "filter by title substring (case-insensitive)")
   .option("--sort <field>", "sort by: priority, value, cost, benefit, penalty, estimate, risk")
-  .option("--limit <n>", "max number of results", parseInt)
-  .option("--offset <n>", "skip first N results", parseInt, 0)
+  .option("--limit <n>", "max number of results", parseIntOption)
+  .option("--offset <n>", "skip first N results", parseIntOption, 0)
   .option("--min-priority <n>", "minimum priority threshold", parseFloat)
   .option("--min-value <n>", "minimum value (benefit+penalty) threshold", parseFloat)
   .option("--max-cost <n>", "maximum cost (estimate+risk) threshold", parseFloat)
@@ -1014,7 +1026,7 @@ reportCmd
   .command("summary")
   .description("project summary with top-N by priority")
   .requiredOption("--project <name>", "project name")
-  .option("--top <n>", "number of top tickets to show", parseInt, 5)
+  .option("--top <n>", "number of top tickets to show", parseIntOption, 5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -1143,7 +1155,7 @@ reportCmd
   .description("unified chronological event stream for a project")
   .requiredOption("--project <name>", "project name")
   .option("--since <timestamp>", "only events after this ISO timestamp")
-  .option("--limit <n>", "maximum number of events", parseInt, 50)
+  .option("--limit <n>", "maximum number of events", parseIntOption, 50)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
