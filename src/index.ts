@@ -1064,7 +1064,7 @@ reportCmd
   .command("summary")
   .description("project summary with top-N by priority")
   .requiredOption("--project <name>", "project name")
-  .option("--top <n>", "number of top tickets to show", parseIntOption, 5)
+  .option("--top <n>", "number of top tickets to show", parseNonNegativeIntOption, 5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
