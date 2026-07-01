@@ -138,6 +138,17 @@ function parseScoreOption(value: string): number {
   return parseInt(value, 10);
 }
 
+// `parseFloat` returns NaN for non-numeric input, which then flows silently
+// into weight/threshold calculations (producing NaN output or zero results).
+// Require a finite number instead.
+function parseFloatOption(value: string): number {
+  const n = parseFloat(value);
+  if (!Number.isFinite(n)) {
+    throw new ValidationError(`"${value}" is not a valid number`);
+  }
+  return n;
+}
+
 const program = new Command();
 
 program
@@ -798,10 +809,10 @@ configCmd
   .requiredOption("--project <name>", "project name")
   .option("--set", "set weights (requires --w1..--w4)")
   .option("--reset", "reset weights to defaults")
-  .option("--w1 <n>", "benefit weight", parseFloat)
-  .option("--w2 <n>", "penalty weight", parseFloat)
-  .option("--w3 <n>", "estimate weight", parseFloat)
-  .option("--w4 <n>", "risk weight", parseFloat)
+  .option("--w1 <n>", "benefit weight", parseFloatOption)
+  .option("--w2 <n>", "penalty weight", parseFloatOption)
+  .option("--w3 <n>", "estimate weight", parseFloatOption)
+  .option("--w4 <n>", "risk weight", parseFloatOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -895,10 +906,10 @@ calcCmd
   .command("priority")
   .description("show weighted priorities")
   .requiredOption("--project <name>", "project name")
-  .option("--w1 <n>", "benefit weight", parseFloat)
-  .option("--w2 <n>", "penalty weight", parseFloat)
-  .option("--w3 <n>", "estimate weight", parseFloat)
-  .option("--w4 <n>", "risk weight", parseFloat)
+  .option("--w1 <n>", "benefit weight", parseFloatOption)
+  .option("--w2 <n>", "penalty weight", parseFloatOption)
+  .option("--w3 <n>", "estimate weight", parseFloatOption)
+  .option("--w4 <n>", "risk weight", parseFloatOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
