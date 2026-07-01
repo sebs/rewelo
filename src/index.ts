@@ -396,6 +396,12 @@ ticketCmd
       if (cmdOpts.maxCost != null) filtered = filtered.filter((t) => t.cost <= cmdOpts.maxCost);
 
       if (cmdOpts.sort) {
+        const validSortFields = ["priority", "value", "cost", "benefit", "penalty", "estimate", "risk"];
+        if (!validSortFields.includes(cmdOpts.sort)) {
+          throw new ValidationError(
+            `Invalid sort field "${cmdOpts.sort}". Valid fields: ${validSortFields.join(", ")}`
+          );
+        }
         const key = cmdOpts.sort as keyof (typeof filtered)[0];
         filtered.sort((a, b) => (b[key] as number) - (a[key] as number));
       }
