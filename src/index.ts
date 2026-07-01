@@ -365,7 +365,7 @@ ticketCmd
   .option("--search <text>", "filter by title substring (case-insensitive)")
   .option("--sort <field>", "sort by: priority, value, cost, benefit, penalty, estimate, risk")
   .option("--limit <n>", "max number of results", parseNonNegativeIntOption)
-  .option("--offset <n>", "skip first N results", parseIntOption, 0)
+  .option("--offset <n>", "skip first N results", parseNonNegativeIntOption, 0)
   .option("--min-priority <n>", "minimum priority threshold", parseFloatOption)
   .option("--min-value <n>", "minimum value (benefit+penalty) threshold", parseFloatOption)
   .option("--max-cost <n>", "maximum cost (estimate+risk) threshold", parseFloatOption)
