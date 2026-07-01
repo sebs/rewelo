@@ -355,9 +355,9 @@ ticketCmd
   .option("--sort <field>", "sort by: priority, value, cost, benefit, penalty, estimate, risk")
   .option("--limit <n>", "max number of results", parseIntOption)
   .option("--offset <n>", "skip first N results", parseIntOption, 0)
-  .option("--min-priority <n>", "minimum priority threshold", parseFloat)
-  .option("--min-value <n>", "minimum value (benefit+penalty) threshold", parseFloat)
-  .option("--max-cost <n>", "maximum cost (estimate+risk) threshold", parseFloat)
+  .option("--min-priority <n>", "minimum priority threshold", parseFloatOption)
+  .option("--min-value <n>", "minimum value (benefit+penalty) threshold", parseFloatOption)
+  .option("--max-cost <n>", "maximum cost (estimate+risk) threshold", parseFloatOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -1119,7 +1119,7 @@ reportCmd
   .command("health")
   .description("backlog health report")
   .requiredOption("--project <name>", "project name")
-  .option("--threshold <n>", "high priority threshold", parseFloat, 1.5)
+  .option("--threshold <n>", "high priority threshold", parseFloatOption, 1.5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
