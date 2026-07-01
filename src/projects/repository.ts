@@ -1,4 +1,5 @@
 import { DB, Row } from "../db/connection.js";
+import { ValidationError } from "../validation/strings.js";
 
 export interface Project {
   id: number;
@@ -8,6 +9,10 @@ export interface Project {
 }
 
 export async function createProject(db: DB, name: string): Promise<Project> {
+  const existing = await getProjectByName(db, name);
+  if (existing) {
+    throw new ValidationError(`A project named "${name}" already exists`);
+  }
   const rows = await db.all<Project>(
     `INSERT INTO rw.projects (name) VALUES (?) RETURNING *`,
     name
