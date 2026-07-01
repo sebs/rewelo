@@ -56,6 +56,7 @@ import { groupByTagPrefix } from "./reports/group.js";
 import { getDistribution } from "./reports/distribution.js";
 import { getBacklogHealth } from "./reports/health.js";
 import { getEventLog } from "./reports/event-log.js";
+import { renderDashboard } from "./reports/dashboard.js";
 import { getProjectDiff } from "./reports/diff.js";
 import { upsertTicket } from "./tickets/repository.js";
 import { writeFileSync, readFileSync } from "fs";
@@ -1228,6 +1229,23 @@ reportCmd
           console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${e.ticketTitle}  ${detail}`);
         }
       }
+    });
+  });
+
+reportCmd
+  .command("dashboard")
+  .description("generate a self-contained HTML dashboard")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
+  .requiredOption("--output <path>", "output HTML file path")
+  .action(async (cmdOpts: any, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    await withProject(opts, cmdOpts.project, async (db, project) => {
+      const html = await renderDashboard(db, project.id, project.name, {
+        generatedAt: new Date().toISOString(),
+      });
+      const outPath = validateExportPath(cmdOpts.output);
+      writeFileSync(outPath, html, "utf-8");
+      console.log(`Dashboard written to ${outPath}`);
     });
   });
 
