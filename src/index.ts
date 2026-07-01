@@ -59,6 +59,7 @@ import { getEventLog } from "./reports/event-log.js";
 import { getProjectDiff } from "./reports/diff.js";
 import { upsertTicket } from "./tickets/repository.js";
 import { writeFileSync, readFileSync } from "fs";
+import { loadConfig } from "./config.js";
 import { VERSION } from "./version.generated.js";
 
 const DEFAULT_DB = "./relative-weight.duckdb";
@@ -85,13 +86,22 @@ async function withDb<T>(
 
 async function withProject<T>(
   opts: { db?: string },
-  projectName: string,
+  projectName: string | undefined,
   fn: (db: DB, project: Project) => Promise<T>
 ): Promise<T> {
+  // Fall back to the "project" field of the nearest .rewelo.json when --project
+  // is omitted, matching the MCP server's behaviour.
+  const name = projectName ?? loadConfig().project;
+  if (!name) {
+    console.error(
+      'No project specified. Pass --project or add a .rewelo.json with a "project" field.'
+    );
+    process.exit(1);
+  }
   return withDb(opts, async (db) => {
-    const project = await getProjectByName(db, projectName);
+    const project = await getProjectByName(db, name);
     if (!project) {
-      console.error(`Project "${projectName}" not found`);
+      console.error(`Project "${name}" not found`);
       process.exit(1);
     }
     return fn(db, project);
@@ -252,7 +262,7 @@ projectCmd
 projectCmd
   .command("history")
   .description("show revision history across all tickets in a project")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--since <timestamp>", "only show revisions after this ISO timestamp")
   .option("--limit <n>", "maximum number of revisions", parseNonNegativeIntOption)
   .action(async (cmdOpts: any, cmd: Command) => {
@@ -280,7 +290,7 @@ projectCmd
 projectCmd
   .command("diff")
   .description("compare project state against a point in time")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--since <timestamp>", "ISO timestamp to diff from")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -323,7 +333,7 @@ const ticketCmd = program.command("ticket").description("manage tickets");
 ticketCmd
   .command("create")
   .description("create a new ticket")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--title <title>", "ticket title")
   .option("--description <text>", "ticket description")
   .option("--benefit <n>", "benefit score (Fibonacci)", parseScoreOption)
@@ -359,7 +369,7 @@ ticketCmd
 ticketCmd
   .command("list")
   .description("list tickets in a project")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--tag <prefix:value>", "filter by tag (repeatable, intersection)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .option("--exclude-tag <prefix:value>", "exclude tickets with tag (repeatable)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .option("--search <text>", "filter by title substring (case-insensitive)")
@@ -441,7 +451,7 @@ ticketCmd
 ticketCmd
   .command("update")
   .description("update a ticket")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--title <title>", "ticket to update (by current title)")
   .option("--new-title <title>", "new title")
   .option("--description <text>", "new description")
@@ -487,7 +497,7 @@ ticketCmd
 ticketCmd
   .command("delete")
   .description("delete a ticket")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--title <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -505,7 +515,7 @@ ticketCmd
 ticketCmd
   .command("history")
   .description("show revision history for a ticket")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--title <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -539,7 +549,7 @@ ticketCmd
 ticketCmd
   .command("upsert")
   .description("create a ticket if it does not exist, or update it if it does (matched by title)")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--title <title>", "ticket title (used as unique key)")
   .option("--description <text>", "ticket description")
   .option("--benefit <n>", "benefit score (Fibonacci)", parseScoreOption)
@@ -578,7 +588,7 @@ const tagCmd = program.command("tag").description("manage tags");
 tagCmd
   .command("create <tag>")
   .description("create a tag (format: prefix:value)")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (tagStr: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     const { prefix: rawPrefix, value: rawValue } = parseTagPair(tagStr);
@@ -594,7 +604,7 @@ tagCmd
 tagCmd
   .command("assign <tags...>")
   .description("assign one or more tags to one or more tickets")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--ticket <title>", "ticket title (repeatable)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .action(async (tagStrs: string[], cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -627,7 +637,7 @@ tagCmd
 tagCmd
   .command("remove <tag>")
   .description("remove a tag from a ticket")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--ticket <title>", "ticket title")
   .action(async (tagStr: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -647,7 +657,7 @@ tagCmd
 tagCmd
   .command("list")
   .description("list all tags in a project")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -672,7 +682,7 @@ tagCmd
 tagCmd
   .command("rename")
   .description("rename a tag value")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--prefix <prefix>", "tag prefix")
   .requiredOption("--old <value>", "current tag value")
   .requiredOption("--new <value>", "new tag value")
@@ -699,7 +709,7 @@ tagCmd
 tagCmd
   .command("log")
   .description("show tag change log for a ticket")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--ticket <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -731,7 +741,7 @@ const relationCmd = program.command("relation").description("manage ticket relat
 relationCmd
   .command("create")
   .description("create a relation between two tickets")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--source <title>", "source ticket title")
   .requiredOption("--type <type>", "relation type (e.g. blocks, depends-on, relates-to)")
   .requiredOption("--target <title>", "target ticket title")
@@ -754,7 +764,7 @@ relationCmd
 relationCmd
   .command("remove")
   .description("remove a relation between two tickets")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--source <title>", "source ticket title")
   .requiredOption("--type <type>", "relation type")
   .requiredOption("--target <title>", "target ticket title")
@@ -777,7 +787,7 @@ relationCmd
 relationCmd
   .command("list")
   .description("list all relations for a ticket")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--ticket <title>", "ticket title")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -803,7 +813,7 @@ relationCmd
 relationCmd
   .command("list-all")
   .description("list all relations in a project")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -832,7 +842,7 @@ const configCmd = program.command("config").description("configuration commands"
 configCmd
   .command("weights")
   .description("view or manage weight configuration")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--set", "set weights (requires --w1..--w4)")
   .option("--reset", "reset weights to defaults")
   .option("--w1 <n>", "benefit weight", parseFloatOption)
@@ -886,7 +896,7 @@ const calcCmd = program.command("calc").description("calculation commands");
 calcCmd
   .command("weights")
   .description("show relative weights for tickets")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--tag <prefix:value>", "scope to a tag")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -931,7 +941,7 @@ calcCmd
 calcCmd
   .command("priority")
   .description("show weighted priorities")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--w1 <n>", "benefit weight", parseFloatOption)
   .option("--w2 <n>", "penalty weight", parseFloatOption)
   .option("--w3 <n>", "estimate weight", parseFloatOption)
@@ -978,7 +988,7 @@ const exportCmd = program.command("export").description("export project data");
 exportCmd
   .command("csv")
   .description("export tickets as CSV")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--output <path>", "output file path")
   .option("--with-calculations", "include value, cost, priority columns")
   .action(async (cmdOpts: any, cmd: Command) => {
@@ -1000,7 +1010,7 @@ exportCmd
 exportCmd
   .command("json")
   .description("export project data as JSON")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--output <path>", "output file path")
   .option("--with-history", "include revisions and tag change log")
   .action(async (cmdOpts: any, cmd: Command) => {
@@ -1029,7 +1039,7 @@ const importCmd = program.command("import").description("import project data");
 importCmd
   .command("csv <file>")
   .description("import tickets from CSV")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -1046,7 +1056,7 @@ importCmd
 importCmd
   .command("json <file>")
   .description("import project data from JSON")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -1069,7 +1079,7 @@ const reportCmd = program.command("report").description("reporting commands");
 reportCmd
   .command("summary")
   .description("project summary with top-N by priority")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--top <n>", "number of top tickets to show", parseNonNegativeIntOption, 5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -1096,7 +1106,7 @@ reportCmd
 reportCmd
   .command("group")
   .description("group tickets by tag prefix")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--prefix <prefix>", "tag prefix to group by")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -1120,7 +1130,7 @@ reportCmd
 reportCmd
   .command("distribution")
   .description("Fibonacci score distribution")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -1144,7 +1154,7 @@ reportCmd
 reportCmd
   .command("health")
   .description("backlog health report")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--threshold <n>", "high priority threshold", parseFloatOption, 1.5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
@@ -1171,7 +1181,7 @@ reportCmd
 reportCmd
   .command("times")
   .description("lead and cycle time report")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -1201,7 +1211,7 @@ reportCmd
 reportCmd
   .command("event-log")
   .description("unified chronological event stream for a project")
-  .requiredOption("--project <name>", "project name")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--since <timestamp>", "only events after this ISO timestamp")
   .option("--limit <n>", "maximum number of events", parseNonNegativeIntOption, 50)
   .action(async (cmdOpts: any, cmd: Command) => {
