@@ -128,6 +128,17 @@ function parseIntOption(value: string): number {
   return n;
 }
 
+// For count-like options (limit/offset/top) a negative value is nonsensical
+// and previously produced confusing results (e.g. `--limit -3` sliced from the
+// end, showing "2 of 5").
+function parseNonNegativeIntOption(value: string): number {
+  const n = parseIntOption(value);
+  if (n < 0) {
+    throw new ValidationError(`"${value}" must be 0 or greater`);
+  }
+  return n;
+}
+
 // Scores must be exact integers. `parseInt` would silently accept lossy input
 // (8.5 -> 8, "13xyz" -> 13, "0x8" -> 8) before Fibonacci validation ever ran,
 // so validate the raw string is a plain integer first.
@@ -243,7 +254,7 @@ projectCmd
   .description("show revision history across all tickets in a project")
   .requiredOption("--project <name>", "project name")
   .option("--since <timestamp>", "only show revisions after this ISO timestamp")
-  .option("--limit <n>", "maximum number of revisions", parseIntOption)
+  .option("--limit <n>", "maximum number of revisions", parseNonNegativeIntOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -353,7 +364,7 @@ ticketCmd
   .option("--exclude-tag <prefix:value>", "exclude tickets with tag (repeatable)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .option("--search <text>", "filter by title substring (case-insensitive)")
   .option("--sort <field>", "sort by: priority, value, cost, benefit, penalty, estimate, risk")
-  .option("--limit <n>", "max number of results", parseIntOption)
+  .option("--limit <n>", "max number of results", parseNonNegativeIntOption)
   .option("--offset <n>", "skip first N results", parseIntOption, 0)
   .option("--min-priority <n>", "minimum priority threshold", parseFloatOption)
   .option("--min-value <n>", "minimum value (benefit+penalty) threshold", parseFloatOption)
@@ -1182,7 +1193,7 @@ reportCmd
   .description("unified chronological event stream for a project")
   .requiredOption("--project <name>", "project name")
   .option("--since <timestamp>", "only events after this ISO timestamp")
-  .option("--limit <n>", "maximum number of events", parseIntOption, 50)
+  .option("--limit <n>", "maximum number of events", parseNonNegativeIntOption, 50)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
