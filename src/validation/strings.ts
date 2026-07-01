@@ -89,6 +89,20 @@ export function validateTicketDescription(
   return normalized;
 }
 
+/**
+ * Split a "prefix:value" tag string into its two parts. A tag value may not
+ * contain a colon, so anything other than exactly one colon is an error rather
+ * than silently dropping the extra segments (e.g. "state:wip:foo" used to be
+ * quietly treated as "state:wip").
+ */
+export function parseTagPair(raw: string): { prefix: string; value: string } {
+  const parts = raw.split(":");
+  if (parts.length !== 2) {
+    throw new ValidationError(`Tag "${raw}" must be in prefix:value format`);
+  }
+  return { prefix: parts[0], value: parts[1] };
+}
+
 export function validateTagPrefix(prefix: string): string {
   if (!prefix || prefix.trim().length === 0) {
     throw new ValidationError("Tag prefix must not be empty");

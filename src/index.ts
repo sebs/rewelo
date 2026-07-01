@@ -39,6 +39,7 @@ import {
   validateTicketDescription,
   validateTagPrefix,
   validateTagValue,
+  parseTagPair,
   ValidationError,
 } from "./validation/strings.js";
 import { validateDbPath, validateExportPath } from "./validation/paths.js";
@@ -350,14 +351,8 @@ ticketCmd
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       // Build tag filter arrays
-      const includeTags = (cmdOpts.tag as string[]).map((s: string) => {
-        const [prefix, value] = s.split(":");
-        return { prefix, value };
-      });
-      const excludeTagPairs = (cmdOpts.excludeTag as string[]).map((s: string) => {
-        const [prefix, value] = s.split(":");
-        return { prefix, value };
-      });
+      const includeTags = (cmdOpts.tag as string[]).map((s: string) => parseTagPair(s));
+      const excludeTagPairs = (cmdOpts.excludeTag as string[]).map((s: string) => parseTagPair(s));
 
       const tickets = await listTickets(db, project.id, {
         includeTags: includeTags.length > 0 ? includeTags : undefined,
@@ -549,11 +544,7 @@ tagCmd
   .requiredOption("--project <name>", "project name")
   .action(async (tagStr: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    const [rawPrefix, rawValue] = tagStr.split(":");
-    if (!rawPrefix || !rawValue) {
-      console.error("Tag must be in prefix:value format");
-      process.exit(1);
-    }
+    const { prefix: rawPrefix, value: rawValue } = parseTagPair(tagStr);
     const prefix = validateTagPrefix(rawPrefix);
     const value = validateTagValue(rawValue);
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -573,8 +564,8 @@ tagCmd
     const tickets: string[] = cmdOpts.ticket;
     if (tickets.length === 0) { console.error("At least one --ticket is required"); process.exit(1); }
     const parsedTags = tagStrs.map((s: string) => {
-      const [rawPrefix, rawValue] = s.split(":");
-      return { raw: s, prefix: validateTagPrefix(rawPrefix || ""), value: validateTagValue(rawValue || "") };
+      const { prefix, value } = parseTagPair(s);
+      return { raw: s, prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
     });
     await withProject(opts, cmdOpts.project, async (db, project) => {
       for (const ticketTitle of tickets) {
@@ -597,9 +588,9 @@ tagCmd
   .requiredOption("--ticket <title>", "ticket title")
   .action(async (tagStr: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    const [rawPrefix, rawValue] = tagStr.split(":");
-    const prefix = validateTagPrefix(rawPrefix || "");
-    const value = validateTagValue(rawValue || "");
+    const { prefix: rawPrefix, value: rawValue } = parseTagPair(tagStr);
+    const prefix = validateTagPrefix(rawPrefix);
+    const value = validateTagValue(rawValue);
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.ticket);
       if (!ticket) { console.error(`Ticket "${cmdOpts.ticket}" not found`); process.exit(1); }
@@ -860,7 +851,7 @@ calcCmd
       let tickets = await listTickets(db, project.id);
 
       if (cmdOpts.tag) {
-        const [prefix, value] = cmdOpts.tag.split(":");
+        const { prefix, value } = parseTagPair(cmdOpts.tag);
         const tag = await getTag(db, project.id, prefix, value);
         if (tag) {
           const ids = await listTicketsByTag(db, project.id, tag.id);

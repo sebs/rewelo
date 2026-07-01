@@ -130,8 +130,11 @@ export async function importCsv(
     if (row.tags) {
       const tagPairs = row.tags.split(",").map((t) => t.trim()).filter(Boolean);
       for (const pair of tagPairs) {
-        const [prefix, value] = pair.split(":");
-        if (!prefix || !value) continue;
+        // A tag value cannot contain a colon; skip anything that is not
+        // exactly prefix:value rather than silently truncating extra segments.
+        const parts = pair.split(":");
+        if (parts.length !== 2 || !parts[0] || !parts[1]) continue;
+        const [prefix, value] = parts;
         let tag = await getTag(db, projectId, prefix, value);
         if (!tag) tag = await createTag(db, projectId, prefix, value);
         await assignTag(db, ticket.id, tag.id);
