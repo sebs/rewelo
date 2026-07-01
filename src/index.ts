@@ -450,8 +450,17 @@ ticketCmd
         estimate: cmdOpts.estimate,
         risk: cmdOpts.risk,
       });
+      const changed =
+        updated.title !== ticket.title ||
+        updated.description !== ticket.description ||
+        updated.benefit !== ticket.benefit ||
+        updated.penalty !== ticket.penalty ||
+        updated.estimate !== ticket.estimate ||
+        updated.risk !== ticket.risk;
       if (opts.json) {
         console.log(JSON.stringify(updated));
+      } else if (!changed) {
+        console.log(`No changes to "${updated.title}"`);
       } else {
         console.log(`Updated "${updated.title}" [B:${updated.benefit} P:${updated.penalty} E:${updated.estimate} R:${updated.risk}]`);
       }

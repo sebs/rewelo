@@ -182,6 +182,26 @@ export async function updateTicket(
     }
   }
 
+  const title = input.title ?? current.title;
+  const description = input.description ?? current.description;
+  const benefit = input.benefit ?? current.benefit;
+  const penalty = input.penalty ?? current.penalty;
+  const estimate = input.estimate ?? current.estimate;
+  const risk = input.risk ?? current.risk;
+
+  // Nothing to do: don't write a revision snapshot or bump updated_at for an
+  // update that changes no fields (it would just pollute the history).
+  if (
+    title === current.title &&
+    description === current.description &&
+    benefit === current.benefit &&
+    penalty === current.penalty &&
+    estimate === current.estimate &&
+    risk === current.risk
+  ) {
+    return current;
+  }
+
   // Snapshot the current state before mutating (automatic revision)
   const tags = await getTicketTags(db, current.id);
   const tagSnapshot = JSON.stringify(
@@ -194,13 +214,6 @@ export async function updateTicket(
     current.benefit, current.penalty, current.estimate, current.risk,
     tagSnapshot
   );
-
-  const title = input.title ?? current.title;
-  const description = input.description ?? current.description;
-  const benefit = input.benefit ?? current.benefit;
-  const penalty = input.penalty ?? current.penalty;
-  const estimate = input.estimate ?? current.estimate;
-  const risk = input.risk ?? current.risk;
 
   const rows = await db.all<Ticket>(
     `UPDATE rw.tickets
