@@ -165,6 +165,18 @@ export async function updateTicket(
   const current = await getTicketById(db, projectId, ticketId);
   if (!current) throw new AppError("Ticket not found");
 
+  // Enforce title uniqueness on rename, mirroring createTicket. Without this,
+  // `update --new-title` could rename a ticket onto an existing title, leaving
+  // two tickets that share a title and making title-based lookups ambiguous.
+  if (input.title !== undefined && input.title !== current.title) {
+    const clash = await getTicketByTitle(db, projectId, input.title);
+    if (clash) {
+      throw new ValidationError(
+        `A ticket with title "${input.title}" already exists in this project`
+      );
+    }
+  }
+
   // Snapshot the current state before mutating (automatic revision)
   const tags = await getTicketTags(db, current.id);
   const tagSnapshot = JSON.stringify(
