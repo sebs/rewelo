@@ -568,13 +568,19 @@ tagCmd
       return { raw: s, prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
     });
     await withProject(opts, cmdOpts.project, async (db, project) => {
+      // Resolve every target ticket up front so a missing one aborts before
+      // any tag is applied, rather than partially assigning and then failing.
+      const resolved: { title: string; id: number }[] = [];
       for (const ticketTitle of tickets) {
         const ticket = await getTicketByTitle(db, project.id, ticketTitle);
         if (!ticket) { console.error(`Ticket "${ticketTitle}" not found`); process.exit(1); }
+        resolved.push({ title: ticketTitle, id: ticket.id });
+      }
+      for (const { title: ticketTitle, id } of resolved) {
         for (const t of parsedTags) {
           let tag = await getTag(db, project.id, t.prefix, t.value);
           if (!tag) tag = await createTag(db, project.id, t.prefix, t.value);
-          const assigned = await assignTag(db, ticket.id, tag.id);
+          const assigned = await assignTag(db, id, tag.id);
           console.log(assigned ? `Assigned "${t.raw}" to "${ticketTitle}"` : `Tag "${t.raw}" already assigned to "${ticketTitle}"`);
         }
       }
