@@ -117,10 +117,15 @@ export async function listTickets(
     }
   }
 
-  // Title search (case-insensitive)
+  // Title search (case-insensitive). Escape LIKE wildcards so a literal
+  // "%" or "_" in the search term matches itself instead of acting as a
+  // pattern (a bare "%" previously matched every ticket).
   if (options?.search) {
-    sql += ` AND lower(t.title) LIKE ?`;
-    params.push(`%${options.search.toLowerCase()}%`);
+    const escaped = options.search
+      .toLowerCase()
+      .replace(/[\\%_]/g, (c) => `\\${c}`);
+    sql += ` AND lower(t.title) LIKE ? ESCAPE '\\'`;
+    params.push(`%${escaped}%`);
   }
 
   sql += ` ORDER BY t.created_at`;
