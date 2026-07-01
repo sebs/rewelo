@@ -419,7 +419,7 @@ ticketCmd
       } else if (opts.csv) {
         console.log("title,benefit,penalty,estimate,risk,value,cost,priority");
         filtered.forEach((t) =>
-          console.log(`${t.title},${t.benefit},${t.penalty},${t.estimate},${t.risk},${t.value},${t.cost},${t.priority}`)
+          console.log(`${t.title},${t.benefit},${t.penalty},${t.estimate},${t.risk},${t.value},${t.cost},${t.priority.toFixed(2)}`)
         );
       } else if (filtered.length === 0) {
         console.log("No tickets found.");
