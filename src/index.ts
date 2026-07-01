@@ -1156,9 +1156,13 @@ reportCmd
         console.log(`Project: ${project.name}`);
         console.log(`Total: ${health.totalTickets} | Done: ${health.doneTickets} | Open: ${health.openTickets}`);
         console.log(`High priority: ${health.highPriorityCount} | Low priority: ${health.lowPriorityCount}`);
-        if (health.highToLowRatio !== null) {
-          console.log(`High:Low ratio: ${health.highToLowRatio}`);
-        }
+        const ratioText =
+          health.highToLowRatio !== null
+            ? String(health.highToLowRatio)
+            : health.highPriorityCount > 0
+            ? "∞"
+            : "n/a";
+        console.log(`High:Low ratio: ${ratioText}`);
         console.log(`Total backlog cost: ${health.totalBacklogCost}`);
       }
     });
