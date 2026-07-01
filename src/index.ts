@@ -97,13 +97,19 @@ async function withProject<T>(
   });
 }
 
-function formatTable(headers: string[], rows: string[][]): string {
+function formatTable(headers: string[], rows: unknown[][]): string {
+  // Coerce every cell to a string up front: some rows carry non-string values
+  // (e.g. DuckDB Date objects for created_at/revised_at/changed_at columns),
+  // and calling String methods like padEnd on them would throw.
+  const cells = rows.map((r) =>
+    r.map((c) => (c == null ? "" : c instanceof Date ? c.toISOString() : String(c)))
+  );
   const widths = headers.map((h, i) =>
-    rows.reduce((max, r) => Math.max(max, (r[i] || "").length), h.length)
+    cells.reduce((max, r) => Math.max(max, (r[i] || "").length), h.length)
   );
   const sep = widths.map((w) => "-".repeat(w)).join(" | ");
   const head = headers.map((h, i) => h.padEnd(widths[i])).join(" | ");
-  const body = rows
+  const body = cells
     .map((r) => r.map((c, i) => c.padEnd(widths[i])).join(" | "))
     .join("\n");
   return `${head}\n${sep}\n${body}`;
