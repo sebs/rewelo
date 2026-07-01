@@ -18,6 +18,13 @@ interface CsvRow {
   tags: string;
 }
 
+// Reverse the formula-injection guard applied on export: a leading apostrophe
+// that precedes a spreadsheet formula trigger is stripped so round-tripping a
+// title/description through export -> import is lossless (see export/csv.ts).
+function stripCsvFormulaGuard(field: string): string {
+  return /^'[=+\-@\t\r]/.test(field) ? field.slice(1) : field;
+}
+
 function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
   let current = "";
@@ -91,8 +98,8 @@ function parseRows(csv: string): CsvRow[] {
     }
 
     rows.push({
-      title: row.title,
-      description: row.description ?? "",
+      title: stripCsvFormulaGuard(row.title),
+      description: stripCsvFormulaGuard(row.description ?? ""),
       benefit,
       penalty,
       estimate,

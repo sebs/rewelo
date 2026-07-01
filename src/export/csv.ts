@@ -3,11 +3,17 @@ import { listTickets, Ticket } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
 import { priority } from "../calculations/priority.js";
 
+// Cells whose first character is one of these can be interpreted as a formula
+// by spreadsheet apps (Excel/Sheets), so we neutralise them with a leading
+// apostrophe. The CSV importer strips this guard back off (see import/csv.ts).
+const FORMULA_TRIGGERS = /^[=+\-@\t\r]/;
+
 function escapeCsvField(field: string): string {
-  if (field.includes(",") || field.includes('"') || field.includes("\n")) {
-    return `"${field.replace(/"/g, '""')}"`;
+  const value = FORMULA_TRIGGERS.test(field) ? `'${field}` : field;
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
   }
-  return field;
+  return value;
 }
 
 function csvRow(fields: string[]): string {
