@@ -81,11 +81,11 @@ export async function getEventLog(
   params.push(projectId);
   if (since) params.push(since);
 
-  if (limit) {
+  if (limit !== undefined) {
     params.push(limit);
   }
 
-  const limitClause = limit ? " LIMIT ?" : "";
+  const limitClause = limit !== undefined ? " LIMIT ?" : "";
 
   const rows = await db.all<{
     ts: string;

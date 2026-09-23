@@ -132,7 +132,7 @@ function formatTable(headers: string[], rows: unknown[][]): string {
 // base 10 and reject non-integers.
 function parseIntOption(value: string): number {
   const n = parseInt(value, 10);
-  if (!Number.isInteger(n)) {
+  if (!Number.isSafeInteger(n)) {
     throw new ValidationError(`"${value}" is not a valid integer`);
   }
   return n;

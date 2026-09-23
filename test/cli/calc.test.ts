@@ -31,4 +31,10 @@ describe("rw calc (CLI)", () => {
 
     expect(rw("calc", "priority", "--project", "P", "--w1", "3").code).toBe(0);
   });
+
+  it("rejects a --limit beyond the safe integer range", () => {
+    const r = rw("report", "event-log", "--project", "P", "--limit", "99999999999999999999");
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain("is not a valid integer");
+  });
 });

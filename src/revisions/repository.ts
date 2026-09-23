@@ -92,7 +92,7 @@ export async function listProjectRevisions(
 
   sql += ` ORDER BY r.revised_at DESC, r.id DESC`;
 
-  if (limit) {
+  if (limit !== undefined) {
     sql += ` LIMIT ?`;
     params.push(limit);
   }

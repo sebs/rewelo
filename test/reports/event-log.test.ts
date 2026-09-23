@@ -88,4 +88,9 @@ describe("event log", () => {
     const created = (await getEventLog(db, projectId)).find((e) => e.type === "ticket_created");
     expect(created!.detail).toEqual({ benefit: 8, penalty: 1, estimate: 1, risk: 3 });
   });
+
+  it("returns no events for limit 0", async () => {
+    await createTicket(db, { projectId, title: "Z" });
+    expect(await getEventLog(db, projectId, undefined, 0)).toEqual([]);
+  });
 });

@@ -265,7 +265,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       excludeTags: z.array(z.string()).optional().describe("Exclude tickets with these tags. Each as prefix:value"),
       search: z.string().optional().describe("Filter by title substring (case-insensitive)"),
       sort: z.string().optional().describe("Sort descending by: priority, benefit, penalty, estimate, risk, value, cost"),
-      limit: z.number().optional().describe("Max number of results to return"),
+      limit: z.number().int().nonnegative().optional().describe("Max number of results to return"),
       offset: z.number().optional().describe("Skip first N results (for pagination)"),
       minPriority: z.number().optional().describe("Minimum priority threshold"),
       minValue: z.number().optional().describe("Minimum value (benefit+penalty) threshold"),
@@ -313,10 +313,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const total = filtered.length;
         const off = Math.max(0, offset ?? 0);
         let page = filtered.slice(off);
-        if (limit != null) {
-          if (limit < 0) throw new AppError("limit must be a non-negative number");
-          page = page.slice(0, limit);
-        }
+        if (limit != null) page = page.slice(0, limit);
 
         return { total, offset: off, items: page };
       })
@@ -408,7 +405,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       since: z.string().optional().describe("Only show revisions after this ISO timestamp"),
-      limit: z.number().optional().describe("Maximum number of revisions to return"),
+      limit: z.number().int().nonnegative().optional().describe("Maximum number of revisions to return"),
     },
     safe(({ project, since, limit }) =>
       withProject(resolveProject(project), (db, proj) => listProjectRevisions(db, proj.id, since, limit))
@@ -680,7 +677,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       since: z.string().optional().describe("Only events after this ISO timestamp"),
-      limit: z.number().optional().describe("Maximum number of events to return"),
+      limit: z.number().int().nonnegative().optional().describe("Maximum number of events to return"),
     },
     safe(({ project, since, limit }) =>
       withProject(resolveProject(project), (db, proj) => getEventLog(db, proj.id, since, limit ?? 50))

@@ -419,4 +419,15 @@ describe("MCP server", () => {
     });
     expect(JSON.parse((r.content as any)[0].text)).toEqual([{ ticket: "A", tag: "state:wip", status: "assigned" }]);
   });
+
+  it("rejects non-integer, huge and negative limits with a validation error", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Lim" } });
+    for (const name of ["project_history", "event_log", "ticket_list"]) {
+      for (const limit of [1.5, 1e20, -1]) {
+        const r = await client.callTool({ name, arguments: { project: "Lim", limit } });
+        expect(r.isError, `${name} limit=${limit}`).toBe(true);
+        expect((r.content as any)[0].text, `${name} limit=${limit}`).toContain("Input validation error");
+      }
+    }
+  });
 });

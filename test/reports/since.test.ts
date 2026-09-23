@@ -57,4 +57,8 @@ describe("since filters", () => {
     const actual = await getProjectDiff(db, projectId, offset);
     expect({ ...actual, since: utc, now: expected.now }).toEqual(expected);
   });
+
+  it("project history returns no revisions for limit 0", async () => {
+    expect(await listProjectRevisions(db, projectId, undefined, 0)).toEqual([]);
+  });
 });
