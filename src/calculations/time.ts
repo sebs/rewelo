@@ -36,12 +36,14 @@ export async function getTicketTimes(
     ticketId
   );
 
-  // Find first state:done added
+  // Done means *currently* tagged state:done (as in report health); a
+  // reopened ticket is not done. Completion is the latest time it was added.
   const doneRows = await db.all<{ changed_at: string }>(
     `SELECT c.changed_at FROM ticket_tag_changes c
      JOIN tags t ON t.id = c.tag_id
      WHERE c.ticket_id = ? AND c.action = 'added' AND t.prefix = 'state' AND t.value = 'done'
-     ORDER BY c.changed_at
+       AND EXISTS (SELECT 1 FROM ticket_tags tt WHERE tt.ticket_id = c.ticket_id AND tt.tag_id = c.tag_id)
+     ORDER BY c.changed_at DESC, c.id DESC
      LIMIT 1`,
     ticketId
   );

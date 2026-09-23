@@ -4,7 +4,7 @@ import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
-import { assignTag } from "../../src/tags/assignment.js";
+import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { getTicketTimes, averageLeadTime } from "../../src/calculations/time.js";
 
 describe("lead and cycle time", () => {
@@ -77,5 +77,35 @@ describe("lead and cycle time", () => {
       { ticketId: 3, leadTimeDays: 20, cycleTimeDays: 10 },
     ];
     expect(averageLeadTime(times)).toBe(15);
+  });
+
+  it("does not count a reopened ticket as done", async () => {
+    const ticket = await createTicket(db, { projectId, title: "Reopened" });
+    const done = await createTag(db, projectId, "state", "done");
+    await assignTag(db, ticket.id, done.id);
+    await removeTag(db, ticket.id, done.id);
+
+    const times = await getTicketTimes(db, ticket.id);
+    expect(times.leadTimeDays).toBeUndefined();
+    expect(times.cycleTimeDays).toBeUndefined();
+  });
+
+  it("measures to the latest completion when a ticket was done twice", async () => {
+    const ticket = await createTicket(db, { projectId, title: "Twice" });
+    const done = await createTag(db, projectId, "state", "done");
+    await assignTag(db, ticket.id, done.id);
+    await removeTag(db, ticket.id, done.id);
+    await assignTag(db, ticket.id, done.id);
+
+    await db.run(`UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z' WHERE id = ?`, ticket.id);
+    const changes = await db.all<{ id: number }>(
+      `SELECT id FROM ticket_tag_changes WHERE ticket_id = ? ORDER BY id`, ticket.id
+    );
+    const at = ["2026-01-03T00:00:00.000Z", "2026-01-04T00:00:00.000Z", "2026-01-11T00:00:00.000Z"];
+    for (let i = 0; i < 3; i++) {
+      await db.run(`UPDATE ticket_tag_changes SET changed_at = ? WHERE id = ?`, at[i], changes[i].id);
+    }
+
+    expect((await getTicketTimes(db, ticket.id)).leadTimeDays).toBe(10);
   });
 });
