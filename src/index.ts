@@ -44,7 +44,6 @@ import {
 } from "./validation/strings.js";
 import { validateDbPath, validateExportPath, validateImportPath } from "./validation/paths.js";
 import { sanitizeError } from "./validation/errors.js";
-import { startMcpServer } from "./mcp/server.js";
 import { csvRow, exportCsv } from "./export/csv.js";
 import { exportJson } from "./export/json.js";
 import { importCsv } from "./import/csv.js";
@@ -1277,6 +1276,9 @@ program
   .action(async (_opts: unknown, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     const dbPath = opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB;
+    // Loaded on demand: the MCP SDK roughly quadruples CLI startup time,
+    // and no other command needs it.
+    const { startMcpServer } = await import("./mcp/server.js");
     await startMcpServer(dbPath);
   });
 
