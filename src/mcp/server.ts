@@ -344,7 +344,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       risk: fibonacciScore.optional().describe("Risk score"),
     },
     safe(async ({ project, title, newTitle, description, benefit, penalty, estimate, risk }) => {
-      const validNewTitle = newTitle ? validateTicketTitle(newTitle) : undefined;
+      const validNewTitle = newTitle !== undefined ? validateTicketTitle(newTitle) : undefined;
       const validDesc = validateTicketDescription(description);
       return withProject(resolveProject(project), async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title);

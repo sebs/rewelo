@@ -457,4 +457,12 @@ describe("MCP server", () => {
     const byId = await client.callTool({ name: "ticket_history", arguments: { project: "Hist", id: 999 } });
     expect((byId.content as any)[0].text).toBe("Ticket #999 not found");
   });
+
+  it("ticket_update rejects an empty newTitle", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Ren" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Ren", title: "A" } });
+    const r = await client.callTool({ name: "ticket_update", arguments: { project: "Ren", title: "A", newTitle: "" } });
+    expect(r.isError).toBe(true);
+    expect((r.content as any)[0].text).toBe("Ticket title must not be empty");
+  });
 });

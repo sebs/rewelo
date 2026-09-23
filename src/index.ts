@@ -470,7 +470,7 @@ ticketCmd
   .option("--risk <n>", "risk score", parseScoreOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    const validNewTitle = cmdOpts.newTitle ? validateTicketTitle(cmdOpts.newTitle) : undefined;
+    const validNewTitle = cmdOpts.newTitle !== undefined ? validateTicketTitle(cmdOpts.newTitle) : undefined;
     const validDesc = validateTicketDescription(cmdOpts.description);
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.title);

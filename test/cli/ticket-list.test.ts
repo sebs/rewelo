@@ -73,4 +73,11 @@ describe("rw ticket list (CLI)", () => {
     expect(r.stderr).toContain("Invalid JSON in");
     expect(rw("ticket", "list", "--project", "P").stdout).not.toContain("fromchild");
   });
+
+  it("ticket update rejects an empty --new-title", () => {
+    rw("ticket", "create", "--project", "P", "--title", "A");
+    const r = rw("ticket", "update", "--project", "P", "--title", "A", "--new-title", "");
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain("Ticket title must not be empty");
+  });
 });
