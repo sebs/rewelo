@@ -1,5 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Tag } from "./repository.js";
+import { AppError } from "../validation/strings.js";
 
 export interface TicketTag {
   ticket_id: number;
@@ -7,22 +8,47 @@ export interface TicketTag {
   assigned_at: string;
 }
 
+/**
+ * A prefix works like a field: a ticket holds at most one value per prefix
+ * (assigning state:done replaces state:wip). Asking for two values of the
+ * same prefix at once is therefore contradictory and rejected up front.
+ */
+export function assertOneValuePerPrefix(tags: { prefix: string; value: string }[]): void {
+  const seen = new Map<string, string>();
+  for (const { prefix, value } of tags) {
+    const other = seen.get(prefix);
+    if (other !== undefined && other !== value) {
+      throw new AppError(
+        `Tags "${prefix}:${other}" and "${prefix}:${value}" share the prefix "${prefix}"; a ticket holds one value per prefix`
+      );
+    }
+    seen.set(prefix, value);
+  }
+}
+
+export interface AssignResult {
+  /** false if the ticket already had this tag */
+  assigned: boolean;
+  /** same-prefix tags removed by this assignment, as "prefix:value" */
+  replaced: string[];
+}
+
 export async function assignTag(
   db: DB,
   ticketId: number,
   tagId: number
-): Promise<boolean> {
+): Promise<AssignResult> {
   // Check if already assigned (idempotent)
   const existing = await db.all(
     `SELECT 1 FROM ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
     ticketId,
     tagId
   );
-  if (existing.length > 0) return false;
+  if (existing.length > 0) return { assigned: false, replaced: [] };
 
   // Remove any existing tag with the same prefix (exclusive per prefix)
-  const samePrefix = await db.all<{ tag_id: number }>(
-    `SELECT tt.tag_id FROM ticket_tags tt
+  const samePrefix = await db.all<{ tag_id: number; prefix: string; value: string }>(
+    `SELECT tt.tag_id, t.prefix, t.value FROM ticket_tags tt
      JOIN tags t ON t.id = tt.tag_id
      JOIN tags new_tag ON new_tag.id = ?
      WHERE tt.ticket_id = ? AND t.prefix = new_tag.prefix AND tt.tag_id != ?`,
@@ -53,7 +79,7 @@ export async function assignTag(
     ticketId,
     tagId
   );
-  return true;
+  return { assigned: true, replaced: samePrefix.map((r) => `${r.prefix}:${r.value}`) };
 }
 
 export async function removeTag(

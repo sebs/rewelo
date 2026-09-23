@@ -5,6 +5,7 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import {
+  assertOneValuePerPrefix,
   assignTag,
   removeTag,
   getTicketTags,
@@ -34,8 +35,8 @@ describe("tag assignment", () => {
   });
 
   it("assigns a tag to a ticket", async () => {
-    const assigned = await assignTag(db, ticketId, tagId);
-    expect(assigned).toBe(true);
+    const result = await assignTag(db, ticketId, tagId);
+    expect(result).toEqual({ assigned: true, replaced: [] });
     const tags = await getTicketTags(db, ticketId);
     expect(tags).toHaveLength(1);
     expect(tags[0].prefix).toBe("state");
@@ -45,7 +46,7 @@ describe("tag assignment", () => {
   it("is idempotent when assigning the same tag twice", async () => {
     await assignTag(db, ticketId, tagId);
     const second = await assignTag(db, ticketId, tagId);
-    expect(second).toBe(false);
+    expect(second.assigned).toBe(false);
     const tags = await getTicketTags(db, ticketId);
     expect(tags).toHaveLength(1);
   });
@@ -88,6 +89,19 @@ describe("tag assignment", () => {
     expect(tags).toHaveLength(1);
     expect(tags[0].prefix).toBe("state");
     expect(tags[0].value).toBe("wip");
+  });
+
+  it("reports which same-prefix tag it replaced", async () => {
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, ticketId, tagId); // state:backlog
+    expect(await assignTag(db, ticketId, wip.id)).toEqual({ assigned: true, replaced: ["state:backlog"] });
+  });
+
+  it("rejects requests for two values of the same prefix", () => {
+    expect(() =>
+      assertOneValuePerPrefix([{ prefix: "feature", value: "auth" }, { prefix: "team", value: "a" }, { prefix: "feature", value: "login" }])
+    ).toThrow('Tags "feature:auth" and "feature:login" share the prefix "feature"');
+    expect(() => assertOneValuePerPrefix([{ prefix: "a", value: "x" }, { prefix: "b", value: "x" }])).not.toThrow();
   });
 
   it("logs removal of replaced same-prefix tag", async () => {

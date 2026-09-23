@@ -88,7 +88,7 @@ JSON output includes `{ total, offset, items }` for pagination. `ticket list` al
 
 ### tag
 
-Tags use a `prefix:value` format (e.g. `state:wip`, `team:backend`).
+Tags use a `prefix:value` format (e.g. `state:wip`, `team:backend`). A prefix works like a field: a ticket holds **one value per prefix**. Assigning `state:done` to a ticket tagged `state:wip` replaces it (the output says `replaced "state:wip"`), and asking for two values of one prefix in one command, e.g. `feature:auth feature:login`, is an error. Use different prefixes for independent classifications.
 
 ```bash
 rw tag create <prefix:value> --project <name>

@@ -28,4 +28,17 @@ describe("rw ticket list (CLI)", () => {
     expect(lines).toContain('"say ""hi"", ok",8,1,1,1,9,2,4.50');
     expect(lines).toContain(`"'=HYPERLINK(""http://evil"",""x"")",1,1,1,1,2,2,1.00`);
   });
+
+  it("tag assign rejects two values of one prefix and reports replacements", () => {
+    rw("ticket", "create", "--project", "P", "--title", "L");
+
+    const both = rw("tag", "assign", "feature:auth", "feature:login", "--project", "P", "--ticket", "L");
+    expect(both.code).toBe(1);
+    expect(both.stderr).toContain('share the prefix "feature"');
+    expect(rw("tag", "log", "--project", "P", "--ticket", "L").stdout).not.toContain("feature");
+
+    rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "L");
+    const replace = rw("tag", "assign", "state:done", "--project", "P", "--ticket", "L");
+    expect(replace.stdout).toContain('Assigned "state:done" to "L" (replaced "state:wip")');
+  });
 });

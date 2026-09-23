@@ -39,7 +39,7 @@ describe("audit log integrity", () => {
 
     await assignTag(db, ticket.id, tag.id);
     const second = await assignTag(db, ticket.id, tag.id);
-    expect(second).toBe(false);
+    expect(second.assigned).toBe(false);
 
     const log = await getTagChangeLog(db, ticket.id);
     expect(log).toHaveLength(1); // Still just one entry

@@ -122,7 +122,7 @@ The legacy `tag` parameter (single string) is still supported alongside the new 
 
 Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, `in-progress`).
 
-`tag_assign` supports batch operations. Provide either `ticket` (single) or `tickets` (array) for targets, and either `prefix`+`value` (single tag) or `tags` (array of `{prefix, value}`) for tags. Every tag is assigned to every ticket.
+`tag_assign` supports batch operations. Provide either `ticket` (single) or `tickets` (array) for targets, and either `prefix`+`value` (single tag) or `tags` (array of `{prefix, value}`) for tags. Every tag is assigned to every ticket. A ticket holds one value per prefix: assigning `state:done` replaces `state:wip` (listed under `replaced` in the result), and requesting two values of one prefix in one call is an error.
 
 ```json
 // single tag, single ticket (backward compatible)

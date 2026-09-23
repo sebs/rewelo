@@ -364,4 +364,24 @@ describe("MCP server", () => {
     const imported = JSON.parse((importResult.content as any)[0].text);
     expect(imported.imported).toBe(1);
   });
+
+  it("tag_assign reports replaced same-prefix tags and rejects two values of one prefix", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Tags" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Tags", title: "A" } });
+    for (const value of ["wip", "done"]) {
+      await client.callTool({ name: "tag_create", arguments: { project: "Tags", prefix: "state", value } });
+    }
+    const assign = (args: Record<string, unknown>) =>
+      client.callTool({ name: "tag_assign", arguments: { project: "Tags", ticket: "A", ...args } });
+
+    const both = await assign({ tags: [{ prefix: "state", value: "wip" }, { prefix: "state", value: "done" }] });
+    expect(both.isError).toBe(true);
+    expect((both.content as any)[0].text).toContain('share the prefix "state"');
+
+    await assign({ prefix: "state", value: "wip" });
+    const replace = await assign({ prefix: "state", value: "done" });
+    expect(JSON.parse((replace.content as any)[0].text)).toEqual([
+      { ticket: "A", tag: "state:done", status: "assigned", replaced: ["state:wip"] },
+    ]);
+  });
 });

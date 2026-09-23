@@ -185,4 +185,12 @@ describe("JSON import", () => {
     await expect(importJsonAsProject(db, "Doomed", json)).rejects.toThrow("already exists");
     expect(await getProjectByName(db, "Doomed")).toBeFalsy();
   });
+
+  it("rejects two values of one tag prefix on a ticket", async () => {
+    const json = JSON.stringify({
+      tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1,
+        tags: [{ prefix: "state", value: "wip" }, { prefix: "state", value: "done" }] }],
+    });
+    await expect(importJson(db, projectId, json)).rejects.toThrow(/Ticket 1: .*share the prefix "state"/);
+  });
 });

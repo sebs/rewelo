@@ -178,4 +178,10 @@ T,"state:wip,x"`)).rejects.toThrow(
     const imported = (await listTickets(db, projectId)).map((t) => ({ title: t.title, description: t.description }));
     expect(imported).toEqual(samples);
   });
+
+  it("rejects two values of one tag prefix in a row", async () => {
+    await expect(importCsv(db, projectId, 'title,tags\nT,"state:wip,state:done"')).rejects.toThrow(
+      /Row 2: .*share the prefix "state"/
+    );
+  });
 });

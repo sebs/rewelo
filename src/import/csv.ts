@@ -1,7 +1,7 @@
 import { DB } from "../db/connection.js";
 import { createTicket } from "../tickets/repository.js";
 import { createTag, getTag } from "../tags/repository.js";
-import { assignTag } from "../tags/assignment.js";
+import { assertOneValuePerPrefix, assignTag } from "../tags/assignment.js";
 import { assertFibonacci } from "../db/types.js";
 import { ValidationError, parseTagPair, validateTagPrefix, validateTagValue } from "../validation/strings.js";
 import type { TagPair } from "../serialization/export-project.js";
@@ -132,6 +132,7 @@ function parseRows(csv: string): CsvRow[] {
           const { prefix, value } = parseTagPair(raw);
           return { prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
         });
+      assertOneValuePerPrefix(tags);
     } catch (e) {
       throw new ValidationError(`Row ${i + 1}: ${(e as Error).message}`);
     }

@@ -22,7 +22,7 @@ import {
   listTags,
   renameTag,
 } from "./tags/repository.js";
-import { assignTag, removeTag, listTicketsByTag } from "./tags/assignment.js";
+import { assertOneValuePerPrefix, assignTag, removeTag, listTicketsByTag } from "./tags/assignment.js";
 import { getTagChangeLog } from "./tags/audit.js";
 import { listRevisions, listProjectRevisions } from "./revisions/repository.js";
 import { priority } from "./calculations/priority.js";
@@ -617,6 +617,7 @@ tagCmd
       const { prefix, value } = parseTagPair(s);
       return { raw: s, prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
     });
+    assertOneValuePerPrefix(parsedTags);
     await withProject(opts, cmdOpts.project, async (db, project) => {
       // Resolve every target ticket up front so a missing one aborts before
       // any tag is applied, rather than partially assigning and then failing.
@@ -630,8 +631,9 @@ tagCmd
         for (const t of parsedTags) {
           let tag = await getTag(db, project.id, t.prefix, t.value);
           if (!tag) tag = await createTag(db, project.id, t.prefix, t.value);
-          const assigned = await assignTag(db, id, tag.id);
-          console.log(assigned ? `Assigned "${t.raw}" to "${ticketTitle}"` : `Tag "${t.raw}" already assigned to "${ticketTitle}"`);
+          const { assigned, replaced } = await assignTag(db, id, tag.id);
+          const note = replaced.length > 0 ? ` (replaced ${replaced.map((r) => `"${r}"`).join(", ")})` : "";
+          console.log(assigned ? `Assigned "${t.raw}" to "${ticketTitle}"${note}` : `Tag "${t.raw}" already assigned to "${ticketTitle}"`);
         }
       }
     });

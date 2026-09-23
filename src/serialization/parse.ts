@@ -1,6 +1,7 @@
 import { assertFibonacci } from "../db/types.js";
 import { ValidationError, validateTagPrefix, validateTagValue } from "../validation/strings.js";
 import type { TagPair } from "./export-project.js";
+import { assertOneValuePerPrefix } from "../tags/assignment.js";
 import type { ImportableTicket } from "./import-project.js";
 
 export const MAX_JSON_SIZE_BYTES = 50 * 1024 * 1024;
@@ -85,6 +86,13 @@ export function parseTickets(
       throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
     }
 
+    const tags = parseTags(t.tags, `${errorPrefix} ${i + 1}: tag`);
+    try {
+      if (tags) assertOneValuePerPrefix(tags);
+    } catch (e) {
+      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
+    }
+
     tickets.push({
       title: t.title as string,
       description: typeof t.description === "string" ? t.description : undefined,
@@ -92,7 +100,7 @@ export function parseTickets(
       penalty,
       estimate,
       risk,
-      tags: parseTags(t.tags, `${errorPrefix} ${i + 1}: tag`),
+      tags,
     });
   }
 

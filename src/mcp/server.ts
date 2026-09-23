@@ -23,6 +23,7 @@ import {
 } from "../tickets/repository.js";
 import { createTag, getTag, listTags, renameTag } from "../tags/repository.js";
 import {
+  assertOneValuePerPrefix,
   assignTag,
   removeTag,
 } from "../tags/assignment.js";
@@ -435,7 +436,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "tag_assign",
-    "Assign existing tags to tickets. Prerequisite: create tags first with tag_create. Supports batch: single or multiple tags × single or multiple tickets in one call.",
+    "Assign existing tags to tickets. Prerequisite: create tags first with tag_create. Supports batch: single or multiple tags × single or multiple tickets in one call. A ticket holds one value per prefix: assigning state:done replaces state:wip (reported as 'replaced'), and requesting two values of one prefix is an error.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       ticket: z.string().optional().describe("Ticket title (single)"),
@@ -459,16 +460,22 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         prefix: validateTagPrefix(t.prefix),
         value: validateTagValue(t.value),
       }));
+      assertOneValuePerPrefix(validatedTags);
 
       return withProject(resolveProject(project), async (db, proj) => {
-        const out: { ticket: string; tag: string; status: "assigned" | "already_assigned" }[] = [];
+        const out: { ticket: string; tag: string; status: "assigned" | "already_assigned"; replaced?: string[] }[] = [];
         for (const title of allTickets) {
           const ticket = await resolveTicket(db, proj.id, title);
           for (const t of validatedTags) {
             const tag = await getTag(db, proj.id, t.prefix, t.value);
             if (!tag) throw new AppError(`Tag "${t.prefix}:${t.value}" not found. Create it first with tag_create.`);
-            const newlyAssigned = await assignTag(db, ticket.id, tag.id);
-            out.push({ ticket: title, tag: `${t.prefix}:${t.value}`, status: newlyAssigned ? "assigned" : "already_assigned" });
+            const { assigned, replaced } = await assignTag(db, ticket.id, tag.id);
+            out.push({
+              ticket: title,
+              tag: `${t.prefix}:${t.value}`,
+              status: assigned ? "assigned" : "already_assigned",
+              ...(replaced.length > 0 ? { replaced } : {}),
+            });
           }
         }
         return out;
