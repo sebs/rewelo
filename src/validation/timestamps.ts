@@ -1,3 +1,5 @@
+import { ValidationError } from "./strings.js";
+
 /**
  * Timestamps are stored as ISO-8601 UTC text (2026-01-31T12:00:00.000Z) and
  * compared as strings in SQL, so user-supplied bounds must use the same form:
@@ -5,5 +7,10 @@
  */
 export function normalizeSince(since: string): string {
   const ms = Date.parse(since);
-  return Number.isNaN(ms) ? since : new Date(ms).toISOString();
+  if (Number.isNaN(ms)) {
+    throw new ValidationError(
+      `Invalid timestamp "${since}". Use an ISO date or date-time, e.g. 2026-03-10 or 2026-03-10T09:00:00Z`
+    );
+  }
+  return new Date(ms).toISOString();
 }

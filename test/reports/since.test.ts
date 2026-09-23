@@ -8,6 +8,7 @@ import { assignTag } from "../../src/tags/assignment.js";
 import { listProjectRevisions } from "../../src/revisions/repository.js";
 import { getEventLog } from "../../src/reports/event-log.js";
 import { getProjectDiff } from "../../src/reports/diff.js";
+import { ValidationError } from "../../src/validation/strings.js";
 
 // The same instant written in UTC and with a +02:00 offset. Timestamps are
 // stored as UTC text, so a raw string comparison gets the offset form wrong.
@@ -60,5 +61,11 @@ describe("since filters", () => {
 
   it("project history returns no revisions for limit 0", async () => {
     expect(await listProjectRevisions(db, projectId, undefined, 0)).toEqual([]);
+  });
+
+  it("rejects a since value that is not a timestamp", async () => {
+    await expect(getEventLog(db, projectId, "garbage")).rejects.toThrow('Invalid timestamp "garbage"');
+    await expect(listProjectRevisions(db, projectId, "yesterday")).rejects.toThrow("Invalid timestamp");
+    await expect(getProjectDiff(db, projectId, "garbage")).rejects.toThrow(ValidationError);
   });
 });
