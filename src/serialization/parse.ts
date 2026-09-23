@@ -72,10 +72,12 @@ export function parseTickets(
       throw new ValidationError(`${errorPrefix} ${i + 1}: title is required`);
     }
 
-    const benefit = Number(t.benefit);
-    const penalty = Number(t.penalty);
-    const estimate = Number(t.estimate);
-    const risk = Number(t.risk);
+    // Missing scores default to 1, as in CSV import and ticket create
+    const score = (v: unknown) => (v === undefined || v === null ? 1 : Number(v));
+    const benefit = score(t.benefit);
+    const penalty = score(t.penalty);
+    const estimate = score(t.estimate);
+    const risk = score(t.risk);
 
     try {
       assertFibonacci(benefit, "benefit");

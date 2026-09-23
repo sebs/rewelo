@@ -199,4 +199,19 @@ describe("JSON import", () => {
     await importJson(db, projectId, json);
     expect((await listTickets(db, projectId)).map((t) => t.title)).toEqual(["padded"]);
   });
+
+  it("defaults missing scores to 1 like CSV import and ticket create", async () => {
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "NoScores" }, { title: "Some", benefit: 5 }] }));
+    const tickets = await listTickets(db, projectId);
+    expect(tickets.map((t) => [t.title, t.benefit, t.penalty, t.estimate, t.risk])).toEqual([
+      ["NoScores", 1, 1, 1, 1],
+      ["Some", 5, 1, 1, 1],
+    ]);
+  });
+
+  it("still rejects scores that are present but not numbers", async () => {
+    await expect(
+      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", benefit: "lots" }] }))
+    ).rejects.toThrow("Ticket 1: benefit must be a Fibonacci value");
+  });
 });
