@@ -115,14 +115,14 @@ function parseRows(csv: string): CsvRow[] {
       assertFibonacci(estimate, "estimate");
       assertFibonacci(risk, "risk");
     } catch (e) {
-      throw new ValidationError(`Row ${i + 1}: ${(e as Error).message}`);
+      throw new ValidationError(`Row ${i}: ${(e as Error).message}`);
     }
 
     let title: string;
     try {
       title = validateTicketTitle(stripCsvFormulaGuard(row.title ?? ""));
     } catch (e) {
-      throw new ValidationError(`Row ${i + 1}: ${(e as Error).message}`);
+      throw new ValidationError(`Row ${i}: ${(e as Error).message}`);
     }
 
     let tags: TagPair[];
@@ -137,7 +137,7 @@ function parseRows(csv: string): CsvRow[] {
         });
       assertOneValuePerPrefix(tags);
     } catch (e) {
-      throw new ValidationError(`Row ${i + 1}: ${(e as Error).message}`);
+      throw new ValidationError(`Row ${i}: ${(e as Error).message}`);
     }
 
     rows.push({

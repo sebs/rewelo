@@ -63,7 +63,8 @@ Login,8,3,5,2,state:backlog`;
 Login,8,3,5,2
 Bad,4,3,5,2`;
 
-    await expect(importCsv(db, projectId, csv)).rejects.toThrow("Row 3");
+    // Rows count data rows, like JSON import's "Ticket N" (export-import.feature)
+    await expect(importCsv(db, projectId, csv)).rejects.toThrow("Row 2:");
   });
 
   it("imports CSV with only title and partial scores (defaults to 1)", async () => {
@@ -126,11 +127,11 @@ T,"State:WIP"`);
   it("rejects invalid tags with the row number", async () => {
     await expect(importCsv(db, projectId, `title,tags
 T,"bad prefix:x"`)).rejects.toThrow(
-      /Row 2: Tag prefix must contain only/
+      /Row 1: Tag prefix must contain only/
     );
     await expect(importCsv(db, projectId, `title,tags
 T,"state:wip,x"`)).rejects.toThrow(
-      /Row 2: Tag "x" must be in prefix:value format/
+      /Row 1: Tag "x" must be in prefix:value format/
     );
     expect(await listTickets(db, projectId)).toHaveLength(0);
   });
@@ -181,13 +182,13 @@ T,"state:wip,x"`)).rejects.toThrow(
 
   it("rejects two values of one tag prefix in a row", async () => {
     await expect(importCsv(db, projectId, 'title,tags\nT,"state:wip,state:done"')).rejects.toThrow(
-      /Row 2: .*share the prefix "state"/
+      /Row 1: .*share the prefix "state"/
     );
   });
 
   it("normalises titles like ticket create does", async () => {
     await importCsv(db, projectId, 'title\n"  padded  "');
     expect((await listTickets(db, projectId)).map((t) => t.title)).toEqual(["padded"]);
-    await expect(importCsv(db, projectId, "title\n" + "x".repeat(501))).rejects.toThrow(/Row 2: Ticket title must not exceed/);
+    await expect(importCsv(db, projectId, "title\n" + "x".repeat(501))).rejects.toThrow(/Row 1: Ticket title must not exceed/);
   });
 });
