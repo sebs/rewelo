@@ -114,4 +114,23 @@ Dup,3`;
     await expect(importCsv(db, projectId, csv)).rejects.toThrow("already exists");
     expect(await listTickets(db, projectId)).toHaveLength(0);
   });
+
+  it("normalises tags like the CLI does", async () => {
+    await importCsv(db, projectId, `title,tags
+T,"State:WIP"`);
+    const tags = await listTags(db, projectId);
+    expect(tags.map((t) => `${t.prefix}:${t.value}`)).toEqual(["state:wip"]);
+  });
+
+  it("rejects invalid tags with the row number", async () => {
+    await expect(importCsv(db, projectId, `title,tags
+T,"bad prefix:x"`)).rejects.toThrow(
+      /Row 2: Tag prefix must contain only/
+    );
+    await expect(importCsv(db, projectId, `title,tags
+T,"state:wip,x"`)).rejects.toThrow(
+      /Row 2: Tag "x" must be in prefix:value format/
+    );
+    expect(await listTickets(db, projectId)).toHaveLength(0);
+  });
 });

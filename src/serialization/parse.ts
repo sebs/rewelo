@@ -1,5 +1,5 @@
 import { assertFibonacci } from "../db/types.js";
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError, validateTagPrefix, validateTagValue } from "../validation/strings.js";
 import type { TagPair } from "./export-project.js";
 import type { ImportableTicket } from "./import-project.js";
 
@@ -45,7 +45,11 @@ export function parseTags(raw: unknown, errorPrefix: string = "Tag"): TagPair[] 
         `${errorPrefix} ${i + 1}: must be an object with string "prefix" and "value"`
       );
     }
-    return { prefix: t.prefix, value: t.value };
+    try {
+      return { prefix: validateTagPrefix(t.prefix), value: validateTagValue(t.value) };
+    } catch (e) {
+      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
+    }
   });
 }
 

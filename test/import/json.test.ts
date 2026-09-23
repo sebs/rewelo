@@ -127,4 +127,30 @@ describe("JSON import", () => {
 
     await expect(importJson(db, projectId, json)).rejects.toThrow(ValidationError);
   });
+
+  it("normalises tags like the CLI does", async () => {
+    const json = JSON.stringify({
+      tags: [{ prefix: "Team", value: "Core" }],
+      tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: [{ prefix: "State", value: "Done" }] }],
+    });
+    await importJson(db, projectId, json);
+    const tags = (await listTags(db, projectId)).map((t) => `${t.prefix}:${t.value}`).sort();
+    expect(tags).toEqual(["state:done", "team:core"]);
+  });
+
+  it("rejects tags the CLI would reject", async () => {
+    const bad = (tags: unknown) =>
+      JSON.stringify({ tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags }] });
+
+    await expect(importJson(db, projectId, bad([{ prefix: "Bad Prefix!", value: "x" }]))).rejects.toThrow(
+      /Ticket 1: tag 1: Tag prefix must contain only/
+    );
+    await expect(importJson(db, projectId, bad([{ prefix: "a", value: "" }]))).rejects.toThrow(
+      /Tag value must not be empty/
+    );
+    await expect(
+      importJson(db, projectId, JSON.stringify({ tickets: [], tags: [{ prefix: "a:b", value: "c" }] }))
+    ).rejects.toThrow(/Tag 1: Tag prefix must contain only/);
+    expect(await listTickets(db, projectId)).toHaveLength(0);
+  });
 });

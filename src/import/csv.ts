@@ -3,7 +3,8 @@ import { createTicket } from "../tickets/repository.js";
 import { createTag, getTag } from "../tags/repository.js";
 import { assignTag } from "../tags/assignment.js";
 import { assertFibonacci } from "../db/types.js";
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError, parseTagPair, validateTagPrefix, validateTagValue } from "../validation/strings.js";
+import type { TagPair } from "../serialization/export-project.js";
 
 const MAX_ROWS = 100_000;
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -15,7 +16,7 @@ interface CsvRow {
   penalty: number;
   estimate: number;
   risk: number;
-  tags: string;
+  tags: TagPair[];
 }
 
 // Reverse the formula-injection guard applied on export: a leading apostrophe
@@ -97,6 +98,20 @@ function parseRows(csv: string): CsvRow[] {
       throw new ValidationError(`Row ${i + 1}: title must not be empty`);
     }
 
+    let tags: TagPair[];
+    try {
+      tags = (row.tags ?? "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .map((raw) => {
+          const { prefix, value } = parseTagPair(raw);
+          return { prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
+        });
+    } catch (e) {
+      throw new ValidationError(`Row ${i + 1}: ${(e as Error).message}`);
+    }
+
     rows.push({
       title: stripCsvFormulaGuard(row.title),
       description: stripCsvFormulaGuard(row.description ?? ""),
@@ -104,7 +119,7 @@ function parseRows(csv: string): CsvRow[] {
       penalty,
       estimate,
       risk,
-      tags: row.tags ?? "",
+      tags,
     });
   }
 
@@ -135,18 +150,10 @@ export async function importCsv(
         risk: row.risk,
       });
 
-      if (row.tags) {
-        const tagPairs = row.tags.split(",").map((t) => t.trim()).filter(Boolean);
-        for (const pair of tagPairs) {
-          // A tag value cannot contain a colon; skip anything that is not
-          // exactly prefix:value rather than silently truncating extra segments.
-          const parts = pair.split(":");
-          if (parts.length !== 2 || !parts[0] || !parts[1]) continue;
-          const [prefix, value] = parts;
-          let tag = await getTag(db, projectId, prefix, value);
-          if (!tag) tag = await createTag(db, projectId, prefix, value);
-          await assignTag(db, ticket.id, tag.id);
-        }
+      for (const { prefix, value } of row.tags) {
+        let tag = await getTag(db, projectId, prefix, value);
+        if (!tag) tag = await createTag(db, projectId, prefix, value);
+        await assignTag(db, ticket.id, tag.id);
       }
     }
 
