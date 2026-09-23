@@ -41,4 +41,11 @@ describe("rw ticket list (CLI)", () => {
     const replace = rw("tag", "assign", "state:done", "--project", "P", "--ticket", "L");
     expect(replace.stdout).toContain('Assigned "state:done" to "L" (replaced "state:wip")');
   });
+
+  it("finds tickets and projects by the same trimmed name they were created with", () => {
+    rw("ticket", "create", "--project", "P", "--title", "  pad  ");
+    const update = rw("ticket", "update", "--project", " P ", "--title", " pad ", "--benefit", "3");
+    expect(update.code, update.stderr).toBe(0);
+    expect(update.stdout).toContain('Updated "pad"');
+  });
 });

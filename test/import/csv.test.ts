@@ -184,4 +184,10 @@ T,"state:wip,x"`)).rejects.toThrow(
       /Row 2: .*share the prefix "state"/
     );
   });
+
+  it("normalises titles like ticket create does", async () => {
+    await importCsv(db, projectId, 'title\n"  padded  "');
+    expect((await listTickets(db, projectId)).map((t) => t.title)).toEqual(["padded"]);
+    await expect(importCsv(db, projectId, "title\n" + "x".repeat(501))).rejects.toThrow(/Row 2: Ticket title must not exceed/);
+  });
 });

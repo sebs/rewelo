@@ -1,5 +1,5 @@
 import { DB, Row } from "../db/connection.js";
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError, normalizeName } from "../validation/strings.js";
 
 export interface Project {
   id: number;
@@ -30,7 +30,7 @@ export async function getProjectByName(
 ): Promise<Project | undefined> {
   const rows = await db.all<Project>(
     `SELECT * FROM projects WHERE name = ?`,
-    name
+    normalizeName(name)
   );
   return rows[0];
 }

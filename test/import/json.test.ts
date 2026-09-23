@@ -193,4 +193,10 @@ describe("JSON import", () => {
     });
     await expect(importJson(db, projectId, json)).rejects.toThrow(/Ticket 1: .*share the prefix "state"/);
   });
+
+  it("normalises titles like ticket create does", async () => {
+    const json = JSON.stringify({ tickets: [{ title: "  padded  ", benefit: 1, penalty: 1, estimate: 1, risk: 1 }] });
+    await importJson(db, projectId, json);
+    expect((await listTickets(db, projectId)).map((t) => t.title)).toEqual(["padded"]);
+  });
 });

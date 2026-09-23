@@ -17,6 +17,11 @@ function normalize(s: string): string {
   return s.normalize("NFC");
 }
 
+/** The form names and titles are stored in; use it for lookups too. */
+export function normalizeName(s: string): string {
+  return normalize(s.trim());
+}
+
 export class AppError extends Error {
   constructor(message: string) {
     super(message);

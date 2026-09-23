@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Fibonacci, assertFibonacci } from "../db/types.js";
-import { AppError, ValidationError } from "../validation/strings.js";
+import { AppError, ValidationError, normalizeName } from "../validation/strings.js";
 import { getTicketTags } from "../tags/assignment.js";
 
 export interface Ticket {
@@ -141,7 +141,7 @@ export async function getTicketByTitle(
   const rows = await db.all<Ticket>(
     `SELECT * FROM tickets WHERE project_id = ? AND title = ?`,
     projectId,
-    title
+    normalizeName(title)
   );
   return rows[0];
 }

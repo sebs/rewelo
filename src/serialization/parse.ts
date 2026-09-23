@@ -1,5 +1,5 @@
 import { assertFibonacci } from "../db/types.js";
-import { ValidationError, validateTagPrefix, validateTagValue } from "../validation/strings.js";
+import { ValidationError, validateTagPrefix, validateTagValue, validateTicketTitle } from "../validation/strings.js";
 import type { TagPair } from "./export-project.js";
 import { assertOneValuePerPrefix } from "../tags/assignment.js";
 import type { ImportableTicket } from "./import-project.js";
@@ -93,8 +93,15 @@ export function parseTickets(
       throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
     }
 
+    let title: string;
+    try {
+      title = validateTicketTitle(t.title);
+    } catch (e) {
+      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
+    }
+
     tickets.push({
-      title: t.title as string,
+      title,
       description: typeof t.description === "string" ? t.description : undefined,
       benefit,
       penalty,
