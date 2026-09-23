@@ -61,6 +61,7 @@ export async function deleteProject(db: DB, name: string): Promise<boolean> {
   await db.run(`DELETE FROM tickets WHERE project_id = ?`, pid);
   await db.run(`DELETE FROM tags WHERE project_id = ?`, pid);
   await db.run(`DELETE FROM weight_configs WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM ticket_deletions WHERE project_id = ?`, pid);
   await db.run(`DELETE FROM projects WHERE id = ?`, pid);
   return true;
 }

@@ -28,6 +28,7 @@ export interface ProjectDiff {
   now: string;
   newTickets: Array<{ id: number; title: string; priority: number }>;
   updatedTickets: TicketDiff[];
+  deletedTickets: Array<{ id: number; title: string }>;
   tagChanges: TagDiff[];
 }
 
@@ -54,13 +55,14 @@ export async function getProjectDiff(
   const revisionRows = await db.all<{
     ticket_id: number;
     title: string;
+    description: string | null;
     benefit: number;
     penalty: number;
     estimate: number;
     risk: number;
     revised_at: string;
   }>(
-    `SELECT r.ticket_id, r.title, r.benefit, r.penalty, r.estimate, r.risk, r.revised_at
+    `SELECT r.ticket_id, r.title, r.description, r.benefit, r.penalty, r.estimate, r.risk, r.revised_at
      FROM ticket_revisions r
      JOIN tickets t ON t.id = r.ticket_id
      WHERE t.project_id = ? AND r.revised_at >= ?
@@ -88,6 +90,7 @@ export async function getProjectDiff(
     const changes: FieldChange[] = [];
     const fields: Array<{ field: string; key: keyof Ticket }> = [
       { field: "title", key: "title" },
+      { field: "description", key: "description" },
       { field: "benefit", key: "benefit" },
       { field: "penalty", key: "penalty" },
       { field: "estimate", key: "estimate" },
@@ -137,11 +140,21 @@ export async function getProjectDiff(
     else entry.removed.push(label);
   }
 
+  // 4. Tickets deleted since the timestamp
+  const deletedTickets = await db.all<{ id: number; title: string }>(
+    `SELECT ticket_id AS id, title FROM ticket_deletions
+     WHERE project_id = ? AND deleted_at >= ?
+     ORDER BY deleted_at, id`,
+    projectId,
+    sinceUtc
+  );
+
   return {
     since,
     now,
     newTickets,
     updatedTickets,
+    deletedTickets,
     tagChanges: [...tagDiffMap.values()],
   };
 }

@@ -48,4 +48,16 @@ describe("rw ticket list (CLI)", () => {
     expect(update.code, update.stderr).toBe(0);
     expect(update.stdout).toContain('Updated "pad"');
   });
+
+  it("project diff lists description changes and deleted tickets", () => {
+    rw("ticket", "create", "--project", "P", "--title", "A", "--description", "old");
+    rw("ticket", "create", "--project", "P", "--title", "B");
+    const since = new Date(Date.now() - 1000).toISOString();
+    rw("ticket", "update", "--project", "P", "--title", "A", "--description", "new");
+    rw("ticket", "delete", "--project", "P", "--title", "B");
+
+    const out = rw("project", "diff", "--project", "P", "--since", since).stdout;
+    expect(out).toContain("description: old → new");
+    expect(out).toContain("Deleted tickets (1):\n  - B");
+  });
 });

@@ -13,8 +13,10 @@
 -- Foreign keys are enforced (the app enables PRAGMA foreign_keys). There is no
 -- ON DELETE CASCADE; cascading deletes are handled in application code.
 
--- Marks the file as a rewelo database ("RWLO"); see src/db/migrate.ts.
+-- Marks the file as a rewelo database ("RWLO") at schema version 2;
+-- see src/db/migrate.ts.
 PRAGMA application_id = 1381452879;
+PRAGMA user_version = 2;
 
 -- =============================================================================
 --  1. PROJECTS
@@ -140,6 +142,18 @@ CREATE TABLE ticket_relations (
     created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 
     UNIQUE (project_id, source_id, target_id, relation_type)
+);
+
+-- =============================================================================
+--  8. TICKET DELETIONS (so diffs can report deleted tickets)
+-- =============================================================================
+
+CREATE TABLE ticket_deletions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    ticket_id  INTEGER NOT NULL,
+    title      TEXT NOT NULL,
+    deleted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 -- #############################################################################

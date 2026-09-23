@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
-import { createProject } from "../../src/projects/repository.js";
-import { createTicket, updateTicket } from "../../src/tickets/repository.js";
+import { createProject, deleteProject } from "../../src/projects/repository.js";
+import { createTicket, deleteTicket, updateTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
@@ -93,5 +93,37 @@ describe("project diff", () => {
     const benefitChange = diff.updatedTickets[0].changes.find((c) => c.field === "benefit");
     expect(benefitChange!.from).toBe(1);
     expect(benefitChange!.to).toBe(13);
+  });
+
+  it("reports description changes", async () => {
+    const t = await createTicket(db, { projectId, title: "D", description: "old" });
+    const since = new Date(Date.now() - 1000).toISOString();
+    await updateTicket(db, projectId, t.id, { description: "new" });
+
+    const diff = await getProjectDiff(db, projectId, since);
+    expect(diff.updatedTickets).toEqual([
+      { ticketId: t.id, title: "D", changes: [{ field: "description", from: "old", to: "new" }] },
+    ]);
+  });
+
+  it("reports tickets deleted since the timestamp", async () => {
+    const kept = await createTicket(db, { projectId, title: "Kept" });
+    const gone = await createTicket(db, { projectId, title: "Gone" });
+    const since = new Date(Date.now() - 1000).toISOString();
+    await deleteTicket(db, projectId, gone.id);
+
+    const diff = await getProjectDiff(db, projectId, since);
+    expect(diff.deletedTickets).toEqual([{ id: gone.id, title: "Gone" }]);
+    expect(kept).toBeTruthy();
+
+    const later = await getProjectDiff(db, projectId, "2099-01-01T00:00:00Z");
+    expect(later.deletedTickets).toEqual([]);
+  });
+
+  it("forgets deletion records when the project is deleted", async () => {
+    const t = await createTicket(db, { projectId, title: "X" });
+    await deleteTicket(db, projectId, t.id);
+    expect(await deleteProject(db, "Diff")).toBe(true);
+    expect(await db.all("SELECT * FROM ticket_deletions")).toEqual([]);
   });
 });

@@ -107,3 +107,13 @@ Table ticket_revisions {
 
   Note: 'Snapshot of ticket content and tags before each change. Enables full revision history.'
 }
+
+Table ticket_deletions {
+  id bigint [pk, increment]
+  project_id bigint [not null, ref: > projects.id]
+  ticket_id bigint [not null, note: 'Id of the deleted ticket (no FK: the ticket is gone)']
+  title text [not null]
+  deleted_at text [not null, note: 'ISO-8601 UTC']
+
+  Note: 'Record of deleted tickets so project diff can report deletions.'
+}

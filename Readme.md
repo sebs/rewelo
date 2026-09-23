@@ -61,6 +61,7 @@ projects
   +-- ticket_tags          (current assignments)
   +-- ticket_tag_changes   (audit log: added/removed)
   +-- ticket_relations     (blocks, depends-on, relates-to)
+  +-- ticket_deletions     (deleted tickets, for project diff)
   +-- weight_configs       (per-project B/P/E/R weights)
 ```
 

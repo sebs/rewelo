@@ -686,7 +686,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "project_diff",
-    "Compare project state against a point in time. Returns new tickets, score/title changes, and tag changes since the timestamp.",
+    "Compare project state against a point in time. Returns new tickets, title/description/score changes, deleted tickets, and tag changes since the timestamp.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       since: z.string().describe("ISO timestamp to diff from (e.g. '2026-03-10T00:00:00Z')"),

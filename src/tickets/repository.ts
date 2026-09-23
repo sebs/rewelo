@@ -271,6 +271,14 @@ export async function deleteTicket(
   const ticket = await getTicketById(db, projectId, ticketId);
   if (!ticket) return false;
 
+  // Remembered so project diffs can report the deletion
+  await db.run(
+    `INSERT INTO ticket_deletions (project_id, ticket_id, title) VALUES (?, ?, ?)`,
+    projectId,
+    ticketId,
+    ticket.title
+  );
+
   // The schema has no ON DELETE CASCADE, so we cascade manually.
   await db.run(`DELETE FROM ticket_relations WHERE source_id = ? OR target_id = ?`, ticketId, ticketId);
   await db.run(`DELETE FROM ticket_revisions WHERE ticket_id = ?`, ticketId);

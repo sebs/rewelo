@@ -310,6 +310,10 @@ projectCmd
             t.changes.forEach((c: any) => console.log(`    ${c.field}: ${c.from} → ${c.to}`));
           });
         }
+        if (diff.deletedTickets.length > 0) {
+          console.log(`Deleted tickets (${diff.deletedTickets.length}):`);
+          diff.deletedTickets.forEach((t) => console.log(`  - ${t.title}`));
+        }
         if (diff.tagChanges.length > 0) {
           console.log(`Tag changes (${diff.tagChanges.length}):`);
           diff.tagChanges.forEach((t: any) => {
@@ -317,7 +321,10 @@ projectCmd
             if (t.removed.length > 0) console.log(`  ${t.ticketTitle}: -${t.removed.join(", -")}`);
           });
         }
-        if (diff.newTickets.length === 0 && diff.updatedTickets.length === 0 && diff.tagChanges.length === 0) {
+        if (
+          diff.newTickets.length === 0 && diff.updatedTickets.length === 0 &&
+          diff.deletedTickets.length === 0 && diff.tagChanges.length === 0
+        ) {
           console.log("No changes since " + cmdOpts.since);
         }
       }

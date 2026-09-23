@@ -66,13 +66,38 @@ describe("migrate", () => {
     await expect(migrate(db)).rejects.toThrow("not a rewelo database");
   });
 
+  // The schema as first released with SQLite, before application_id and
+  // user_version existed.
+  async function simulateVersion1(markApplicationId: boolean): Promise<void> {
+    await migrate(db);
+    await db.exec(`DROP TABLE ticket_deletions; PRAGMA user_version = 0;`);
+    if (!markApplicationId) await db.exec("PRAGMA application_id = 0");
+  }
+
   it("accepts an unmarked database created by an earlier SQLite build", async () => {
     db = await DB.open(":memory:");
-    await migrate(db);
-    await db.exec("PRAGMA application_id = 0");
+    await simulateVersion1(false);
 
     await migrate(db);
     const [row] = await db.all<{ application_id: number }>("PRAGMA application_id");
     expect(row.application_id).toBe(0x52574c4f);
+    expect(await tables()).toContain("ticket_deletions");
+  });
+
+  it("upgrades a marked version 1 database", async () => {
+    db = await DB.open(":memory:");
+    await simulateVersion1(true);
+
+    await migrate(db);
+    expect(await tables()).toContain("ticket_deletions");
+    const [row] = await db.all<{ user_version: number }>("PRAGMA user_version");
+    expect(row.user_version).toBe(2);
+  });
+
+  it("creates new databases at the current schema version", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    const [row] = await db.all<{ user_version: number }>("PRAGMA user_version");
+    expect(row.user_version).toBe(2);
   });
 });
