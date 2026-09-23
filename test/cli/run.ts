@@ -5,8 +5,9 @@ import { resolve } from "node:path";
 const BIN = resolve(__dirname, "../../dist/index.js");
 
 // Each CLI call is a separate node process; under a loaded machine a test
-// with several calls can exceed the default 10 s, so allow CLI tests more.
-vi.setConfig({ testTimeout: 30_000 });
+// or setup hook with several calls can exceed the default 10 s, so allow
+// CLI tests more.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 export interface CliResult {
   stdout: string;
