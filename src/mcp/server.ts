@@ -221,7 +221,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "project_create",
-    "Create a new project. Name must be unique, alphanumeric with hyphens/underscores.",
+    "Create a new project. Name must be unique; letters, digits, spaces, hyphens and underscores (not starting with a space), max 100 characters.",
     { name: z.string().describe("Project name") },
     safe(async ({ name }) => {
       const validName = validateProjectName(name);
@@ -625,7 +625,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "calc_weights",
-    "Calculate each ticket's relative share of total value and cost as percentages. Shows how one ticket compares to the whole backlog.",
+    "Calculate each ticket's relative share of total value and cost as fractions between 0 and 1 (0.25 = 25%). Shows how one ticket compares to the whole backlog.",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) =>
       withProject(resolveProject(project), async (db, proj) => {

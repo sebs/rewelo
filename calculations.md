@@ -46,25 +46,25 @@ Relative weights normalize each story's values against the total sum of all stor
 ```
 Relative Benefit = Benefit / Sum of all Benefits
 ```
-- Shows what percentage of total benefit this story provides
+- Shows what share of total benefit this story provides (a fraction between 0 and 1)
 - Helps identify the most beneficial stories in relation to others
 
 ```
 Relative Penalty = Penalty / Sum of all Penalties
 ```
-- Shows what percentage of total penalty avoidance this story provides
+- Shows what share of total penalty avoidance this story provides (a fraction between 0 and 1)
 - Identifies stories with the highest opportunity cost if not implemented
 
 ```
 Relative Estimate = Estimate / Sum of all Estimates
 ```
-- Shows what percentage of total effort this story will consume
+- Shows what share of total effort this story will consume (a fraction between 0 and 1)
 - Helps with resource allocation planning
 
 ```
 Relative Risk = Risk / Sum of all Risks
 ```
-- Shows what percentage of total risk this story represents
+- Shows what share of total risk this story represents (a fraction between 0 and 1)
 - Identifies stories with disproportionate risk compared to others
 
 ### Weighted Calculations

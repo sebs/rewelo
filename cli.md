@@ -135,7 +135,7 @@ rw calc weights --project <name> [--tag <prefix:value>]
 rw calc priority --project <name> [--w1 <n>] [--w2 <n>] [--w3 <n>] [--w4 <n>]
 ```
 
-- `calc weights` shows each ticket's scores as a percentage of the total across all tickets.
+- `calc weights` shows each ticket's scores as a share of the total across all tickets, as a fraction between 0 and 1 (e.g. `0.25` = 25%).
 - `calc priority` shows both standard priority and weighted priority, sorted descending. Inline `--w1`..`--w4` override the stored config for that run.
 
 ### export
