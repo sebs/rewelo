@@ -104,4 +104,27 @@ describe("JSON import", () => {
     const titles = (await listTickets(db, projectId)).map((t) => t.title);
     expect(titles).toEqual(["Existing"]);
   });
+
+  it("rejects malformed ticket tags with a validation error", async () => {
+    const json = JSON.stringify({
+      tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: ["state:done"] }],
+    });
+
+    await expect(importJson(db, projectId, json)).rejects.toThrow(ValidationError);
+    await expect(importJson(db, projectId, json)).rejects.toThrow("Ticket 1: tag 1");
+    expect(await listTickets(db, projectId)).toHaveLength(0);
+  });
+
+  it("rejects malformed project tags with a validation error", async () => {
+    const json = JSON.stringify({ tickets: [], tags: [{ prefix: true, value: "x" }] });
+
+    await expect(importJson(db, projectId, json)).rejects.toThrow(ValidationError);
+    await expect(importJson(db, projectId, json)).rejects.toThrow("Tag 1");
+  });
+
+  it("rejects a non-array tags field", async () => {
+    const json = JSON.stringify({ tickets: [], tags: "state:wip" });
+
+    await expect(importJson(db, projectId, json)).rejects.toThrow(ValidationError);
+  });
 });

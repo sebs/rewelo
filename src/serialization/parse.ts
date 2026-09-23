@@ -33,9 +33,20 @@ export function safeParseJson(json: string, label: string = "JSON"): unknown {
   }
 }
 
-export function parseTags(raw: unknown): TagPair[] | undefined {
-  if (!Array.isArray(raw)) return undefined;
-  return raw as TagPair[];
+export function parseTags(raw: unknown, errorPrefix: string = "Tag"): TagPair[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new ValidationError(`${errorPrefix}s must be an array of {"prefix", "value"} objects`);
+  }
+  return raw.map((tag, i) => {
+    const t = tag as Record<string, unknown>;
+    if (!t || typeof t !== "object" || typeof t.prefix !== "string" || typeof t.value !== "string") {
+      throw new ValidationError(
+        `${errorPrefix} ${i + 1}: must be an object with string "prefix" and "value"`
+      );
+    }
+    return { prefix: t.prefix, value: t.value };
+  });
 }
 
 export function parseTickets(
@@ -77,7 +88,7 @@ export function parseTickets(
       penalty,
       estimate,
       risk,
-      tags: parseTags(t.tags),
+      tags: parseTags(t.tags, `${errorPrefix} ${i + 1}: tag`),
     });
   }
 
