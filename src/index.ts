@@ -42,7 +42,7 @@ import {
   parseTagPair,
   ValidationError,
 } from "./validation/strings.js";
-import { validateDbPath, validateExportPath } from "./validation/paths.js";
+import { validateDbPath, validateExportPath, validateImportPath } from "./validation/paths.js";
 import { sanitizeError } from "./validation/errors.js";
 import { startMcpServer } from "./mcp/server.js";
 import { exportCsv } from "./export/csv.js";
@@ -1043,7 +1043,7 @@ importCmd
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const csv = readFileSync(file, "utf-8");
+      const csv = readFileSync(validateImportPath(file, [".csv"]), "utf-8");
       const result = await importCsv(db, project.id, csv);
       if (opts.json) {
         console.log(JSON.stringify(result));
@@ -1060,7 +1060,7 @@ importCmd
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const json = readFileSync(file, "utf-8");
+      const json = readFileSync(validateImportPath(file, [".json"]), "utf-8");
       const result = await importJson(db, project.id, json);
       if (opts.json) {
         console.log(JSON.stringify(result));

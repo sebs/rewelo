@@ -47,7 +47,7 @@ export function validateExportPath(filePath: string): string {
   return resolved;
 }
 
-export function validateImportPath(filePath: string): string {
+export function validateImportPath(filePath: string, allowed: string[] = [".json", ".csv"]): string {
   if (filePath.includes("\0")) {
     throw new ValidationError("File path must not contain null bytes");
   }
@@ -73,7 +73,6 @@ export function validateImportPath(filePath: string): string {
     throw new ValidationError("Import file does not exist or is not accessible");
   }
 
-  const allowed = [".json", ".csv"];
   const ext = extname(real).toLowerCase();
   if (!allowed.includes(ext)) {
     throw new ValidationError(
