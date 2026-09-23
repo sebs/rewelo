@@ -6,7 +6,7 @@ Feature: Database Initialisation
   Scenario: First run creates the database
     Given no database file exists
     When I run any command
-    Then a DuckDB database file should be created
+    Then a SQLite database file should be created
     And the schema should be initialised with all required tables
 
   Scenario: Existing database is reused
@@ -17,11 +17,11 @@ Feature: Database Initialisation
 
   Scenario: Database file location defaults to current directory
     When I run the tool without specifying a database path
-    Then the database should be created at "./relative-weight.duckdb"
+    Then the database should be created at "./relative-weight.db"
 
   Scenario: Custom database file path
-    When I run the tool with "--db /tmp/my-project.duckdb"
-    Then the database should be created at "/tmp/my-project.duckdb"
+    When I run the tool with "--db /tmp/my-project.db"
+    Then the database should be created at "/tmp/my-project.db"
 
   Scenario: Corrupted database shows a clear error
     Given a corrupted database file exists

@@ -14,14 +14,14 @@ export async function createProject(db: DB, name: string): Promise<Project> {
     throw new ValidationError(`A project named "${name}" already exists`);
   }
   const rows = await db.all<Project>(
-    `INSERT INTO rw.projects (name) VALUES (?) RETURNING *`,
+    `INSERT INTO projects (name) VALUES (?) RETURNING *`,
     name
   );
   return rows[0];
 }
 
 export async function listProjects(db: DB): Promise<Project[]> {
-  return db.all<Project>(`SELECT * FROM rw.projects ORDER BY name`);
+  return db.all<Project>(`SELECT * FROM projects ORDER BY name`);
 }
 
 export async function getProjectByName(
@@ -29,7 +29,7 @@ export async function getProjectByName(
   name: string
 ): Promise<Project | undefined> {
   const rows = await db.all<Project>(
-    `SELECT * FROM rw.projects WHERE name = ?`,
+    `SELECT * FROM projects WHERE name = ?`,
     name
   );
   return rows[0];
@@ -40,7 +40,7 @@ export async function getProjectById(
   id: number
 ): Promise<Project | undefined> {
   const rows = await db.all<Project>(
-    `SELECT * FROM rw.projects WHERE id = ?`,
+    `SELECT * FROM projects WHERE id = ?`,
     id
   );
   return rows[0];
@@ -50,19 +50,17 @@ export async function deleteProject(db: DB, name: string): Promise<boolean> {
   const project = await getProjectByName(db, name);
   if (!project) return false;
 
-  // DuckDB does not support ON DELETE CASCADE, so we cascade manually.
-  // Order matters: delete children before parents.
-  // Note: DuckDB's FK checks don't see uncommitted deletes within explicit
-  // transactions, so we use individual statements with auto-commit instead.
+  // The schema has no ON DELETE CASCADE, so we cascade manually.
+  // Order matters: delete children before parents (foreign keys are enforced).
   const pid = project.id;
-  await db.run(`DELETE FROM rw.ticket_relations WHERE project_id = ?`, pid);
-  await db.run(`DELETE FROM rw.ticket_revisions WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, pid);
-  await db.run(`DELETE FROM rw.ticket_tag_changes WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, pid);
-  await db.run(`DELETE FROM rw.ticket_tags WHERE ticket_id IN (SELECT id FROM rw.tickets WHERE project_id = ?)`, pid);
-  await db.run(`DELETE FROM rw.tag_revisions WHERE tag_id IN (SELECT id FROM rw.tags WHERE project_id = ?)`, pid);
-  await db.run(`DELETE FROM rw.tickets WHERE project_id = ?`, pid);
-  await db.run(`DELETE FROM rw.tags WHERE project_id = ?`, pid);
-  await db.run(`DELETE FROM rw.weight_configs WHERE project_id = ?`, pid);
-  await db.run(`DELETE FROM rw.projects WHERE id = ?`, pid);
+  await db.run(`DELETE FROM ticket_relations WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM ticket_revisions WHERE ticket_id IN (SELECT id FROM tickets WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id IN (SELECT id FROM tickets WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM ticket_tags WHERE ticket_id IN (SELECT id FROM tickets WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM tag_revisions WHERE tag_id IN (SELECT id FROM tags WHERE project_id = ?)`, pid);
+  await db.run(`DELETE FROM tickets WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM tags WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM weight_configs WHERE project_id = ?`, pid);
+  await db.run(`DELETE FROM projects WHERE id = ?`, pid);
   return true;
 }

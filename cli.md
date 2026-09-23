@@ -1,6 +1,6 @@
 # Rewelo CLI
 
-Prioritisation tool using the relative weight method. Stores data in DuckDB.
+Prioritisation tool using the relative weight method. Stores data in SQLite.
 
 ## Installation
 
@@ -15,7 +15,7 @@ The CLI is available as `rw` (via `npm link`) or directly with `node dist/index.
 
 | Option       | Description                  |
 |--------------|------------------------------|
-| `--db <path>`| Path to DuckDB file (default: `./relative-weight.duckdb`) |
+| `--db <path>`| Path to SQLite file, must end in `.db` (default: `./relative-weight.db`) |
 | `--json`     | Output as JSON               |
 | `--csv`      | Output as CSV (where supported) |
 | `--quiet`    | Minimal output               |
@@ -207,4 +207,4 @@ docker run --rm -v rw-data:/data rw project list
 docker run --rm -i -v rw-data:/data rw serve
 ```
 
-The container stores the database at `/data/relative-weight.duckdb`. Use a named volume or bind mount to persist data between runs.
+The container stores the database at `/data/relative-weight.db`. Use a named volume or bind mount to persist data between runs.

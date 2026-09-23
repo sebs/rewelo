@@ -22,7 +22,7 @@ export async function createTag(
   }
 
   const rows = await db.all<Tag>(
-    `INSERT INTO rw.tags (project_id, prefix, value) VALUES (?, ?, ?) RETURNING *`,
+    `INSERT INTO tags (project_id, prefix, value) VALUES (?, ?, ?) RETURNING *`,
     projectId,
     prefix,
     value
@@ -37,7 +37,7 @@ export async function getTag(
   value: string
 ): Promise<Tag | undefined> {
   const rows = await db.all<Tag>(
-    `SELECT * FROM rw.tags WHERE project_id = ? AND prefix = ? AND value = ?`,
+    `SELECT * FROM tags WHERE project_id = ? AND prefix = ? AND value = ?`,
     projectId,
     prefix,
     value
@@ -51,7 +51,7 @@ export async function getTagById(
   tagId: number
 ): Promise<Tag | undefined> {
   const rows = await db.all<Tag>(
-    `SELECT * FROM rw.tags WHERE project_id = ? AND id = ?`,
+    `SELECT * FROM tags WHERE project_id = ? AND id = ?`,
     projectId,
     tagId
   );
@@ -60,7 +60,7 @@ export async function getTagById(
 
 export async function listTags(db: DB, projectId: number): Promise<Tag[]> {
   return db.all<Tag>(
-    `SELECT * FROM rw.tags WHERE project_id = ? ORDER BY prefix, value`,
+    `SELECT * FROM tags WHERE project_id = ? ORDER BY prefix, value`,
     projectId
   );
 }
@@ -82,14 +82,14 @@ export async function renameTag(
 
   // Snapshot before change
   await db.run(
-    `INSERT INTO rw.tag_revisions (tag_id, prefix, value) VALUES (?, ?, ?)`,
+    `INSERT INTO tag_revisions (tag_id, prefix, value) VALUES (?, ?, ?)`,
     tagId,
     current.prefix,
     current.value
   );
 
   const rows = await db.all<Tag>(
-    `UPDATE rw.tags SET prefix = ?, value = ?, updated_at = now() WHERE id = ? AND project_id = ? RETURNING *`,
+    `UPDATE tags SET prefix = ?, value = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND project_id = ? RETURNING *`,
     newPrefix,
     newValue,
     tagId,
@@ -106,10 +106,10 @@ export async function deleteTag(
   const tag = await getTagById(db, projectId, tagId);
   if (!tag) return false;
 
-  // DuckDB: manual cascade (no FK on these child tables, so no transaction needed)
-  await db.run(`DELETE FROM rw.ticket_tag_changes WHERE tag_id = ?`, tagId);
-  await db.run(`DELETE FROM rw.ticket_tags WHERE tag_id = ?`, tagId);
-  await db.run(`DELETE FROM rw.tag_revisions WHERE tag_id = ?`, tagId);
-  await db.run(`DELETE FROM rw.tags WHERE id = ? AND project_id = ?`, tagId, projectId);
+  // Manual cascade: the schema has no ON DELETE CASCADE.
+  await db.run(`DELETE FROM ticket_tag_changes WHERE tag_id = ?`, tagId);
+  await db.run(`DELETE FROM ticket_tags WHERE tag_id = ?`, tagId);
+  await db.run(`DELETE FROM tag_revisions WHERE tag_id = ?`, tagId);
+  await db.run(`DELETE FROM tags WHERE id = ? AND project_id = ?`, tagId, projectId);
   return true;
 }

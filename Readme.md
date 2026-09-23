@@ -2,7 +2,7 @@
 
 > **Warning:** This is experimental software. It comes without support and is not intended for production use.
 
-A prioritization tool that uses the **relative weight** method to rank stories and tickets by different criteria. Built on DuckDB for embedded, zero-dependency data storage, exposed through a CLI or as a Docker-based MCP server.
+A prioritization tool that uses the **relative weight** method to rank stories and tickets by different criteria. Built on SQLite (Node's built-in `node:sqlite`) for embedded, zero-dependency data storage, exposed through a CLI or as a Docker-based MCP server.
 
 * [Blogpost](https://dev.to/sebs/i-was-so-angry-i-actually-shipped-it-2m19)
 * [Initial Idea](https://dev.to/sebs/i-was-so-angry-i-built-my-own-4mj1)
@@ -66,7 +66,7 @@ projects
 
 ## Tech Stack
 
-- **DuckDB** -- embedded analytical database, no server required
+- **SQLite** -- embedded database via Node's built-in `node:sqlite`, no server and no native modules required
 - **TypeScript** -- CLI application and business logic
 - **Commander.js** -- command-line interface
 - **Docker** -- containerized deployment, also usable as an MCP server

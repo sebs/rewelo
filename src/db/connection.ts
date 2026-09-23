@@ -1,4 +1,4 @@
-import duckdb from "duckdb";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Row {
@@ -6,54 +6,31 @@ export interface Row {
 }
 
 export class DB {
-  private db: duckdb.Database;
-  private conn: duckdb.Connection;
+  private db: DatabaseSync;
 
-  private constructor(db: duckdb.Database, conn: duckdb.Connection) {
+  private constructor(db: DatabaseSync) {
     this.db = db;
-    this.conn = conn;
   }
 
   static async open(dbPath: string): Promise<DB> {
-    return new Promise((res, rej) => {
-      const db = new duckdb.Database(dbPath, (err) => {
-        if (err) return rej(err);
-        const conn = new duckdb.Connection(db, (err2) => {
-          if (err2) return rej(err2);
-          res(new DB(db, conn));
-        });
-      });
-    });
+    const db = new DatabaseSync(dbPath);
+    db.exec("PRAGMA foreign_keys = ON");
+    return new DB(db);
   }
 
   async exec(sql: string): Promise<void> {
-    return new Promise((res, rej) => {
-      this.conn.exec(sql, (err) => {
-        if (err) return rej(err);
-        res();
-      });
-    });
+    this.db.exec(sql);
   }
 
   async all<T = Row>(
     sql: string,
     ...params: unknown[]
   ): Promise<T[]> {
-    return new Promise((res, rej) => {
-      this.conn.all(sql, ...params, (err: duckdb.DuckDbError | null, rows: duckdb.TableData) => {
-        if (err) return rej(err);
-        res(rows as T[]);
-      });
-    });
+    return this.db.prepare(sql).all(...(params as SQLInputValue[])) as T[];
   }
 
   async run(sql: string, ...params: unknown[]): Promise<void> {
-    return new Promise((res, rej) => {
-      this.conn.run(sql, ...params, (err: duckdb.DuckDbError | null) => {
-        if (err) return rej(err);
-        res();
-      });
-    });
+    this.db.prepare(sql).run(...(params as SQLInputValue[]));
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
@@ -69,14 +46,6 @@ export class DB {
   }
 
   async close(): Promise<void> {
-    return new Promise((res, rej) => {
-      this.conn.close((err) => {
-        if (err) return rej(err);
-        this.db.close((err2) => {
-          if (err2) return rej(err2);
-          res();
-        });
-      });
-    });
+    this.db.close();
   }
 }

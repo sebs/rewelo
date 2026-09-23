@@ -19,7 +19,7 @@ export async function getTicketTimes(
   ticketId: number
 ): Promise<TimeResult> {
   const ticket = await db.all<{ created_at: string; title: string }>(
-    `SELECT created_at, title FROM rw.tickets WHERE id = ?`,
+    `SELECT created_at, title FROM tickets WHERE id = ?`,
     ticketId
   );
   if (ticket.length === 0) throw new Error("Ticket not found");
@@ -28,8 +28,8 @@ export async function getTicketTimes(
 
   // Find first state:wip added
   const wipRows = await db.all<{ changed_at: string }>(
-    `SELECT c.changed_at FROM rw.ticket_tag_changes c
-     JOIN rw.tags t ON t.id = c.tag_id
+    `SELECT c.changed_at FROM ticket_tag_changes c
+     JOIN tags t ON t.id = c.tag_id
      WHERE c.ticket_id = ? AND c.action = 'added' AND t.prefix = 'state' AND t.value = 'wip'
      ORDER BY c.changed_at
      LIMIT 1`,
@@ -38,8 +38,8 @@ export async function getTicketTimes(
 
   // Find first state:done added
   const doneRows = await db.all<{ changed_at: string }>(
-    `SELECT c.changed_at FROM rw.ticket_tag_changes c
-     JOIN rw.tags t ON t.id = c.tag_id
+    `SELECT c.changed_at FROM ticket_tag_changes c
+     JOIN tags t ON t.id = c.tag_id
      WHERE c.ticket_id = ? AND c.action = 'added' AND t.prefix = 'state' AND t.value = 'done'
      ORDER BY c.changed_at
      LIMIT 1`,

@@ -48,7 +48,7 @@ export async function createRevision(
   );
 
   await db.run(
-    `INSERT INTO rw.ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
+    `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ticket.id,
     ticket.title,
@@ -66,7 +66,7 @@ export async function listRevisions(
   ticketId: number
 ): Promise<TicketRevision[]> {
   const rows = await db.all<TicketRevisionRaw>(
-    `SELECT * FROM rw.ticket_revisions WHERE ticket_id = ? ORDER BY revised_at, id`,
+    `SELECT * FROM ticket_revisions WHERE ticket_id = ? ORDER BY revised_at, id`,
     ticketId
   );
   return rows.map(parseRevisionTags);
@@ -79,8 +79,8 @@ export async function listProjectRevisions(
   limit?: number
 ): Promise<(TicketRevision & { ticket_title: string })[]> {
   let sql = `SELECT r.*, t.title AS ticket_title
-     FROM rw.ticket_revisions r
-     JOIN rw.tickets t ON t.id = r.ticket_id
+     FROM ticket_revisions r
+     JOIN tickets t ON t.id = r.ticket_id
      WHERE t.project_id = ?`;
   const params: unknown[] = [projectId];
 

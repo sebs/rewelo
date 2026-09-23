@@ -137,7 +137,7 @@ Feature: CLI Commands
     Then the output should only contain the ticket UUID
 
   Scenario: Custom database path
-    When I run "rw project list --db /tmp/custom.duckdb"
+    When I run "rw project list --db /tmp/custom.db"
     Then the tool should use the specified database file
 
   Scenario: Help text

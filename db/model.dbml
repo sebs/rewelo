@@ -1,5 +1,5 @@
 Project RelativeWeightCLI {
-  database_type: 'DuckDB'
+  database_type: 'SQLite'
   Note: 'Relative Weight CLI - prioritization tool using agile Fibonacci scoring'
 }
 

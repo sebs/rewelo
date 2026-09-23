@@ -63,7 +63,7 @@ import { writeFileSync, readFileSync } from "fs";
 import { loadConfig } from "./config.js";
 import { VERSION } from "./version.generated.js";
 
-const DEFAULT_DB = "./relative-weight.duckdb";
+const DEFAULT_DB = "./relative-weight.db";
 
 async function withDb<T>(
   opts: { db?: string },
@@ -111,8 +111,7 @@ async function withProject<T>(
 
 function formatTable(headers: string[], rows: unknown[][]): string {
   // Coerce every cell to a string up front: some rows carry non-string values
-  // (e.g. DuckDB Date objects for created_at/revised_at/changed_at columns),
-  // and calling String methods like padEnd on them would throw.
+  // (numbers, nulls), and calling String methods like padEnd on them would throw.
   const cells = rows.map((r) =>
     r.map((c) => (c == null ? "" : c instanceof Date ? c.toISOString() : String(c)))
   );
@@ -177,7 +176,7 @@ program
   .name("rw")
   .description("Relative Weight CLI - prioritisation tool")
   .version(VERSION)
-  .option("--db <path>", "path to DuckDB database file")
+  .option("--db <path>", "path to SQLite database file")
   .option("--json", "output as JSON")
   .option("--csv", "output as CSV")
   .option("--quiet", "minimal output")

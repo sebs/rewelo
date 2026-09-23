@@ -59,8 +59,8 @@ export async function getProjectDiff(
     revised_at: string;
   }>(
     `SELECT r.ticket_id, r.title, r.benefit, r.penalty, r.estimate, r.risk, r.revised_at
-     FROM rw.ticket_revisions r
-     JOIN rw.tickets t ON t.id = r.ticket_id
+     FROM ticket_revisions r
+     JOIN tickets t ON t.id = r.ticket_id
      WHERE t.project_id = ? AND r.revised_at >= ?
      ORDER BY r.revised_at ASC, r.id ASC`,
     projectId,
@@ -114,9 +114,9 @@ export async function getProjectDiff(
     value: string;
   }>(
     `SELECT c.ticket_id, t.title AS ticket_title, c.action, tg.prefix, tg.value
-     FROM rw.ticket_tag_changes c
-     JOIN rw.tickets t ON t.id = c.ticket_id
-     JOIN rw.tags tg ON tg.id = c.tag_id
+     FROM ticket_tag_changes c
+     JOIN tickets t ON t.id = c.ticket_id
+     JOIN tags tg ON tg.id = c.tag_id
      WHERE t.project_id = ? AND c.changed_at >= ?
      ORDER BY c.ticket_id, c.id`,
     projectId,

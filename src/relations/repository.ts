@@ -43,7 +43,7 @@ export async function createRelation(
 
   // Check for duplicate
   const existing = await db.all<Relation>(
-    `SELECT * FROM rw.ticket_relations
+    `SELECT * FROM ticket_relations
      WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
     projectId,
     normSource,
@@ -56,7 +56,7 @@ export async function createRelation(
 
   // Insert the forward relation
   const rows = await db.all<Relation>(
-    `INSERT INTO rw.ticket_relations (project_id, source_id, target_id, relation_type)
+    `INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type)
      VALUES (?, ?, ?, ?)
      RETURNING *`,
     projectId,
@@ -71,7 +71,7 @@ export async function createRelation(
 
     // Check inverse doesn't already exist
     const existingInverse = await db.all<Relation>(
-      `SELECT * FROM rw.ticket_relations
+      `SELECT * FROM ticket_relations
        WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
       projectId,
       targetId,
@@ -80,7 +80,7 @@ export async function createRelation(
     );
     if (existingInverse.length === 0) {
       await db.run(
-        `INSERT INTO rw.ticket_relations (project_id, source_id, target_id, relation_type)
+        `INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type)
          VALUES (?, ?, ?, ?)`,
         projectId,
         targetId,
@@ -112,7 +112,7 @@ export async function removeRelation(
 
   // Check if the relation exists
   const existing = await db.all<Relation>(
-    `SELECT * FROM rw.ticket_relations
+    `SELECT * FROM ticket_relations
      WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
     projectId,
     normSource,
@@ -125,7 +125,7 @@ export async function removeRelation(
 
   // Delete forward
   await db.run(
-    `DELETE FROM rw.ticket_relations
+    `DELETE FROM ticket_relations
      WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
     projectId,
     normSource,
@@ -137,7 +137,7 @@ export async function removeRelation(
   if (!rt.symmetric) {
     const inverseType = getInverse(relationType);
     await db.run(
-      `DELETE FROM rw.ticket_relations
+      `DELETE FROM ticket_relations
        WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
       projectId,
       targetId,
@@ -165,7 +165,7 @@ export async function listRelations(
     relation_type: string;
   }>(
     `SELECT r.id, r.source_id, r.target_id, r.relation_type
-     FROM rw.ticket_relations r
+     FROM ticket_relations r
      WHERE r.project_id = ? AND r.source_id = ?
      ORDER BY r.created_at`,
     projectId,
@@ -183,7 +183,7 @@ export async function listRelations(
       relation_type: string;
     }>(
       `SELECT r.id, r.source_id, r.target_id, r.relation_type
-       FROM rw.ticket_relations r
+       FROM ticket_relations r
        WHERE r.project_id = ? AND r.target_id = ? AND r.source_id != ?
          AND r.relation_type IN (${placeholders})
        ORDER BY r.created_at`,
@@ -205,7 +205,7 @@ export async function listRelations(
   if (ticketIds.size > 0) {
     const placeholders = [...ticketIds].map(() => "?").join(", ");
     const titleRows = await db.all<{ id: number; title: string }>(
-      `SELECT id, title FROM rw.tickets WHERE id IN (${placeholders})`,
+      `SELECT id, title FROM tickets WHERE id IN (${placeholders})`,
       ...ticketIds
     );
     for (const row of titleRows) titleMap.set(row.id, row.title);
@@ -243,9 +243,9 @@ export async function listProjectRelations(
   return db.all<ProjectRelationView>(
     `SELECT r.id, r.source_id, s.title AS source_title,
             r.target_id, t.title AS target_title, r.relation_type
-     FROM rw.ticket_relations r
-     JOIN rw.tickets s ON s.id = r.source_id
-     JOIN rw.tickets t ON t.id = r.target_id
+     FROM ticket_relations r
+     JOIN tickets s ON s.id = r.source_id
+     JOIN tickets t ON t.id = r.target_id
      WHERE r.project_id = ?
      ORDER BY r.created_at`,
     projectId
@@ -257,7 +257,7 @@ export async function deleteRelationsForTicket(
   ticketId: number
 ): Promise<void> {
   await db.run(
-    `DELETE FROM rw.ticket_relations WHERE source_id = ? OR target_id = ?`,
+    `DELETE FROM ticket_relations WHERE source_id = ? OR target_id = ?`,
     ticketId,
     ticketId
   );
@@ -268,7 +268,7 @@ export async function deleteRelationsForProject(
   projectId: number
 ): Promise<void> {
   await db.run(
-    `DELETE FROM rw.ticket_relations WHERE project_id = ?`,
+    `DELETE FROM ticket_relations WHERE project_id = ?`,
     projectId
   );
 }

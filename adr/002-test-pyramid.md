@@ -25,7 +25,7 @@ We follow the test pyramid. Unit tests form the foundation; integration and end-
 
 1. **Maximise unit tests** -- the vast majority of tests should be unit tests. They are fast, isolated, and cheap to write and maintain.
 2. **Push logic down** -- design code so that business logic lives in pure functions that are trivial to unit test. Keep I/O at the edges.
-3. **Integration tests for boundaries** -- use integration tests only for verifying that components work together correctly (e.g. DuckDB queries against a real database).
+3. **Integration tests for boundaries** -- use integration tests only for verifying that components work together correctly (e.g. SQLite queries against a real database).
 4. **E2E tests as smoke tests** -- a small number of end-to-end tests to verify critical user-facing flows. These are not the primary safety net.
 5. **No mocks when avoidable** -- prefer dependency injection of real (lightweight) implementations over mocking. When mocks are necessary, mock at the boundary, not deep in the call stack.
 

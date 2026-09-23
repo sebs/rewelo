@@ -13,7 +13,7 @@ export function sanitizeError(err: unknown): string {
 
   if (err instanceof Error) {
     // Constraint violations from the database — provide helpful message
-    if (err.message.includes("Constraint Error") || err.message.includes("UNIQUE")) {
+    if (err.message.includes("UNIQUE constraint failed")) {
       return "A record with the same unique key already exists";
     }
 

@@ -34,7 +34,7 @@ export async function getEventLog(
         t.title AS ticket_title,
         json_object('benefit', t.benefit, 'penalty', t.penalty,
                      'estimate', t.estimate, 'risk', t.risk) AS detail
-      FROM rw.tickets t
+      FROM tickets t
       WHERE t.project_id = ?${sinceClause}
 
       UNION ALL
@@ -47,8 +47,8 @@ export async function getEventLog(
         json_object('prev_title', r.title,
                      'prev_benefit', r.benefit, 'prev_penalty', r.penalty,
                      'prev_estimate', r.estimate, 'prev_risk', r.risk) AS detail
-      FROM rw.ticket_revisions r
-      JOIN rw.tickets t ON t.id = r.ticket_id
+      FROM ticket_revisions r
+      JOIN tickets t ON t.id = r.ticket_id
       WHERE t.project_id = ?${sinceClause.replace("ts", "r.revised_at")}
 
       UNION ALL
@@ -59,12 +59,12 @@ export async function getEventLog(
         c.ticket_id,
         t.title AS ticket_title,
         json_object('prefix', tg.prefix, 'value', tg.value) AS detail
-      FROM rw.ticket_tag_changes c
-      JOIN rw.tickets t ON t.id = c.ticket_id
-      JOIN rw.tags tg ON tg.id = c.tag_id
+      FROM ticket_tag_changes c
+      JOIN tickets t ON t.id = c.ticket_id
+      JOIN tags tg ON tg.id = c.tag_id
       WHERE t.project_id = ?${sinceClause.replace("ts", "c.changed_at")}
     ) events
-    ORDER BY ts DESC, ticket_id
+    ORDER BY ts DESC, ticket_id DESC
   `;
 
   // Add projectId for each UNION branch

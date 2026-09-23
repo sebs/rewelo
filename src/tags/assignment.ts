@@ -14,7 +14,7 @@ export async function assignTag(
 ): Promise<boolean> {
   // Check if already assigned (idempotent)
   const existing = await db.all(
-    `SELECT 1 FROM rw.ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
+    `SELECT 1 FROM ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
     ticketId,
     tagId
   );
@@ -22,9 +22,9 @@ export async function assignTag(
 
   // Remove any existing tag with the same prefix (exclusive per prefix)
   const samePrefix = await db.all<{ tag_id: number }>(
-    `SELECT tt.tag_id FROM rw.ticket_tags tt
-     JOIN rw.tags t ON t.id = tt.tag_id
-     JOIN rw.tags new_tag ON new_tag.id = ?
+    `SELECT tt.tag_id FROM ticket_tags tt
+     JOIN tags t ON t.id = tt.tag_id
+     JOIN tags new_tag ON new_tag.id = ?
      WHERE tt.ticket_id = ? AND t.prefix = new_tag.prefix AND tt.tag_id != ?`,
     tagId,
     ticketId,
@@ -32,24 +32,24 @@ export async function assignTag(
   );
   for (const row of samePrefix) {
     await db.run(
-      `DELETE FROM rw.ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
+      `DELETE FROM ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
       ticketId,
       row.tag_id
     );
     await db.run(
-      `INSERT INTO rw.ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'removed')`,
+      `INSERT INTO ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'removed')`,
       ticketId,
       row.tag_id
     );
   }
 
   await db.run(
-    `INSERT INTO rw.ticket_tags (ticket_id, tag_id) VALUES (?, ?)`,
+    `INSERT INTO ticket_tags (ticket_id, tag_id) VALUES (?, ?)`,
     ticketId,
     tagId
   );
   await db.run(
-    `INSERT INTO rw.ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'added')`,
+    `INSERT INTO ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'added')`,
     ticketId,
     tagId
   );
@@ -62,19 +62,19 @@ export async function removeTag(
   tagId: number
 ): Promise<boolean> {
   const existing = await db.all(
-    `SELECT 1 FROM rw.ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
+    `SELECT 1 FROM ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
     ticketId,
     tagId
   );
   if (existing.length === 0) return false;
 
   await db.run(
-    `DELETE FROM rw.ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
+    `DELETE FROM ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
     ticketId,
     tagId
   );
   await db.run(
-    `INSERT INTO rw.ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'removed')`,
+    `INSERT INTO ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'removed')`,
     ticketId,
     tagId
   );
@@ -83,8 +83,8 @@ export async function removeTag(
 
 export async function getTicketTags(db: DB, ticketId: number): Promise<Tag[]> {
   return db.all<Tag>(
-    `SELECT t.* FROM rw.tags t
-     JOIN rw.ticket_tags tt ON tt.tag_id = t.id
+    `SELECT t.* FROM tags t
+     JOIN ticket_tags tt ON tt.tag_id = t.id
      WHERE tt.ticket_id = ?
      ORDER BY t.prefix, t.value`,
     ticketId
@@ -97,8 +97,8 @@ export async function listTicketsByTag(
   tagId: number
 ): Promise<number[]> {
   const rows = await db.all<{ ticket_id: number }>(
-    `SELECT tt.ticket_id FROM rw.ticket_tags tt
-     JOIN rw.tickets tk ON tk.id = tt.ticket_id
+    `SELECT tt.ticket_id FROM ticket_tags tt
+     JOIN tickets tk ON tk.id = tt.ticket_id
      WHERE tt.tag_id = ? AND tk.project_id = ?`,
     tagId,
     projectId

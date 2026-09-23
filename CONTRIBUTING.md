@@ -18,7 +18,7 @@ npm test
 - **Test**: `npm test` (runs vitest)
 - **Watch**: `npm run test:watch`
 
-Tests use in-memory DuckDB databases, so no setup is needed beyond `npm install`.
+Tests use in-memory SQLite databases, so no setup is needed beyond `npm install`.
 
 ## Project Structure
 

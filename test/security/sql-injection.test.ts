@@ -21,12 +21,12 @@ describe("SQL injection prevention", () => {
   });
 
   const sqlPayloads = [
-    "'; DROP TABLE rw.projects; --",
+    "'; DROP TABLE projects; --",
     "1 OR 1=1",
-    "' UNION SELECT * FROM rw.projects --",
-    "Robert'); DROP TABLE rw.tickets;--",
+    "' UNION SELECT * FROM projects --",
+    "Robert'); DROP TABLE tickets;--",
     "' OR '1'='1",
-    "1; DELETE FROM rw.projects WHERE 1=1",
+    "1; DELETE FROM projects WHERE 1=1",
   ];
 
   it("project name with SQL injection produces no side effects", async () => {

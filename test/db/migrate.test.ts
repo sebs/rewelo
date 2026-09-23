@@ -9,11 +9,11 @@ describe("migrate", () => {
     if (db) await db.close();
   });
 
-  it("creates the rw schema on first run", async () => {
+  it("creates the schema on first run", async () => {
     db = await DB.open(":memory:");
     await migrate(db);
     const rows = await db.all(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'rw' ORDER BY table_name"
+      "SELECT name AS table_name FROM sqlite_master WHERE type = 'table' ORDER BY name"
     );
     const tables = rows.map((r) => r.table_name);
     expect(tables).toContain("projects");
@@ -30,7 +30,7 @@ describe("migrate", () => {
     await migrate(db);
     await migrate(db);
     const rows = await db.all(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'rw' AND table_name = 'projects'"
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'"
     );
     expect(rows).toHaveLength(1);
   });

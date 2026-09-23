@@ -16,7 +16,7 @@ describe("sanitizeError", () => {
   });
 
   it("hides database errors from user", () => {
-    const dbErr = new Error("Catalog Error: Table with name 'rw.projects' does not exist!");
+    const dbErr = new Error("no such table: projects");
     expect(sanitizeError(dbErr)).toBe("An internal error occurred. Please try again.");
   });
 

@@ -60,7 +60,7 @@ export async function createTicket(
   }
 
   const rows = await db.all<Ticket>(
-    `INSERT INTO rw.tickets (project_id, title, description, benefit, penalty, estimate, risk)
+    `INSERT INTO tickets (project_id, title, description, benefit, penalty, estimate, risk)
      VALUES (?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
     input.projectId,
@@ -88,7 +88,7 @@ export async function listTickets(
     search?: string;
   }
 ): Promise<Ticket[]> {
-  let sql = `SELECT t.* FROM rw.tickets t WHERE t.project_id = ?`;
+  let sql = `SELECT t.* FROM tickets t WHERE t.project_id = ?`;
   const params: unknown[] = [projectId];
 
   // Each include tag adds an EXISTS subquery (intersection: all tags must match)
@@ -96,8 +96,8 @@ export async function listTickets(
     for (const tag of options.includeTags) {
       sql += `
         AND EXISTS (
-          SELECT 1 FROM rw.ticket_tags tt
-          JOIN rw.tags tg ON tg.id = tt.tag_id
+          SELECT 1 FROM ticket_tags tt
+          JOIN tags tg ON tg.id = tt.tag_id
           WHERE tt.ticket_id = t.id AND tg.prefix = ? AND tg.value = ?
         )`;
       params.push(tag.prefix, tag.value);
@@ -109,8 +109,8 @@ export async function listTickets(
     for (const tag of options.excludeTags) {
       sql += `
         AND NOT EXISTS (
-          SELECT 1 FROM rw.ticket_tags tt
-          JOIN rw.tags tg ON tg.id = tt.tag_id
+          SELECT 1 FROM ticket_tags tt
+          JOIN tags tg ON tg.id = tt.tag_id
           WHERE tt.ticket_id = t.id AND tg.prefix = ? AND tg.value = ?
         )`;
       params.push(tag.prefix, tag.value);
@@ -139,7 +139,7 @@ export async function getTicketByTitle(
   title: string
 ): Promise<Ticket | undefined> {
   const rows = await db.all<Ticket>(
-    `SELECT * FROM rw.tickets WHERE project_id = ? AND title = ?`,
+    `SELECT * FROM tickets WHERE project_id = ? AND title = ?`,
     projectId,
     title
   );
@@ -152,7 +152,7 @@ export async function getTicketById(
   id: number
 ): Promise<Ticket | undefined> {
   const rows = await db.all<Ticket>(
-    `SELECT * FROM rw.tickets WHERE project_id = ? AND id = ?`,
+    `SELECT * FROM tickets WHERE project_id = ? AND id = ?`,
     projectId,
     id
   );
@@ -208,7 +208,7 @@ export async function updateTicket(
     tags.map((t) => ({ prefix: t.prefix, value: t.value }))
   );
   await db.run(
-    `INSERT INTO rw.ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
+    `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     current.id, current.title, current.description,
     current.benefit, current.penalty, current.estimate, current.risk,
@@ -216,8 +216,8 @@ export async function updateTicket(
   );
 
   const rows = await db.all<Ticket>(
-    `UPDATE rw.tickets
-     SET title = ?, description = ?, benefit = ?, penalty = ?, estimate = ?, risk = ?, updated_at = now()
+    `UPDATE tickets
+     SET title = ?, description = ?, benefit = ?, penalty = ?, estimate = ?, risk = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
      WHERE id = ? AND project_id = ?
      RETURNING *`,
     title,
@@ -271,15 +271,13 @@ export async function deleteTicket(
   const ticket = await getTicketById(db, projectId, ticketId);
   if (!ticket) return false;
 
-  // DuckDB does not support ON DELETE CASCADE.
-  // Note: DuckDB's FK checks don't see uncommitted deletes within explicit
-  // transactions, so we use individual statements with auto-commit instead.
-  await db.run(`DELETE FROM rw.ticket_relations WHERE source_id = ? OR target_id = ?`, ticketId, ticketId);
-  await db.run(`DELETE FROM rw.ticket_revisions WHERE ticket_id = ?`, ticketId);
-  await db.run(`DELETE FROM rw.ticket_tag_changes WHERE ticket_id = ?`, ticketId);
-  await db.run(`DELETE FROM rw.ticket_tags WHERE ticket_id = ?`, ticketId);
+  // The schema has no ON DELETE CASCADE, so we cascade manually.
+  await db.run(`DELETE FROM ticket_relations WHERE source_id = ? OR target_id = ?`, ticketId, ticketId);
+  await db.run(`DELETE FROM ticket_revisions WHERE ticket_id = ?`, ticketId);
+  await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
+  await db.run(`DELETE FROM ticket_tags WHERE ticket_id = ?`, ticketId);
   await db.run(
-    `DELETE FROM rw.tickets WHERE id = ? AND project_id = ?`,
+    `DELETE FROM tickets WHERE id = ? AND project_id = ?`,
     ticketId,
     projectId
   );

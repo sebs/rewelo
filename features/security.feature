@@ -48,13 +48,18 @@ Feature: Security
     Then I should see an error that the database path is invalid
 
   Scenario: Symlink in database path
-    Given a symlink at "/tmp/evil.duckdb" pointing to "/etc/passwd"
-    When I run "rw project list --db /tmp/evil.duckdb"
+    Given a symlink at "/tmp/evil.db" pointing to "/etc/passwd"
+    When I run "rw project list --db /tmp/evil.db"
     Then I should see an error that the database path resolves to a disallowed location
 
-  Scenario: Database path must have .duckdb extension
+  Scenario: Legacy DuckDB database path shows a migration hint
+    When I run "rw project list --db /tmp/data.duckdb"
+    Then I should see an error explaining that DuckDB databases are no longer supported
+    And the error should explain how to export and re-import the data
+
+  Scenario: Database path must have .db extension
     When I run "rw project list --db /tmp/data.txt"
-    Then I should see an error that the database file must have a .duckdb extension
+    Then I should see an error that the database file must have a .db extension
 
   Scenario: Path traversal in export output path
     Given a project "Acme" exists

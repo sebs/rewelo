@@ -74,7 +74,7 @@ describe("tags repository", () => {
     expect(renamed.value).toBe("auth");
 
     const revisions = await db.all(
-      "SELECT * FROM rw.tag_revisions WHERE tag_id = ?",
+      "SELECT * FROM tag_revisions WHERE tag_id = ?",
       tag.id
     );
     expect(revisions).toHaveLength(1);

@@ -1,7 +1,7 @@
 Feature: Docker
   As a user
   I want to run the tool in a Docker container
-  So that I can use it without installing Node.js or DuckDB locally
+  So that I can use it without installing Node.js locally
 
   Scenario: Build the Docker image
     When I run "docker build -t rewelo-mcp ."
@@ -24,8 +24,8 @@ Feature: Docker
     Then the MCP server should start and accept stdio connections
 
   Scenario: Environment variable for database path
-    When I run the container with "RW_DB_PATH=/data/custom.duckdb"
-    Then the tool should use "/data/custom.duckdb" as the database file
+    When I run the container with "RW_DB_PATH=/data/custom.db"
+    Then the tool should use "/data/custom.db" as the database file
 
   # -- Security --
 

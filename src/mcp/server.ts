@@ -1,5 +1,5 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpServer } from "@modelcontextprotocol/server";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 
 import { DB } from "../db/connection.js";
@@ -130,6 +130,11 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     }
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function tool(name: string, description: string, shape: z.ZodRawShape, handler: (args: any) => any) {
+    server.registerTool(name, { description, inputSchema: z.object(shape) }, handler);
+  }
+
   // Shared connection for the lifetime of the server (important for :memory: DBs)
   let sharedDb: DB | null = null;
   let migrated = false;
@@ -177,7 +182,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  VERSION TOOL
   // =========================================================================
 
-  server.tool(
+  tool(
     "server_version",
     "Return the server version string. Use to verify which build is running.",
     {},
@@ -188,7 +193,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  PROJECT TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "project_create",
     "Create a new project. Name must be unique, alphanumeric with hyphens/underscores.",
     { name: z.string().describe("Project name") },
@@ -198,11 +203,11 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool("project_list", "List all projects with their IDs and creation dates.", {},
+  tool("project_list", "List all projects with their IDs and creation dates.", {},
     safe(() => withDb((db) => listProjects(db)))
   );
 
-  server.tool(
+  tool(
     "project_delete",
     "Delete a project and all its tickets, tags, relations, and history. Irreversible.",
     { name: z.string().describe("Project name") },
@@ -213,7 +218,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  TICKET TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "ticket_create",
     "Create a new ticket with Fibonacci scores (1,2,3,5,8,13,21). Title must be unique per project. Omitted scores default to 1. Priority = (benefit + penalty) / (estimate + risk). Use ticket_upsert instead if the title may already exist.",
     {
@@ -234,7 +239,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool(
+  tool(
     "ticket_list",
     "List tickets with calculated value, cost, and priority. Supports tag filters (intersection), exclude-tags, title search, score thresholds, sort, and limit/offset pagination. Returns {total, offset, items[]}.",
     {
@@ -302,7 +307,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "ticket_update",
     "Update a ticket's title, description, or scores. Only provided fields are changed. Identified by current title.",
     {
@@ -327,7 +332,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool(
+  tool(
     "ticket_upsert",
     "Create or update a ticket matched by exact title. Returns {ticket, action: 'created'|'updated'}. Idempotent — safe to call repeatedly without duplicate errors.",
     {
@@ -350,7 +355,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool(
+  tool(
     "ticket_delete",
     "Delete a ticket and its relations, revisions, and tag assignments. Irreversible.",
     {
@@ -365,7 +370,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "ticket_history",
     "Show revision history for a single ticket. Provide title or id. For project-wide history, use project_history instead.",
     {
@@ -381,7 +386,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "project_history",
     "List revision history across all tickets in a project, newest first. Use instead of calling ticket_history per ticket. Supports since/limit filters.",
     {
@@ -398,7 +403,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  TAG TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "tag_create",
     "Create a tag (prefix:value). Required before using tag_assign. Prefix and value must be lowercase alphanumeric/hyphens. Must be unique per project.",
     {
@@ -413,7 +418,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool(
+  tool(
     "tag_assign",
     "Assign existing tags to tickets. Prerequisite: create tags first with tag_create. Supports batch: single or multiple tags × single or multiple tickets in one call.",
     {
@@ -456,7 +461,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool(
+  tool(
     "tag_remove",
     "Remove a tag assignment from a ticket. The tag itself is not deleted.",
     {
@@ -478,14 +483,14 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool(
+  tool(
     "tag_list",
     "List all tags defined in a project, sorted by prefix then value.",
     { project: z.string().describe("Project name") },
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listTags(db, proj.id)))
   );
 
-  server.tool(
+  tool(
     "tag_rename",
     "Rename a tag's value. All ticket assignments carry over. New value must not conflict with an existing tag under the same prefix.",
     {
@@ -510,14 +515,14 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  WEIGHT CONFIGURATION TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "weight_get",
     "Get the weight configuration (w1-w4) for a project. Defaults are all 1.5 if not customized.",
     { project: z.string().describe("Project name") },
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => getWeights(db, proj.id)))
   );
 
-  server.tool(
+  tool(
     "weight_set",
     "Set weight configuration (w1-w4) for a project. Range: 0-100. Only provided weights change; omitted ones keep their current value.",
     {
@@ -535,7 +540,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "weight_reset",
     "Reset weight configuration to defaults (all 1.5).",
     { project: z.string().describe("Project name") },
@@ -546,7 +551,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  CALCULATION TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "calc_priority",
     "Calculate weighted priorities for all tickets, sorted descending. Inline w1-w4 override stored weights for this call only. Returns {title, priority, weighted} per ticket. For de-risk-first ordering, use ticket_list with sort='risk' instead.",
     {
@@ -576,7 +581,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "calc_weights",
     "Calculate each ticket's relative share of total value and cost as percentages. Shows how one ticket compares to the whole backlog.",
     { project: z.string().describe("Project name") },
@@ -593,7 +598,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  REPORT TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "report_summary",
     "Get project overview: total tickets, breakdown by state tag, and top-N by priority. Good starting point for any project.",
     {
@@ -605,7 +610,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "report_times",
     "Calculate lead time (created→done) and cycle time (wip→done) per ticket, plus averages. Prerequisite: assign state:wip and state:done tags to tickets.",
     { project: z.string().describe("Project name") },
@@ -618,7 +623,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "report_health",
     "Assess backlog health: high/low priority ratio, open ticket count, total cost. highToLowRatio is null when all tickets are high priority.",
     {
@@ -634,7 +639,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  EVENT LOG & DIFF TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "event_log",
     "Get a unified event stream combining ticket creates, updates, and tag changes. Newest first. Use 'since' to poll incrementally.",
     {
@@ -647,7 +652,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "project_diff",
     "Compare project state against a point in time. Returns new tickets, score/title changes, and tag changes since the timestamp.",
     {
@@ -663,7 +668,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  EXPORT / IMPORT TOOLS
   // =========================================================================
 
-  server.tool(
+  tool(
     "export_csv",
     "Export all tickets as CSV. Optionally includes calculated value, cost, and priority columns.",
     {
@@ -675,7 +680,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "export_json",
     "Export project tickets, tags, and optionally revision history as JSON. Use for backups of a single project.",
     {
@@ -687,7 +692,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "import_csv",
     "Import tickets from CSV string. Only 'title' column is required; missing score columns default to 1. Tags column optional (comma-separated prefix:value).",
     {
@@ -700,7 +705,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     })
   );
 
-  server.tool(
+  tool(
     "import_json",
     "Import tickets and tags from a JSON object with a 'tickets' array. Tags are auto-created during import.",
     {
@@ -717,7 +722,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   //  RELATIONS
   // =========================================================================
 
-  server.tool(
+  tool(
     "relation_create",
     "Create a bidirectional relation between two tickets. Types: blocks, depends-on, relates-to, duplicates, supersedes, precedes, tests, implements, addresses, splits-into, informs, see-also.",
     {
@@ -736,7 +741,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "relation_remove",
     "Remove a relation between two tickets (removes both directions). Errors if the relation does not exist.",
     {
@@ -755,7 +760,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "relation_list",
     "List relations for a single ticket. For all relations in a project, use relation_list_all instead.",
     {
@@ -770,7 +775,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     )
   );
 
-  server.tool(
+  tool(
     "relation_list_all",
     "List every relation in a project in one call. Returns source/target IDs, titles, and relation type. Use instead of calling relation_list per ticket.",
     { project: z.string().describe("Project name") },

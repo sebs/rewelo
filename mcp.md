@@ -13,7 +13,7 @@ VERSION=$(node -p "require('./package.json').version")
 docker build --build-arg APP_VERSION=$VERSION -t rewelo-mcp:$VERSION -t rewelo-mcp:latest .
 ```
 
-The database is stored inside the container volume at `/data/relative-weight.duckdb` and persists across restarts via the `rw-data` named volume.
+The database is stored inside the container volume at `/data/relative-weight.db` and persists across restarts via the `rw-data` named volume.
 
 ## Client Configuration
 

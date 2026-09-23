@@ -15,7 +15,7 @@ Running as a bare Node process works but has drawbacks:
 
 - The database file location depends on the host environment (home directory, working directory, or an environment variable).
 - There is no isolation between the MCP server process and the rest of the host system.
-- Different machines may have different Node.js versions or native module compatibility issues (especially `duckdb-node`).
+- Different machines may have different Node.js versions or native module compatibility issues (at the time, especially `duckdb-node`; see ADR-005).
 
 ## Decision
 
@@ -23,7 +23,7 @@ The MCP server **must** run inside a Docker container. Running it as a bare Node
 
 ### Rationale
 
-- **Consistent environment** -- the container pins Node.js 22, installs the correct native DuckDB bindings for the container architecture, and sets `RW_DB_PATH=/data/relative-weight.duckdb`. No host-specific configuration needed.
+- **Consistent environment** -- the container pins Node.js 26 and sets `RW_DB_PATH=/data/relative-weight.db`. No host-specific configuration needed.
 - **Data isolation** -- the database lives in a named Docker volume (`rw-data`). It persists across container restarts but is separate from the host filesystem.
 - **Security** -- the container runs as a non-root user (`rw`). The MCP client (Claude Desktop, Claude Code) manages the container lifecycle: start on connect, stop on disconnect.
 - **Reproducibility** -- `docker build -t rewelo-mcp .` produces the same image everywhere. No "works on my machine" problems with native modules.

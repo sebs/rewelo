@@ -22,8 +22,8 @@ export async function getBacklogHealth(
   // Single query: fetch all ticket IDs that have state:done
   const doneRows = await db.all<{ ticket_id: number }>(
     `SELECT DISTINCT tt.ticket_id
-     FROM rw.ticket_tags tt
-     JOIN rw.tags tg ON tg.id = tt.tag_id
+     FROM ticket_tags tt
+     JOIN tags tg ON tg.id = tt.tag_id
      WHERE tg.project_id = ? AND tg.prefix = 'state' AND tg.value = 'done'`,
     projectId
   );

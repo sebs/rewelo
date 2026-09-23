@@ -32,9 +32,9 @@ export async function exportProjectData(
   // Batch fetch all tag assignments for this project's tickets in one query
   const tagRows = await db.all<{ ticket_id: number; prefix: string; value: string }>(
     `SELECT tt.ticket_id, tg.prefix, tg.value
-     FROM rw.ticket_tags tt
-     JOIN rw.tags tg ON tg.id = tt.tag_id
-     JOIN rw.tickets tk ON tk.id = tt.ticket_id
+     FROM ticket_tags tt
+     JOIN tags tg ON tg.id = tt.tag_id
+     JOIN tickets tk ON tk.id = tt.ticket_id
      WHERE tk.project_id = ?
      ORDER BY tt.ticket_id, tg.prefix, tg.value`,
     projectId

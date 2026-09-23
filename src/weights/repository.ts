@@ -21,7 +21,7 @@ export async function getWeights(
   projectId: number
 ): Promise<WeightConfig> {
   const rows = await db.all<WeightConfig>(
-    `SELECT * FROM rw.weight_configs WHERE project_id = ?`,
+    `SELECT * FROM weight_configs WHERE project_id = ?`,
     projectId
   );
   if (rows.length === 0) return { project_id: projectId, ...DEFAULTS };
@@ -39,19 +39,19 @@ export async function setWeights(
   validateWeights(w1, w2, w3, w4);
 
   const existing = await db.all(
-    `SELECT 1 FROM rw.weight_configs WHERE project_id = ?`,
+    `SELECT 1 FROM weight_configs WHERE project_id = ?`,
     projectId
   );
 
   if (existing.length > 0) {
     await db.run(
-      `DELETE FROM rw.weight_configs WHERE project_id = ?`,
+      `DELETE FROM weight_configs WHERE project_id = ?`,
       projectId
     );
   }
 
   await db.run(
-    `INSERT INTO rw.weight_configs (project_id, w1, w2, w3, w4) VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO weight_configs (project_id, w1, w2, w3, w4) VALUES (?, ?, ?, ?, ?)`,
     projectId,
     w1,
     w2,
@@ -67,7 +67,7 @@ export async function resetWeights(
   projectId: number
 ): Promise<WeightConfig> {
   await db.run(
-    `DELETE FROM rw.weight_configs WHERE project_id = ?`,
+    `DELETE FROM weight_configs WHERE project_id = ?`,
     projectId
   );
   return { project_id: projectId, ...DEFAULTS };

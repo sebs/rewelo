@@ -1,5 +1,5 @@
 # ---- builder: install once, build, prune ----
-FROM node:22-slim AS builder
+FROM node:26-slim AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN APP_VERSION=${APP_VERSION:-$(node -p "require('./package.json').version")} \
     && npm prune --omit=dev
 
 # ---- runtime: copy only what's needed ----
-FROM node:22-slim
+FROM node:26-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
@@ -35,7 +35,7 @@ COPY db/ db/
 RUN mkdir -p /data && chown rw:rw /data
 
 # Environment
-ENV RW_DB_PATH=/data/relative-weight.duckdb
+ENV RW_DB_PATH=/data/relative-weight.db
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
