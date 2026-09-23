@@ -16,7 +16,7 @@ function escapeCsvField(field: string): string {
   return value;
 }
 
-function csvRow(fields: string[]): string {
+export function csvRow(fields: string[]): string {
   return fields.map(escapeCsvField).join(",");
 }
 

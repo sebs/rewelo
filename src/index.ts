@@ -45,7 +45,7 @@ import {
 import { validateDbPath, validateExportPath, validateImportPath } from "./validation/paths.js";
 import { sanitizeError } from "./validation/errors.js";
 import { startMcpServer } from "./mcp/server.js";
-import { exportCsv } from "./export/csv.js";
+import { csvRow, exportCsv } from "./export/csv.js";
 import { exportJson } from "./export/json.js";
 import { importCsv } from "./import/csv.js";
 import { importJson } from "./import/json.js";
@@ -427,9 +427,12 @@ ticketCmd
       } else if (opts.quiet) {
         filtered.forEach((t) => console.log(t.title));
       } else if (opts.csv) {
-        console.log("title,benefit,penalty,estimate,risk,value,cost,priority");
+        console.log(csvRow(["title", "benefit", "penalty", "estimate", "risk", "value", "cost", "priority"]));
         filtered.forEach((t) =>
-          console.log(`${t.title},${t.benefit},${t.penalty},${t.estimate},${t.risk},${t.value},${t.cost},${t.priority.toFixed(2)}`)
+          console.log(csvRow([
+            t.title, String(t.benefit), String(t.penalty), String(t.estimate),
+            String(t.risk), String(t.value), String(t.cost), t.priority.toFixed(2),
+          ]))
         );
       } else if (filtered.length === 0) {
         console.log("No tickets found.");
