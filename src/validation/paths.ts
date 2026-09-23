@@ -26,6 +26,26 @@ export function validateDbPath(dbPath: string): string {
     throw new ValidationError("Database file must have .db extension");
   }
 
+  // A symlink could make us create or overwrite an arbitrary file: only
+  // follow it to an existing regular .db file (security.feature).
+  let link;
+  try {
+    link = lstatSync(resolved);
+  } catch {
+    link = undefined;
+  }
+  if (link?.isSymbolicLink()) {
+    let target: string | undefined;
+    try {
+      target = realpathSync(resolved);
+    } catch {
+      target = undefined;
+    }
+    if (!target || extname(target) !== ".db" || !statSync(target).isFile()) {
+      throw new ValidationError("Database path resolves to a disallowed location");
+    }
+  }
+
   return resolved;
 }
 

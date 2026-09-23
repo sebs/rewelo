@@ -30,6 +30,28 @@ describe("validateDbPath", () => {
   });
 });
 
+describe("validateDbPath on disk", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rw-dbpath-"));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("rejects a symlink to a non-.db file", () => {
+    writeFileSync(join(dir, "notes.conf"), "");
+    symlinkSync(join(dir, "notes.conf"), join(dir, "link.db"));
+    expect(() => validateDbPath(join(dir, "link.db"))).toThrow("resolves to a disallowed location");
+  });
+
+  it("rejects a dangling symlink", () => {
+    symlinkSync(join(dir, "missing.conf"), join(dir, "dangling.db"));
+    expect(() => validateDbPath(join(dir, "dangling.db"))).toThrow("resolves to a disallowed location");
+  });
+
+  it("allows a symlink to another .db file", () => {
+    writeFileSync(join(dir, "real.db"), "");
+    symlinkSync(join(dir, "real.db"), join(dir, "alias.db"));
+    expect(validateDbPath(join(dir, "alias.db"))).toBe(join(dir, "alias.db"));
+  });
+});
+
 describe("validateExportPath", () => {
   it("allows .json extensions", () => {
     const result = validateExportPath("./export.json");
