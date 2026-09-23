@@ -82,4 +82,25 @@ describe("MCP rate limiting and payload size", () => {
     const text = (result.content as any)[0].text;
     expect(text).toContain("payload too large");
   });
+
+  it("measures the payload limit in bytes, not characters", async () => {
+    const mcpServer = createMcpServer(":memory:");
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: "test-client", version: "1.0.0" });
+    await mcpServer.connect(serverTransport);
+    await client.connect(clientTransport);
+    cleanup = async () => {
+      await client.close();
+      await mcpServer.close();
+    };
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+
+    // 600k characters, but 1.2 MB of UTF-8
+    const result = await client.callTool({
+      name: "import_csv",
+      arguments: { project: "Acme", csv: "title\n" + "é".repeat(600_000) },
+    });
+    expect(result.isError).toBe(true);
+    expect((result.content as any)[0].text).toContain("payload too large");
+  });
 });

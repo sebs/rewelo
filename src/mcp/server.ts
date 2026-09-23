@@ -101,9 +101,9 @@ class RateLimiter {
 }
 
 function checkPayloadSize(args: Record<string, unknown>): void {
-  const raw = JSON.stringify(args);
-  if (raw.length > MAX_PAYLOAD_BYTES) {
-    throw new AppError(`Request payload too large (${raw.length} bytes, max ${MAX_PAYLOAD_BYTES})`);
+  const bytes = Buffer.byteLength(JSON.stringify(args), "utf-8");
+  if (bytes > MAX_PAYLOAD_BYTES) {
+    throw new AppError(`Request payload too large (${bytes} bytes, max ${MAX_PAYLOAD_BYTES})`);
   }
 }
 
