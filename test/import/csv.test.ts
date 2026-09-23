@@ -154,4 +154,14 @@ T,"state:wip,x"`)).rejects.toThrow(
     const [ticket] = await listTickets(db, projectId);
     expect(ticket).toMatchObject({ title: "Multi", description: 'line1\r\nline2, "q"\nline3', benefit: 5 });
   });
+
+  it("rejects non-integer and non-numeric scores instead of truncating them", async () => {
+    await expect(importCsv(db, projectId, "title,benefit\nF,5.9")).rejects.toThrow(
+      /benefit must be a Fibonacci value .*got 5\.9/
+    );
+    await expect(importCsv(db, projectId, "title,estimate\nF,3abc")).rejects.toThrow(
+      'estimate must be a number, got "3abc"'
+    );
+    expect(await listTickets(db, projectId)).toHaveLength(0);
+  });
 });

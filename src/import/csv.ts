@@ -72,6 +72,15 @@ function parseCsv(csv: string): string[][] {
   return records;
 }
 
+// Empty cells default to 1. Anything else must be a whole number: parseInt
+// would silently turn "5.9" into 5 and "3abc" into 3.
+function parseScore(raw: string | undefined, field: string): number {
+  if (!raw) return 1;
+  const n = Number(raw);
+  if (Number.isNaN(n)) throw new ValidationError(`${field} must be a number, got "${raw}"`);
+  return n;
+}
+
 function parseRows(csv: string): CsvRow[] {
   const records = parseCsv(csv);
   if (records.length === 0) throw new ValidationError("CSV is empty");
@@ -93,12 +102,12 @@ function parseRows(csv: string): CsvRow[] {
       row[h] = fields[idx]?.trim() ?? "";
     });
 
-    const benefit = row.benefit ? parseInt(row.benefit, 10) : 1;
-    const penalty = row.penalty ? parseInt(row.penalty, 10) : 1;
-    const estimate = row.estimate ? parseInt(row.estimate, 10) : 1;
-    const risk = row.risk ? parseInt(row.risk, 10) : 1;
-
+    let benefit: number, penalty: number, estimate: number, risk: number;
     try {
+      benefit = parseScore(row.benefit, "benefit");
+      penalty = parseScore(row.penalty, "penalty");
+      estimate = parseScore(row.estimate, "estimate");
+      risk = parseScore(row.risk, "risk");
       assertFibonacci(benefit, "benefit");
       assertFibonacci(penalty, "penalty");
       assertFibonacci(estimate, "estimate");
