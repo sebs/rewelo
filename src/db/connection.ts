@@ -1,4 +1,5 @@
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { AppError } from "../validation/strings.js";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Row {
@@ -6,6 +7,32 @@ export interface Row {
 }
 
 const BUSY_TIMEOUT_MS = 5000;
+
+// SQLite primary result codes that mean "the file is the problem", mapped
+// to messages the user can act on (instead of a generic internal error).
+const STORAGE_ERRORS: Record<number, string> = {
+  5: "The database is locked by another process. Try again later",
+  6: "The database is locked by another process. Try again later",
+  8: "The database file is read-only",
+  11: "The database file is corrupted or is not a SQLite database",
+  14: "Cannot open the database file (the path must be a file in an existing, accessible directory)",
+  26: "The database file is corrupted or is not a SQLite database",
+};
+
+function translate(err: unknown): unknown {
+  const errcode = (err as { errcode?: unknown })?.errcode;
+  if (typeof errcode !== "number") return err;
+  const message = STORAGE_ERRORS[errcode & 0xff];
+  return message ? new AppError(message) : err;
+}
+
+function sqlite<T>(fn: () => T): T {
+  try {
+    return fn();
+  } catch (err) {
+    throw translate(err);
+  }
+}
 
 export class DB {
   private db: DatabaseSync;
@@ -17,24 +44,26 @@ export class DB {
   static async open(dbPath: string): Promise<DB> {
     // Wait up to BUSY_TIMEOUT_MS for another process's lock instead of
     // failing at once with "database is locked" (parallel CLI runs).
-    const db = new DatabaseSync(dbPath, { timeout: BUSY_TIMEOUT_MS });
-    db.exec("PRAGMA foreign_keys = ON");
-    return new DB(db);
+    return sqlite(() => {
+      const db = new DatabaseSync(dbPath, { timeout: BUSY_TIMEOUT_MS });
+      db.exec("PRAGMA foreign_keys = ON");
+      return new DB(db);
+    });
   }
 
   async exec(sql: string): Promise<void> {
-    this.db.exec(sql);
+    sqlite(() => this.db.exec(sql));
   }
 
   async all<T = Row>(
     sql: string,
     ...params: unknown[]
   ): Promise<T[]> {
-    return this.db.prepare(sql).all(...(params as SQLInputValue[])) as T[];
+    return sqlite(() => this.db.prepare(sql).all(...(params as SQLInputValue[])) as T[]);
   }
 
   async run(sql: string, ...params: unknown[]): Promise<void> {
-    this.db.prepare(sql).run(...(params as SQLInputValue[]));
+    sqlite(() => this.db.prepare(sql).run(...(params as SQLInputValue[])));
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
