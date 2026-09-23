@@ -31,4 +31,27 @@ describe("MCP server with .rewelo.json", () => {
       await client.close();
     }
   });
+
+  it("reports a malformed .rewelo.json when a tool needs the fallback", async () => {
+    const bad = mkdtempSync(join(tmpdir(), "rw-mcp-"));
+    writeFileSync(join(bad, ".rewelo.json"), "{bad");
+    const client = new Client({ name: "test", version: "1" });
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [resolve(__dirname, "../../dist/index.js"), "--db", join(bad, "x.db"), "serve"],
+        cwd: bad,
+      })
+    );
+    try {
+      await client.callTool({ name: "project_create", arguments: { name: "P" } });
+      const r = await client.callTool({ name: "tag_list", arguments: {} });
+      expect(r.isError).toBe(true);
+      expect((r.content as any)[0].text).toContain("Invalid JSON in");
+      expect((await client.callTool({ name: "tag_list", arguments: { project: "P" } })).isError).toBeFalsy();
+    } finally {
+      await client.close();
+      rmSync(bad, { recursive: true, force: true });
+    }
+  });
 });

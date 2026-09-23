@@ -62,7 +62,7 @@ import {
 import { validateDbPath } from "../validation/paths.js";
 import { sanitizeError } from "../validation/errors.js";
 import { VERSION } from "../version.generated.js";
-import { loadConfig } from "../config.js";
+import { loadConfig, type ReweloConfig } from "../config.js";
 
 function textResult(data: unknown): { content: Array<{ type: "text"; text: string }> } {
   return {
@@ -169,7 +169,15 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     return run;
   }
 
-  const config = loadConfig();
+  // A broken .rewelo.json should not stop the server: report it when a
+  // call actually needs the project fallback.
+  let config: ReweloConfig = {};
+  let configError: unknown;
+  try {
+    config = loadConfig();
+  } catch (err) {
+    configError = err;
+  }
 
   async function withProject<T>(name: string, fn: (db: DB, project: Project) => Promise<T>): Promise<T> {
     return withDb(async (db) => {
@@ -180,6 +188,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   }
 
   function resolveProject(project: string | undefined): string {
+    if (project === undefined && configError) throw configError;
     const name = project ?? config.project;
     if (!name) throw new AppError("No project specified and no .rewelo.json config found");
     return name;

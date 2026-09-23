@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -59,5 +59,18 @@ describe("rw ticket list (CLI)", () => {
     const out = rw("project", "diff", "--project", "P", "--since", since).stdout;
     expect(out).toContain("description: old → new");
     expect(out).toContain("Deleted tickets (1):\n  - B");
+  });
+
+  it("refuses a malformed .rewelo.json instead of using a parent's", () => {
+    const parent = join(dir, "cfg");
+    const child = join(parent, "child");
+    mkdirSync(child, { recursive: true });
+    writeFileSync(join(parent, ".rewelo.json"), JSON.stringify({ project: "P" }));
+    writeFileSync(join(child, ".rewelo.json"), '{"project":"Q",}');
+
+    const r = runCli(["--db", join(dir, "x.db"), "ticket", "create", "--title", "fromchild"], { cwd: child });
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain("Invalid JSON in");
+    expect(rw("ticket", "list", "--project", "P").stdout).not.toContain("fromchild");
   });
 });

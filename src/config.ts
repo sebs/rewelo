@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
+import { ValidationError } from "./validation/strings.js";
 
 export interface ReweloConfig {
   project?: string;
@@ -17,9 +18,21 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
 
   while (true) {
     const candidate = resolve(dir, CONFIG_FILENAME);
+    let raw: string | undefined;
     try {
-      const raw = readFileSync(candidate, "utf-8");
-      const parsed = JSON.parse(raw);
+      raw = readFileSync(candidate, "utf-8");
+    } catch {
+      // no config here — walk up
+    }
+    if (raw !== undefined) {
+      // A broken config must not silently fall through to a parent's config
+      // (which may name a different project).
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        throw new ValidationError(`Invalid JSON in ${candidate}: ${(e as Error).message}`);
+      }
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
         return {};
       }
@@ -28,8 +41,6 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
         config.project = parsed.project.trim();
       }
       return config;
-    } catch {
-      // file not found or not valid JSON — walk up
     }
     const parent = dirname(dir);
     if (parent === dir) break; // reached filesystem root

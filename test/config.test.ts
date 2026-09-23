@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync } from "fs";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { loadConfig } from "../src/config.js";
@@ -41,10 +41,12 @@ describe("loadConfig", () => {
     expect(config.project).toBe("root-project");
   });
 
-  it("ignores invalid JSON", () => {
-    writeFileSync(join(dir, ".rewelo.json"), "not json {{{");
-    const config = loadConfig(dir);
-    expect(config).toEqual({});
+  it("reports invalid JSON instead of skipping to a parent config", () => {
+    writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: "parent" }));
+    const child = join(dir, "child");
+    mkdirSync(child);
+    writeFileSync(join(child, ".rewelo.json"), '{"project":"child",}');
+    expect(() => loadConfig(child)).toThrow(`Invalid JSON in ${join(child, ".rewelo.json")}`);
   });
 
   it("ignores non-object JSON (array)", () => {
