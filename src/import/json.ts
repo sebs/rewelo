@@ -1,5 +1,6 @@
 import { DB } from "../db/connection.js";
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError, validateProjectName } from "../validation/strings.js";
+import { createProject, getProjectByName } from "../projects/repository.js";
 import { importProjectData } from "../serialization/import-project.js";
 import { checkDepth, checkJsonSize, safeParseJson, parseTickets, parseTags } from "../serialization/parse.js";
 import type { ImportableTicket } from "../serialization/import-project.js";
@@ -38,4 +39,20 @@ export async function importJson(
   const data = validateImportData(parsed);
 
   return importProjectData(db, projectId, data.tickets, data.tags);
+}
+
+// Import into the named project, creating it first if it does not exist.
+// Creation and import share one transaction, so a failed import does not
+// leave an empty new project behind.
+export async function importJsonAsProject(
+  db: DB,
+  projectName: string,
+  json: string
+): Promise<{ imported: number; projectCreated: boolean }> {
+  return db.transaction(async () => {
+    const existing = await getProjectByName(db, projectName);
+    const project = existing ?? (await createProject(db, validateProjectName(projectName)));
+    const result = await importJson(db, project.id, json);
+    return { ...result, projectCreated: !existing };
+  });
 }

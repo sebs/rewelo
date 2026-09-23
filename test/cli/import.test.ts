@@ -65,3 +65,25 @@ describe("rw import (CLI)", () => {
     expect(r.stderr).toContain("extensions: .json");
   });
 });
+
+describe("rw import json into a new project (CLI)", () => {
+  it("creates the project and restores tickets and tags", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-cli-"));
+    const db = join(dir, "x.db");
+    try {
+      runCli(["--db", db, "project", "create", "P"]);
+      runCli(["--db", db, "ticket", "create", "--project", "P", "--title", "A", "--benefit", "5"]);
+      runCli(["--db", db, "tag", "assign", "state:wip", "--project", "P", "--ticket", "A"]);
+      runCli(["--db", db, "export", "json", "--project", "P", "--output", join(dir, "p.json")]);
+
+      const r = runCli(["--db", db, "import", "json", join(dir, "p.json"), "--project", "NewProject"]);
+      expect(r.stdout).toContain('Created project "NewProject"');
+      expect(r.stdout).toContain("Imported 1 tickets");
+
+      const list = runCli(["--db", db, "--json", "ticket", "list", "--project", "NewProject", "--tag", "state:wip"]);
+      expect(JSON.parse(list.stdout).items.map((t: { title: string }) => t.title)).toEqual(["A"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

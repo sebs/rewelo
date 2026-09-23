@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
-import { createProject } from "../../src/projects/repository.js";
+import { createProject, getProjectByName } from "../../src/projects/repository.js";
 import { createTicket, listTickets } from "../../src/tickets/repository.js";
 import { listTags } from "../../src/tags/repository.js";
 import { getTicketTags } from "../../src/tags/assignment.js";
-import { importJson } from "../../src/import/json.js";
+import { importJson, importJsonAsProject } from "../../src/import/json.js";
 import { ValidationError } from "../../src/validation/strings.js";
 
 describe("JSON import", () => {
@@ -152,5 +152,37 @@ describe("JSON import", () => {
       importJson(db, projectId, JSON.stringify({ tickets: [], tags: [{ prefix: "a:b", value: "c" }] }))
     ).rejects.toThrow(/Tag 1: Tag prefix must contain only/);
     expect(await listTickets(db, projectId)).toHaveLength(0);
+  });
+
+  it("creates the project when importing into a new one", async () => {
+    const json = JSON.stringify({
+      tickets: [{ title: "T", benefit: 5, penalty: 1, estimate: 1, risk: 1, tags: [{ prefix: "state", value: "wip" }] }],
+    });
+    const result = await importJsonAsProject(db, "NewProject", json);
+    expect(result).toMatchObject({ imported: 1, projectCreated: true });
+
+    const project = await getProjectByName(db, "NewProject");
+    expect(project).toBeTruthy();
+    const tickets = await listTickets(db, project!.id);
+    expect(tickets.map((t) => t.title)).toEqual(["T"]);
+    expect(await listTags(db, project!.id)).toHaveLength(1);
+  });
+
+  it("imports into an existing project without creating one", async () => {
+    const json = JSON.stringify({ tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1 }] });
+    const result = await importJsonAsProject(db, "JsonImport", json);
+    expect(result).toMatchObject({ imported: 1, projectCreated: false });
+    expect(await listTickets(db, projectId)).toHaveLength(1);
+  });
+
+  it("does not leave a new project behind when the import fails", async () => {
+    const json = JSON.stringify({
+      tickets: [
+        { title: "Dup", benefit: 1, penalty: 1, estimate: 1, risk: 1 },
+        { title: "Dup", benefit: 1, penalty: 1, estimate: 1, risk: 1 },
+      ],
+    });
+    await expect(importJsonAsProject(db, "Doomed", json)).rejects.toThrow("already exists");
+    expect(await getProjectByName(db, "Doomed")).toBeFalsy();
   });
 });

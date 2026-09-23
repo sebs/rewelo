@@ -38,6 +38,9 @@ export class DB {
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    // Nested call: run inside the already open transaction
+    if (this.db.isTransaction) return fn();
+
     // IMMEDIATE takes the write lock up front: a deferred transaction that
     // reads first and writes later can deadlock against another writer, and
     // SQLite then fails at once instead of honouring the busy timeout.

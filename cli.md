@@ -154,6 +154,8 @@ rw import csv <file> --project <name>
 rw import json <file> --project <name>
 ```
 
+`import json` creates the project if it does not exist yet. Imports are all-or-nothing: if any row fails, nothing is imported.
+
 ### relation
 
 ```bash

@@ -183,7 +183,7 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 | `export_csv`      | Export tickets as CSV              | `project`, `withCalculations?`            |
 | `export_json`     | Export project data as JSON        | `project`, `withHistory?`                 |
 | `import_csv`      | Import tickets from CSV string     | `project`, `csv`                          |
-| `import_json`     | Import project data from JSON      | `project`, `json`                         |
+| `import_json`     | Import project data from JSON (creates the project if needed) | `project`, `json`                         |
 
 ## Example Session
 

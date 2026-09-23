@@ -38,7 +38,7 @@ import { getTicketTimes, averageLeadTime } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
 import { exportJson } from "../export/json.js";
 import { importCsv } from "../import/csv.js";
-import { importJson } from "../import/json.js";
+import { importJsonAsProject } from "../import/json.js";
 import {
   createRelation,
   removeRelation,
@@ -722,14 +722,14 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "import_json",
-    "Import tickets and tags from a JSON object with a 'tickets' array. Tags are auto-created during import.",
+    "Import tickets and tags from a JSON object with a 'tickets' array. Tags are auto-created during import; the project is created if it does not exist.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       json: z.string().describe("JSON content"),
     },
     safe(async ({ project, json }) => {
       checkPayloadSize({ json });
-      return withProject(resolveProject(project), (db, proj) => importJson(db, proj.id, json));
+      return withDb((db) => importJsonAsProject(db, resolveProject(project), json));
     })
   );
 

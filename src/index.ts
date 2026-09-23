@@ -48,7 +48,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { csvRow, exportCsv } from "./export/csv.js";
 import { exportJson } from "./export/json.js";
 import { importCsv } from "./import/csv.js";
-import { importJson } from "./import/json.js";
+import { importJsonAsProject } from "./import/json.js";
 import { createRelation, removeRelation, listRelations, listProjectRelations } from "./relations/repository.js";
 import { getRelationType } from "./relations/types.js";
 import { getProjectSummary } from "./reports/summary.js";
@@ -1058,16 +1058,22 @@ importCmd
 
 importCmd
   .command("json <file>")
-  .description("import project data from JSON")
+  .description("import project data from JSON (creates the project if needed)")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    await withProject(opts, cmdOpts.project, async (db, project) => {
+    const name = cmdOpts.project ?? loadConfig().project;
+    if (!name) {
+      console.error('No project specified. Pass --project or add a .rewelo.json with a "project" field.');
+      process.exit(1);
+    }
+    await withDb(opts, async (db) => {
       const json = readFileSync(validateImportPath(file, [".json"]), "utf-8");
-      const result = await importJson(db, project.id, json);
+      const result = await importJsonAsProject(db, name, json);
       if (opts.json) {
         console.log(JSON.stringify(result));
       } else {
+        if (result.projectCreated) console.log(`Created project "${name}"`);
         console.log(`Imported ${result.imported} tickets`);
       }
     });
