@@ -3,8 +3,8 @@
  * Prevents path traversal and access to sensitive locations.
  */
 
-import { resolve, extname } from "path";
-import { statSync, realpathSync } from "fs";
+import { resolve, extname, dirname } from "path";
+import { lstatSync, statSync, realpathSync } from "fs";
 import { ValidationError } from "./strings.js";
 
 export function validateDbPath(dbPath: string): string {
@@ -42,6 +42,30 @@ export function validateExportPath(filePath: string): string {
     throw new ValidationError(
       `Export file must have one of these extensions: ${allowed.join(", ")}`
     );
+  }
+
+  // Never write through a symlink: it could point anywhere (security.feature)
+  let existing;
+  try {
+    existing = lstatSync(resolved);
+  } catch {
+    existing = undefined;
+  }
+  if (existing?.isSymbolicLink()) {
+    throw new ValidationError("Export path must not be a symbolic link");
+  }
+  if (existing && !existing.isFile()) {
+    throw new ValidationError("Export path must be a regular file");
+  }
+
+  let parentIsDir = false;
+  try {
+    parentIsDir = statSync(dirname(resolved)).isDirectory();
+  } catch {
+    parentIsDir = false;
+  }
+  if (!parentIsDir) {
+    throw new ValidationError("Export directory does not exist");
   }
 
   return resolved;

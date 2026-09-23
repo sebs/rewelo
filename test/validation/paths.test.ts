@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, afterAll } from "vitest";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { validateDbPath, validateExportPath } from "../../src/validation/paths.js";
 import { ValidationError } from "../../src/validation/strings.js";
 
@@ -45,5 +48,39 @@ describe("validateExportPath", () => {
 
   it("rejects null bytes", () => {
     expect(() => validateExportPath("./export\0.json")).toThrow("null bytes");
+  });
+
+  describe("on disk", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-export-"));
+    afterEach(() => {
+      rmSync(dir, { recursive: true, force: true });
+      mkdirSync(dir);
+    });
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+    it("allows overwriting a regular file", () => {
+      writeFileSync(join(dir, "out.csv"), "old");
+      expect(validateExportPath(join(dir, "out.csv"))).toBe(join(dir, "out.csv"));
+    });
+
+    it("rejects a symlink", () => {
+      writeFileSync(join(dir, "target.txt"), "keep");
+      symlinkSync(join(dir, "target.txt"), join(dir, "link.csv"));
+      expect(() => validateExportPath(join(dir, "link.csv"))).toThrow("symbolic link");
+    });
+
+    it("rejects a dangling symlink", () => {
+      symlinkSync(join(dir, "missing.txt"), join(dir, "dangling.csv"));
+      expect(() => validateExportPath(join(dir, "dangling.csv"))).toThrow("symbolic link");
+    });
+
+    it("rejects a directory", () => {
+      mkdirSync(join(dir, "d.csv"));
+      expect(() => validateExportPath(join(dir, "d.csv"))).toThrow("regular file");
+    });
+
+    it("rejects a missing parent directory", () => {
+      expect(() => validateExportPath(join(dir, "nope", "out.csv"))).toThrow("directory does not exist");
+    });
   });
 });
