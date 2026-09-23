@@ -7,6 +7,7 @@ import { runCli } from "./run.js";
 describe("rw export (CLI)", () => {
   let dir: string;
   let db: string;
+  const rw = (...args: string[]) => runCli(["--db", db, ...args]);
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "rw-cli-"));
@@ -27,5 +28,15 @@ describe("rw export (CLI)", () => {
     expect(r.code).toBe(1);
     expect(r.stderr).toContain("symbolic link");
     expect(readFileSync(join(dir, "precious.txt"), "utf-8")).toBe("keep");
+  });
+
+  it("only writes each format to its own file extension", () => {
+    const out = (name: string) => join(dir, name);
+    const dash = rw("report", "dashboard", "--project", "P", "--output", out("d.csv"));
+    expect(dash.code).toBe(1);
+    expect(dash.stderr).toContain("Export file must have one of these extensions: .html");
+    expect(rw("export", "csv", "--project", "P", "--output", out("x.json")).stderr).toContain("extensions: .csv");
+    expect(rw("export", "json", "--project", "P", "--output", out("x.csv")).stderr).toContain("extensions: .json");
+    expect(rw("report", "dashboard", "--project", "P", "--output", out("d.html")).code).toBe(0);
   });
 });

@@ -49,13 +49,12 @@ export function validateDbPath(dbPath: string): string {
   return resolved;
 }
 
-export function validateExportPath(filePath: string): string {
+export function validateExportPath(filePath: string, allowed: string[] = [".json", ".csv", ".html"]): string {
   if (filePath.includes("\0")) {
     throw new ValidationError("File path must not contain null bytes");
   }
 
   const resolved = resolve(filePath);
-  const allowed = [".json", ".csv", ".html"];
   const ext = extname(resolved).toLowerCase();
 
   if (!allowed.includes(ext)) {

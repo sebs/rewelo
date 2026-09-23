@@ -1012,7 +1012,7 @@ exportCmd
         withCalculations: cmdOpts.withCalculations,
       });
       if (cmdOpts.output) {
-        const outPath = validateExportPath(cmdOpts.output);
+        const outPath = validateExportPath(cmdOpts.output, [".csv"]);
         writeFileSync(outPath, csv, "utf-8");
         console.log(`Exported to ${outPath}`);
       } else {
@@ -1035,7 +1035,7 @@ exportCmd
       });
       const output = JSON.stringify(data, null, 2);
       if (cmdOpts.output) {
-        const outPath = validateExportPath(cmdOpts.output);
+        const outPath = validateExportPath(cmdOpts.output, [".json"]);
         writeFileSync(outPath, output, "utf-8");
         console.log(`Exported to ${outPath}`);
       } else {
@@ -1262,7 +1262,7 @@ reportCmd
       const html = await renderDashboard(db, project.id, project.name, {
         generatedAt: new Date().toISOString(),
       });
-      const outPath = validateExportPath(cmdOpts.output);
+      const outPath = validateExportPath(cmdOpts.output, [".html"]);
       writeFileSync(outPath, html, "utf-8");
       console.log(`Dashboard written to ${outPath}`);
     });
