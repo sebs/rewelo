@@ -164,7 +164,8 @@ function parseScoreOption(value: string): number {
 // into weight/threshold calculations (producing NaN output or zero results).
 // Require a finite number instead.
 function parseFloatOption(value: string): number {
-  const n = parseFloat(value);
+  // The whole value must be a number: parseFloat reads "2abc" as 2
+  const n = value.trim() === "" ? NaN : Number(value);
   if (!Number.isFinite(n)) {
     throw new ValidationError(`"${value}" is not a valid number`);
   }
@@ -864,6 +865,13 @@ configCmd
   .option("--w4 <n>", "risk weight", parseFloatOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
+    // Reject combinations that would otherwise be silently ignored
+    const givesWeights = ["w1", "w2", "w3", "w4"].some((w) => cmdOpts[w] !== undefined);
+    if (cmdOpts.set && cmdOpts.reset) throw new ValidationError("Use either --set or --reset, not both");
+    if (cmdOpts.set && !givesWeights) throw new ValidationError("--set needs at least one of --w1, --w2, --w3, --w4");
+    if (!cmdOpts.set && givesWeights) {
+      throw new ValidationError(cmdOpts.reset ? "Use either --set or --reset, not both" : "Pass --set to change weights");
+    }
     await withProject(opts, cmdOpts.project, async (db, project) => {
       if (cmdOpts.reset) {
         const config = await resetWeights(db, project.id);
