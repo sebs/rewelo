@@ -34,9 +34,15 @@ export async function getEventLog(
         'ticket_created' AS type,
         t.id AS ticket_id,
         t.title AS ticket_title,
-        json_object('benefit', t.benefit, 'penalty', t.penalty,
-                     'estimate', t.estimate, 'risk', t.risk) AS detail
+        -- Scores at creation: revisions hold the state *before* each update,
+        -- so the earliest revision (if any) is what the ticket started with
+        json_object('benefit', coalesce(first.benefit, t.benefit),
+                     'penalty', coalesce(first.penalty, t.penalty),
+                     'estimate', coalesce(first.estimate, t.estimate),
+                     'risk', coalesce(first.risk, t.risk)) AS detail
       FROM tickets t
+      LEFT JOIN ticket_revisions first
+        ON first.id = (SELECT min(id) FROM ticket_revisions WHERE ticket_id = t.id)
       WHERE t.project_id = ?${sinceClause}
 
       UNION ALL

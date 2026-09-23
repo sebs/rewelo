@@ -79,4 +79,13 @@ describe("event log", () => {
     expect(created[0].ticketTitle).toBe("Second");
     expect(created[1].ticketTitle).toBe("First");
   });
+
+  it("shows the scores a ticket was created with, not its current ones", async () => {
+    const t = await createTicket(db, { projectId, title: "S", benefit: 8, risk: 3 });
+    await updateTicket(db, projectId, t.id, { benefit: 13 });
+    await updateTicket(db, projectId, t.id, { risk: 5 });
+
+    const created = (await getEventLog(db, projectId)).find((e) => e.type === "ticket_created");
+    expect(created!.detail).toEqual({ benefit: 8, penalty: 1, estimate: 1, risk: 3 });
+  });
 });
