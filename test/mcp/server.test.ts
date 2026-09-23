@@ -445,4 +445,16 @@ describe("MCP server", () => {
       expect((r.content as any)[0].text).toContain("Input validation error");
     }
   });
+
+  it("ticket_history rejects title and id together instead of naming the wrong one", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Hist" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Hist", title: "A" } });
+
+    const both = await client.callTool({ name: "ticket_history", arguments: { project: "Hist", title: "A", id: 999 } });
+    expect(both.isError).toBe(true);
+    expect((both.content as any)[0].text).toBe("Provide either title or id, not both");
+
+    const byId = await client.callTool({ name: "ticket_history", arguments: { project: "Hist", id: 999 } });
+    expect((byId.content as any)[0].text).toBe("Ticket #999 not found");
+  });
 });

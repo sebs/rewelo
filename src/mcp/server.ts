@@ -196,6 +196,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   async function resolveTicket(db: DB, projectId: number, title?: string, id?: number): Promise<Ticket> {
     if (!title && id === undefined) throw new AppError("Provide either title or id");
+    if (title && id !== undefined) throw new AppError("Provide either title or id, not both");
     const ticket = id !== undefined
       ? await getTicketById(db, projectId, id)
       : await getTicketByTitle(db, projectId, title!);
