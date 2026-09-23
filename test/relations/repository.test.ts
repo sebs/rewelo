@@ -7,6 +7,7 @@ import {
   createRelation,
   removeRelation,
   listRelations,
+  listProjectRelations,
 } from "../../src/relations/repository.js";
 import { ValidationError } from "../../src/validation/strings.js";
 
@@ -195,5 +196,25 @@ describe("relations repository", () => {
     await expect(createRelation(db, projectId, ticketB, ticketA, "relates-to")).rejects.toThrow(
       "already exists"
     );
+  });
+
+  it("lists each asymmetric relation once project-wide", async () => {
+    await createRelation(db, projectId, ticketA, ticketB, "blocks");
+    const all = await listProjectRelations(db, projectId);
+    expect(all.map((r) => [r.source_id, r.relation_type, r.target_id])).toEqual([[ticketA, "blocks", ticketB]]);
+  });
+
+  it("accepts the inverse name it lists when removing", async () => {
+    await createRelation(db, projectId, ticketA, ticketB, "blocks");
+    await removeRelation(db, projectId, ticketB, ticketA, "is-blocked-by");
+    expect(await listRelations(db, projectId, ticketA)).toHaveLength(0);
+    expect(await listRelations(db, projectId, ticketB)).toHaveLength(0);
+  });
+
+  it("accepts inverse names when creating, as the forward relation", async () => {
+    await createRelation(db, projectId, ticketB, ticketA, "is-blocked-by");
+    const all = await listProjectRelations(db, projectId);
+    expect(all.map((r) => [r.source_id, r.relation_type, r.target_id])).toEqual([[ticketA, "blocks", ticketB]]);
+    await expect(createRelation(db, projectId, ticketA, ticketB, "blocks")).rejects.toThrow("already exists");
   });
 });

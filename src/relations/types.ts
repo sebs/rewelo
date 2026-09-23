@@ -48,6 +48,27 @@ export function getRelationType(name: string): RelationType {
   );
 }
 
+/**
+ * Asymmetric relations are stored as a forward row plus an inverse row, and
+ * per-ticket listings show the inverse name ("B is-blocked-by A"). Accept
+ * those names as input too by mapping them to the forward relation.
+ */
+export function canonicalRelation(
+  sourceId: number,
+  targetId: number,
+  name: string
+): { sourceId: number; targetId: number; type: string } {
+  if (BY_FORWARD.has(name)) return { sourceId, targetId, type: name };
+  const rt = BY_INVERSE.get(name);
+  if (rt) return { sourceId: targetId, targetId: sourceId, type: rt.forward };
+  getRelationType(name); // throws with the list of valid types
+  throw new Error("unreachable");
+}
+
+export function forwardTypeNames(): string[] {
+  return RELATION_TYPES.map((rt) => rt.forward);
+}
+
 export function isValidRelationType(name: string): boolean {
   return BY_FORWARD.has(name) || BY_INVERSE.has(name);
 }

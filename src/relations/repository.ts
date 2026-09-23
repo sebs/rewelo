@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { ValidationError } from "../validation/strings.js";
-import { getRelationType, getInverse, isSymmetric, symmetricTypeNames } from "./types.js";
+import { canonicalRelation, forwardTypeNames, getRelationType, getInverse, isSymmetric, symmetricTypeNames } from "./types.js";
 
 export interface Relation {
   id: number;
@@ -22,10 +22,11 @@ export interface RelationView {
 export async function createRelation(
   db: DB,
   projectId: number,
-  sourceId: number,
-  targetId: number,
-  relationType: string
+  source: number,
+  target: number,
+  type: string
 ): Promise<Relation> {
+  const { sourceId, targetId, type: relationType } = canonicalRelation(source, target, type);
   if (sourceId === targetId) {
     throw new ValidationError("A ticket cannot relate to itself");
   }
@@ -96,10 +97,11 @@ export async function createRelation(
 export async function removeRelation(
   db: DB,
   projectId: number,
-  sourceId: number,
-  targetId: number,
-  relationType: string
+  source: number,
+  target: number,
+  type: string
 ): Promise<boolean> {
+  const { sourceId, targetId, type: relationType } = canonicalRelation(source, target, type);
   const rt = getRelationType(relationType);
 
   // For symmetric relations, normalise order
@@ -240,15 +242,19 @@ export async function listProjectRelations(
   db: DB,
   projectId: number
 ): Promise<ProjectRelationView[]> {
+  // Forward rows only: the stored inverse rows of asymmetric relations
+  // would otherwise list every such relation twice.
+  const types = forwardTypeNames();
   return db.all<ProjectRelationView>(
     `SELECT r.id, r.source_id, s.title AS source_title,
             r.target_id, t.title AS target_title, r.relation_type
      FROM ticket_relations r
      JOIN tickets s ON s.id = r.source_id
      JOIN tickets t ON t.id = r.target_id
-     WHERE r.project_id = ?
-     ORDER BY r.created_at`,
-    projectId
+     WHERE r.project_id = ? AND r.relation_type IN (${types.map(() => "?").join(", ")})
+     ORDER BY r.created_at, r.id`,
+    projectId,
+    ...types
   );
 }
 
