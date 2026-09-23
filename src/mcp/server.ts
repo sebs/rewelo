@@ -501,7 +501,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   tool(
     "tag_list",
     "List all tags defined in a project, sorted by prefix then value.",
-    { project: z.string().describe("Project name") },
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listTags(db, proj.id)))
   );
 
@@ -533,7 +533,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   tool(
     "weight_get",
     "Get the weight configuration (w1-w4) for a project. Defaults are all 1.5 if not customized.",
-    { project: z.string().describe("Project name") },
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => getWeights(db, proj.id)))
   );
 
@@ -558,7 +558,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   tool(
     "weight_reset",
     "Reset weight configuration to defaults (all 1.5).",
-    { project: z.string().describe("Project name") },
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => resetWeights(db, proj.id)))
   );
 
@@ -600,7 +600,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   tool(
     "calc_weights",
     "Calculate each ticket's relative share of total value and cost as percentages. Shows how one ticket compares to the whole backlog.",
-    { project: z.string().describe("Project name") },
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const tickets = await listTickets(db, proj.id);
@@ -629,7 +629,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   tool(
     "report_times",
     "Calculate lead time (created→done) and cycle time (wip→done) per ticket, plus averages. Prerequisite: assign state:wip and state:done tags to tickets.",
-    { project: z.string().describe("Project name") },
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const tickets = await listTickets(db, proj.id);
@@ -794,7 +794,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   tool(
     "relation_list_all",
     "List every relation in a project in one call. Returns source/target IDs, titles, and relation type. Use instead of calling relation_list per ticket.",
-    { project: z.string().describe("Project name") },
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listProjectRelations(db, proj.id)))
   );
 
