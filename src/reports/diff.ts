@@ -2,6 +2,7 @@ import { DB } from "../db/connection.js";
 import { listTickets, Ticket } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
 import { priority } from "../calculations/priority.js";
+import { normalizeSince } from "../validation/timestamps.js";
 
 export interface TicketDiff {
   ticketId: number;
@@ -36,9 +37,10 @@ export async function getProjectDiff(
   since: string
 ): Promise<ProjectDiff> {
   const now = new Date().toISOString();
+  const sinceUtc = normalizeSince(since);
 
   // 1. Tickets created since the timestamp
-  const sinceMs = new Date(since).getTime();
+  const sinceMs = new Date(sinceUtc).getTime();
   const allTickets = await listTickets(db, projectId);
   const newTickets = allTickets
     .filter((t) => new Date(t.created_at).getTime() >= sinceMs)
@@ -64,7 +66,7 @@ export async function getProjectDiff(
      WHERE t.project_id = ? AND r.revised_at >= ?
      ORDER BY r.revised_at ASC, r.id ASC`,
     projectId,
-    since
+    sinceUtc
   );
 
   // Group revisions by ticket — take the EARLIEST revision as the "before" snapshot
@@ -120,7 +122,7 @@ export async function getProjectDiff(
      WHERE t.project_id = ? AND c.changed_at >= ?
      ORDER BY c.ticket_id, c.id`,
     projectId,
-    since
+    sinceUtc
   );
 
   const tagDiffMap = new Map<number, TagDiff>();

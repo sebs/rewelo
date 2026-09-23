@@ -1,4 +1,5 @@
 import { DB } from "../db/connection.js";
+import { normalizeSince } from "../validation/timestamps.js";
 
 export interface ProjectEvent {
   timestamp: string;
@@ -14,6 +15,7 @@ export async function getEventLog(
   since?: string,
   limit?: number
 ): Promise<ProjectEvent[]> {
+  if (since) since = normalizeSince(since);
   const params: unknown[] = [projectId];
   let sinceClause = "";
   if (since) {

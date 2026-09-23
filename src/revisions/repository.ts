@@ -1,6 +1,7 @@
 import { DB } from "../db/connection.js";
 import { Ticket } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
+import { normalizeSince } from "../validation/timestamps.js";
 
 export interface TicketRevisionRaw {
   id: number;
@@ -86,7 +87,7 @@ export async function listProjectRevisions(
 
   if (since) {
     sql += ` AND r.revised_at >= ?`;
-    params.push(since);
+    params.push(normalizeSince(since));
   }
 
   sql += ` ORDER BY r.revised_at DESC, r.id DESC`;
