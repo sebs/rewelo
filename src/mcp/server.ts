@@ -33,7 +33,7 @@ import {
   Scoreable,
 } from "../calculations/relative-weights.js";
 import { weightedPriority } from "../calculations/weighted-priority.js";
-import { getWeights, setWeights, resetWeights } from "../weights/repository.js";
+import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
 import { getTicketTimes, averageLeadTime } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
 import { exportJson } from "../export/json.js";
@@ -584,6 +584,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const w2 = uw2 ?? config.w2;
         const w3 = uw3 ?? config.w3;
         const w4 = uw4 ?? config.w4;
+        validateWeights(w1, w2, w3, w4);
 
         return tickets
           .map((t) => ({

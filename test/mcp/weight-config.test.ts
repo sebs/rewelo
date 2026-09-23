@@ -129,4 +129,20 @@ describe("MCP weight configuration tools", () => {
     });
     expect(result.isError).toBe(true);
   });
+
+  it("calc_priority validates inline weights like weight_set", async () => {
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "A" } });
+    const call = (args: Record<string, number>) =>
+      client.callTool({ name: "calc_priority", arguments: { project: "Acme", ...args } });
+
+    const negative = await call({ w1: -5 });
+    expect(negative.isError).toBe(true);
+    expect((negative.content as any)[0].text).toContain("Weight w1 must be a non-negative number");
+
+    const huge = await call({ w1: 1e308 });
+    expect(huge.isError).toBe(true);
+    expect((huge.content as any)[0].text).toContain("must not exceed 100");
+
+    expect((await call({ w1: 3 })).isError).toBeFalsy();
+  });
 });

@@ -31,7 +31,7 @@ import {
   Scoreable,
 } from "./calculations/relative-weights.js";
 import { weightedPriority } from "./calculations/weighted-priority.js";
-import { getWeights, setWeights, resetWeights } from "./weights/repository.js";
+import { getWeights, setWeights, resetWeights, validateWeights } from "./weights/repository.js";
 import { getTicketTimes, averageLeadTime } from "./calculations/time.js";
 import {
   validateProjectName,
@@ -958,6 +958,7 @@ calcCmd
       const w2 = cmdOpts.w2 ?? config.w2;
       const w3 = cmdOpts.w3 ?? config.w3;
       const w4 = cmdOpts.w4 ?? config.w4;
+      validateWeights(w1, w2, w3, w4);
 
       const results = tickets.map((t) => ({
         title: t.title,
