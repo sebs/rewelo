@@ -44,4 +44,14 @@ describe("rw calc (CLI)", () => {
     const json = JSON.parse(rw("--json", "report", "health", "--project", "P", "--threshold", "-1").stdout);
     expect(json).toMatchObject({ highToLowRatio: null, lowPriorityCount: 0 });
   });
+
+  it("rejects integer options with fractions or trailing garbage", () => {
+    for (const [option, value] of [["--top", "1.5"], ["--top", "3abc"]]) {
+      const r = rw("report", "summary", "--project", "P", option, value);
+      expect(r.code, `${option} ${value}`).toBe(1);
+      expect(r.stderr).toContain(`"${value}" is not a valid integer`);
+    }
+    expect(rw("ticket", "list", "--project", "P", "--limit", "2abc").stderr).toContain("is not a valid integer");
+    expect(rw("report", "summary", "--project", "P", "--top", "2").code).toBe(0);
+  });
 });

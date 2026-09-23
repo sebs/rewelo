@@ -130,7 +130,9 @@ function formatTable(headers: string[], rows: unknown[][]): string {
 // (e.g. `--top 12` with default 5 => parseInt("12", 5) === 7). Always parse
 // base 10 and reject non-integers.
 function parseIntOption(value: string): number {
-  const n = parseInt(value, 10);
+  // The whole value must be an integer: parseInt alone reads "1.5" as 1
+  // and "3abc" as 3.
+  const n = /^\s*-?\d+\s*$/.test(value) ? Number(value) : NaN;
   if (!Number.isSafeInteger(n)) {
     throw new ValidationError(`"${value}" is not a valid integer`);
   }
