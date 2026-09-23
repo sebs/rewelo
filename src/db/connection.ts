@@ -5,6 +5,8 @@ export interface Row {
   [key: string]: unknown;
 }
 
+const BUSY_TIMEOUT_MS = 5000;
+
 export class DB {
   private db: DatabaseSync;
 
@@ -13,7 +15,9 @@ export class DB {
   }
 
   static async open(dbPath: string): Promise<DB> {
-    const db = new DatabaseSync(dbPath);
+    // Wait up to BUSY_TIMEOUT_MS for another process's lock instead of
+    // failing at once with "database is locked" (parallel CLI runs).
+    const db = new DatabaseSync(dbPath, { timeout: BUSY_TIMEOUT_MS });
     db.exec("PRAGMA foreign_keys = ON");
     return new DB(db);
   }
@@ -34,7 +38,10 @@ export class DB {
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    await this.exec("BEGIN TRANSACTION");
+    // IMMEDIATE takes the write lock up front: a deferred transaction that
+    // reads first and writes later can deadlock against another writer, and
+    // SQLite then fails at once instead of honouring the busy timeout.
+    await this.exec("BEGIN IMMEDIATE");
     try {
       const result = await fn();
       await this.exec("COMMIT");
