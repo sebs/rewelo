@@ -1188,7 +1188,7 @@ reportCmd
           health.highToLowRatio !== null
             ? String(health.highToLowRatio)
             : health.highPriorityCount > 0
-            ? "∞"
+            ? "n/a (no low-priority tickets)"
             : "n/a";
         console.log(`High:Low ratio: ${ratioText}`);
         console.log(`Total backlog cost: ${health.totalBacklogCost}`);

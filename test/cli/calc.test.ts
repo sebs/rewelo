@@ -37,4 +37,11 @@ describe("rw calc (CLI)", () => {
     expect(r.code).toBe(1);
     expect(r.stderr).toContain("is not a valid integer");
   });
+
+  it("health shows no ratio consistently in text and JSON when there are no low-priority tickets", () => {
+    const text = rw("report", "health", "--project", "P", "--threshold", "-1").stdout;
+    expect(text).toContain("High:Low ratio: n/a (no low-priority tickets)");
+    const json = JSON.parse(rw("--json", "report", "health", "--project", "P", "--threshold", "-1").stdout);
+    expect(json).toMatchObject({ highToLowRatio: null, lowPriorityCount: 0 });
+  });
 });
