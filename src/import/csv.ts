@@ -23,7 +23,7 @@ interface CsvRow {
 // that precedes a spreadsheet formula trigger is stripped so round-tripping a
 // title/description through export -> import is lossless (see export/csv.ts).
 function stripCsvFormulaGuard(field: string): string {
-  return /^'[=+\-@\t\r]/.test(field) ? field.slice(1) : field;
+  return /^'[=+\-@\t\r']/.test(field) ? field.slice(1) : field;
 }
 
 // Parse the whole input at once (RFC 4180): quoted fields may contain commas,
@@ -97,9 +97,11 @@ function parseRows(csv: string): CsvRow[] {
   const rows: CsvRow[] = [];
   for (let i = 1; i < records.length; i++) {
     const fields = records[i];
+    // Keep free text exactly as written; trim only structured cells
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => {
-      row[h] = fields[idx]?.trim() ?? "";
+      const field = fields[idx] ?? "";
+      row[h] = h === "title" || h === "description" ? field : field.trim();
     });
 
     let benefit: number, penalty: number, estimate: number, risk: number;
@@ -116,7 +118,7 @@ function parseRows(csv: string): CsvRow[] {
       throw new ValidationError(`Row ${i + 1}: ${(e as Error).message}`);
     }
 
-    if (!row.title || row.title.length === 0) {
+    if (!row.title || row.title.trim().length === 0) {
       throw new ValidationError(`Row ${i + 1}: title must not be empty`);
     }
 

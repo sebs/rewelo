@@ -5,11 +5,12 @@ import { priority } from "../calculations/priority.js";
 
 // Cells whose first character is one of these can be interpreted as a formula
 // by spreadsheet apps (Excel/Sheets), so we neutralise them with a leading
-// apostrophe. The CSV importer strips this guard back off (see import/csv.ts).
-const FORMULA_TRIGGERS = /^[=+\-@\t\r]/;
+// apostrophe. Values that already start with an apostrophe get one too, so
+// the importer can always strip exactly one guard (see import/csv.ts).
+const NEEDS_GUARD = /^[=+\-@\t\r']/;
 
 function escapeCsvField(field: string): string {
-  const value = FORMULA_TRIGGERS.test(field) ? `'${field}` : field;
+  const value = NEEDS_GUARD.test(field) ? `'${field}` : field;
   if (/[",\r\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }

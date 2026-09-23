@@ -164,4 +164,18 @@ T,"state:wip,x"`)).rejects.toThrow(
     );
     expect(await listTickets(db, projectId)).toHaveLength(0);
   });
+
+  it("round-trips leading apostrophes, formula characters and whitespace exactly", async () => {
+    const source = await createProject(db, "Source2");
+    const samples = [
+      { title: "'=already", description: "  padded  " },
+      { title: "=formula", description: "'quoted" },
+      { title: "''double", description: "-minus" },
+    ];
+    for (const d of samples) await createTicket(db, { projectId: source.id, ...d });
+
+    await importCsv(db, projectId, await exportCsv(db, source.id));
+    const imported = (await listTickets(db, projectId)).map((t) => ({ title: t.title, description: t.description }));
+    expect(imported).toEqual(samples);
+  });
 });
