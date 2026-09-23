@@ -275,7 +275,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       search: z.string().optional().describe("Filter by title substring (case-insensitive)"),
       sort: z.string().optional().describe("Sort descending by: priority, benefit, penalty, estimate, risk, value, cost"),
       limit: z.number().int().nonnegative().optional().describe("Max number of results to return"),
-      offset: z.number().optional().describe("Skip first N results (for pagination)"),
+      offset: z.number().int().nonnegative().optional().describe("Skip first N results (for pagination)"),
       minPriority: z.number().optional().describe("Minimum priority threshold"),
       minValue: z.number().optional().describe("Minimum value (benefit+penalty) threshold"),
       maxCost: z.number().optional().describe("Maximum cost (estimate+risk) threshold"),
@@ -320,7 +320,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
         // Pagination
         const total = filtered.length;
-        const off = Math.max(0, offset ?? 0);
+        const off = offset ?? 0;
         let page = filtered.slice(off);
         if (limit != null) page = page.slice(0, limit);
 
@@ -644,7 +644,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     "Get project overview: total tickets, breakdown by state tag, and top-N by priority. Good starting point for any project.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
-      topN: z.number().optional().describe("Number of top tickets"),
+      topN: z.number().int().nonnegative().optional().describe("Number of top tickets"),
     },
     safe(({ project, topN }) =>
       withProject(resolveProject(project), (db, proj) => getProjectSummary(db, proj.id, topN ?? 5))

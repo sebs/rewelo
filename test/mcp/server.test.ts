@@ -430,4 +430,19 @@ describe("MCP server", () => {
       }
     }
   });
+
+  it("rejects negative or fractional topN and offset like the CLI", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Neg" } });
+    const cases: [string, Record<string, number>][] = [
+      ["report_summary", { topN: -1 }],
+      ["report_summary", { topN: 1.5 }],
+      ["ticket_list", { offset: -5 }],
+      ["ticket_list", { offset: 0.5 }],
+    ];
+    for (const [name, args] of cases) {
+      const r = await client.callTool({ name, arguments: { project: "Neg", ...args } });
+      expect(r.isError, `${name} ${JSON.stringify(args)}`).toBe(true);
+      expect((r.content as any)[0].text).toContain("Input validation error");
+    }
+  });
 });
