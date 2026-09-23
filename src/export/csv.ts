@@ -10,7 +10,7 @@ const FORMULA_TRIGGERS = /^[=+\-@\t\r]/;
 
 function escapeCsvField(field: string): string {
   const value = FORMULA_TRIGGERS.test(field) ? `'${field}` : field;
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+  if (/[",\r\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;

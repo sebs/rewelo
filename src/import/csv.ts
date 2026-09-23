@@ -26,16 +26,27 @@ function stripCsvFormulaGuard(field: string): string {
   return /^'[=+\-@\t\r]/.test(field) ? field.slice(1) : field;
 }
 
-function parseCsvLine(line: string): string[] {
-  const fields: string[] = [];
+// Parse the whole input at once (RFC 4180): quoted fields may contain commas,
+// escaped quotes ("") and line breaks, so we cannot split into lines first.
+function parseCsv(csv: string): string[][] {
+  const records: string[][] = [];
+  let fields: string[] = [];
   let current = "";
   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+  const endRecord = () => {
+    fields.push(current);
+    // Skip blank lines
+    if (fields.length > 1 || fields[0].trim().length > 0) records.push(fields);
+    fields = [];
+    current = "";
+  };
+
+  for (let i = 0; i < csv.length; i++) {
+    const ch = csv[i];
     if (inQuotes) {
       if (ch === '"') {
-        if (i + 1 < line.length && line[i + 1] === '"') {
+        if (csv[i + 1] === '"') {
           current += '"';
           i++;
         } else {
@@ -44,37 +55,39 @@ function parseCsvLine(line: string): string[] {
       } else {
         current += ch;
       }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      fields.push(current);
+      current = "";
+    } else if (ch === "\n") {
+      endRecord();
+    } else if (ch === "\r" && csv[i + 1] === "\n") {
+      // CRLF line ending: the \n ends the record
     } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === ",") {
-        fields.push(current);
-        current = "";
-      } else {
-        current += ch;
-      }
+      current += ch;
     }
   }
-  fields.push(current);
-  return fields;
+  endRecord();
+  return records;
 }
 
 function parseRows(csv: string): CsvRow[] {
-  const lines = csv.split("\n").filter((l) => l.trim().length > 0);
-  if (lines.length === 0) throw new ValidationError("CSV is empty");
+  const records = parseCsv(csv);
+  if (records.length === 0) throw new ValidationError("CSV is empty");
 
-  const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+  const headers = records[0].map((h) => h.trim().toLowerCase());
   if (!headers.includes("title")) {
     throw new ValidationError("Missing required CSV column: title");
   }
 
-  if (lines.length - 1 > MAX_ROWS) {
+  if (records.length - 1 > MAX_ROWS) {
     throw new ValidationError(`CSV exceeds maximum of ${MAX_ROWS} rows`);
   }
 
   const rows: CsvRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const fields = parseCsvLine(lines[i]);
+  for (let i = 1; i < records.length; i++) {
+    const fields = records[i];
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => {
       row[h] = fields[idx]?.trim() ?? "";
