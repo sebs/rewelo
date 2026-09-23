@@ -153,11 +153,19 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     return sharedDb;
   }
 
+  // Tool calls share one connection, so run their DB work one at a time:
+  // otherwise a call's statements could land inside another call's open
+  // transaction (and be rolled back with it).
+  let queue: Promise<unknown> = Promise.resolve();
+
   async function withDb<T>(fn: (db: DB) => Promise<T>): Promise<T> {
     if (!rateLimiter.check()) {
       throw new AppError("Rate limit exceeded. Try again shortly.");
     }
-    return fn(await openSharedDb());
+    const db = await openSharedDb();
+    const run = queue.then(() => fn(db));
+    queue = run.catch(() => {});
+    return run;
   }
 
   const config = loadConfig();

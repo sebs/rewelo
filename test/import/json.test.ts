@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { listTickets } from "../../src/tickets/repository.js";
+import { createTicket, listTickets } from "../../src/tickets/repository.js";
 import { listTags } from "../../src/tags/repository.js";
 import { getTicketTags } from "../../src/tags/assignment.js";
 import { importJson } from "../../src/import/json.js";
@@ -88,5 +88,20 @@ describe("JSON import", () => {
 
   it("rejects non-object input", async () => {
     await expect(importJson(db, projectId, "[]")).rejects.toThrow("must be an object");
+  });
+
+  it("imports nothing when a ticket clashes with an existing one", async () => {
+    await createTicket(db, { projectId, title: "Existing" });
+    const json = JSON.stringify({
+      tags: [{ prefix: "state", value: "wip" }],
+      tickets: [
+        { title: "New1", benefit: 5, penalty: 1, estimate: 1, risk: 1 },
+        { title: "Existing", benefit: 3, penalty: 1, estimate: 1, risk: 1 },
+      ],
+    });
+
+    await expect(importJson(db, projectId, json)).rejects.toThrow("already exists");
+    const titles = (await listTickets(db, projectId)).map((t) => t.title);
+    expect(titles).toEqual(["Existing"]);
   });
 });

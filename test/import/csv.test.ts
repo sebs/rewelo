@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { listTickets } from "../../src/tickets/repository.js";
+import { createTicket, listTickets } from "../../src/tickets/repository.js";
 import { listTags } from "../../src/tags/repository.js";
 import { getTicketTags } from "../../src/tags/assignment.js";
 import { importCsv } from "../../src/import/csv.js";
@@ -91,5 +91,27 @@ Login,The login page,8,3,5,2`;
     await importCsv(db, projectId, csv);
     const tickets = await listTickets(db, projectId);
     expect(tickets[0].description).toBe("The login page");
+  });
+
+  it("imports nothing when a row clashes with an existing ticket", async () => {
+    await createTicket(db, { projectId, title: "Existing" });
+    const csv = `title,benefit,tags
+New1,5,state:wip
+Existing,3,
+New2,2,`;
+
+    await expect(importCsv(db, projectId, csv)).rejects.toThrow("already exists");
+    const titles = (await listTickets(db, projectId)).map((t) => t.title);
+    expect(titles).toEqual(["Existing"]);
+    expect(await listTags(db, projectId)).toHaveLength(0);
+  });
+
+  it("imports nothing when the file contains a duplicate title", async () => {
+    const csv = `title,benefit
+Dup,5
+Dup,3`;
+
+    await expect(importCsv(db, projectId, csv)).rejects.toThrow("already exists");
+    expect(await listTickets(db, projectId)).toHaveLength(0);
   });
 });

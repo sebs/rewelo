@@ -123,31 +123,33 @@ export async function importCsv(
   // Validate all rows first (atomic: all or nothing)
   const rows = parseRows(csv);
 
-  for (const row of rows) {
-    const ticket = await createTicket(db, {
-      projectId,
-      title: row.title,
-      description: row.description || undefined,
-      benefit: row.benefit,
-      penalty: row.penalty,
-      estimate: row.estimate,
-      risk: row.risk,
-    });
+  return db.transaction(async () => {
+    for (const row of rows) {
+      const ticket = await createTicket(db, {
+        projectId,
+        title: row.title,
+        description: row.description || undefined,
+        benefit: row.benefit,
+        penalty: row.penalty,
+        estimate: row.estimate,
+        risk: row.risk,
+      });
 
-    if (row.tags) {
-      const tagPairs = row.tags.split(",").map((t) => t.trim()).filter(Boolean);
-      for (const pair of tagPairs) {
-        // A tag value cannot contain a colon; skip anything that is not
-        // exactly prefix:value rather than silently truncating extra segments.
-        const parts = pair.split(":");
-        if (parts.length !== 2 || !parts[0] || !parts[1]) continue;
-        const [prefix, value] = parts;
-        let tag = await getTag(db, projectId, prefix, value);
-        if (!tag) tag = await createTag(db, projectId, prefix, value);
-        await assignTag(db, ticket.id, tag.id);
+      if (row.tags) {
+        const tagPairs = row.tags.split(",").map((t) => t.trim()).filter(Boolean);
+        for (const pair of tagPairs) {
+          // A tag value cannot contain a colon; skip anything that is not
+          // exactly prefix:value rather than silently truncating extra segments.
+          const parts = pair.split(":");
+          if (parts.length !== 2 || !parts[0] || !parts[1]) continue;
+          const [prefix, value] = parts;
+          let tag = await getTag(db, projectId, prefix, value);
+          if (!tag) tag = await createTag(db, projectId, prefix, value);
+          await assignTag(db, ticket.id, tag.id);
+        }
       }
     }
-  }
 
-  return { imported: rows.length };
+    return { imported: rows.length };
+  });
 }
