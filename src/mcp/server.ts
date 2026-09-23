@@ -136,21 +136,28 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   }
 
   // Shared connection for the lifetime of the server (important for :memory: DBs)
-  let sharedDb: DB | null = null;
-  let migrated = false;
+  // Memoise the promise, not the result: concurrent first calls must share
+  // one open + migrate instead of each opening their own connection.
+  let sharedDb: Promise<DB> | null = null;
+
+  function openSharedDb(): Promise<DB> {
+    sharedDb ??= DB.open(validDbPath)
+      .then(async (db) => {
+        await migrate(db);
+        return db;
+      })
+      .catch((err) => {
+        sharedDb = null;
+        throw err;
+      });
+    return sharedDb;
+  }
 
   async function withDb<T>(fn: (db: DB) => Promise<T>): Promise<T> {
     if (!rateLimiter.check()) {
       throw new AppError("Rate limit exceeded. Try again shortly.");
     }
-    if (!sharedDb) {
-      sharedDb = await DB.open(validDbPath);
-    }
-    if (!migrated) {
-      await migrate(sharedDb);
-      migrated = true;
-    }
-    return fn(sharedDb);
+    return fn(await openSharedDb());
   }
 
   const config = loadConfig();
