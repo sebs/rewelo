@@ -28,7 +28,8 @@ export function checkJsonSize(json: string, label: string = "JSON"): void {
 
 export function safeParseJson(json: string, label: string = "JSON"): unknown {
   try {
-    return JSON.parse(json);
+    // Editors on Windows often save UTF-8 with a byte order mark
+    return JSON.parse(json.replace(/^\uFEFF/, ""));
   } catch {
     throw new ValidationError(`Invalid ${label}`);
   }

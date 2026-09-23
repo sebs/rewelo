@@ -214,4 +214,9 @@ describe("JSON import", () => {
       importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", benefit: "lots" }] }))
     ).rejects.toThrow("Ticket 1: benefit must be a Fibonacci value");
   });
+
+  it("accepts a UTF-8 byte order mark", async () => {
+    const json = "\uFEFF" + JSON.stringify({ tickets: [{ title: "Bom" }] });
+    expect((await importJson(db, projectId, json)).imported).toBe(1);
+  });
 });
