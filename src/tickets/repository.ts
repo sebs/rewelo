@@ -124,7 +124,7 @@ export async function listTickets(
     const escaped = options.search
       .toLowerCase()
       .replace(/[\\%_]/g, (c) => `\\${c}`);
-    sql += ` AND lower(t.title) LIKE ? ESCAPE '\\'`;
+    sql += ` AND unicode_lower(t.title) LIKE ? ESCAPE '\\'`;
     params.push(`%${escaped}%`);
   }
 

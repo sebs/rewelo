@@ -47,6 +47,11 @@ export class DB {
     return sqlite(() => {
       const db = new DatabaseSync(dbPath, { timeout: BUSY_TIMEOUT_MS });
       db.exec("PRAGMA foreign_keys = ON");
+      // SQLite's lower() only folds ASCII ("Ä" stays "Ä"); searches need
+      // the same Unicode lowercasing that JavaScript applies to the term.
+      db.function("unicode_lower", { deterministic: true }, (s) =>
+        typeof s === "string" ? s.toLowerCase() : s
+      );
       return new DB(db);
     });
   }

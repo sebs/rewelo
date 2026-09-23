@@ -216,4 +216,16 @@ describe("tickets repository", () => {
     const tickets = await listTickets(db, projectId);
     expect(tickets).toHaveLength(0);
   });
+
+  it("searches titles case-insensitively beyond ASCII", async () => {
+    await createTicket(db, { projectId, title: "Äpfel kaufen" });
+    await createTicket(db, { projectId, title: "Über uns" });
+    await createTicket(db, { projectId, title: "Straße" });
+
+    const titles = async (search: string) =>
+      (await listTickets(db, projectId, { search })).map((t) => t.title);
+    expect(await titles("äpfel")).toEqual(["Äpfel kaufen"]);
+    expect(await titles("ÜBER")).toEqual(["Über uns"]);
+    expect(await titles("straße")).toEqual(["Straße"]);
+  });
 });
