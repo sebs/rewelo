@@ -1,9 +1,12 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, afterAll, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+
+// Spawns the server process; see run.ts for why CLI tests get more time
+vi.setConfig({ testTimeout: 30_000 });
 
 describe("MCP server with .rewelo.json", () => {
   const dir = mkdtempSync(join(tmpdir(), "rw-mcp-"));

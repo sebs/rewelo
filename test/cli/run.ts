@@ -1,7 +1,12 @@
 import { spawnSync } from "node:child_process";
+import { vi } from "vitest";
 import { resolve } from "node:path";
 
 const BIN = resolve(__dirname, "../../dist/index.js");
+
+// Each CLI call is a separate node process; under a loaded machine a test
+// with several calls can exceed the default 10 s, so allow CLI tests more.
+vi.setConfig({ testTimeout: 30_000 });
 
 export interface CliResult {
   stdout: string;
