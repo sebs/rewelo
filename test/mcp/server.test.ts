@@ -384,4 +384,39 @@ describe("MCP server", () => {
       { ticket: "A", tag: "state:done", status: "assigned", replaced: ["state:wip"] },
     ]);
   });
+
+  it("tag_assign applies nothing when any ticket or tag in the batch is missing", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Batch" } });
+    for (const title of ["A", "B"]) {
+      await client.callTool({ name: "ticket_create", arguments: { project: "Batch", title } });
+    }
+    await client.callTool({ name: "tag_create", arguments: { project: "Batch", prefix: "state", value: "wip" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Batch", prefix: "team", value: "core" } });
+    const assign = (args: Record<string, unknown>) =>
+      client.callTool({ name: "tag_assign", arguments: { project: "Batch", ...args } });
+    const tagged = async (tag: string) => {
+      const r = await client.callTool({ name: "ticket_list", arguments: { project: "Batch", tag } });
+      return JSON.parse((r.content as any)[0].text).items.map((t: { title: string }) => t.title);
+    };
+
+    const missingTag = await assign({ ticket: "A", tags: [{ prefix: "state", value: "wip" }, { prefix: "zzz", value: "x" }] });
+    expect(missingTag.isError).toBe(true);
+    expect(await tagged("state:wip")).toEqual([]);
+
+    const missingTicket = await assign({ tickets: ["A", "nope"], prefix: "team", value: "core" });
+    expect(missingTicket.isError).toBe(true);
+    expect(await tagged("team:core")).toEqual([]);
+  });
+
+  it("tag_assign processes a ticket named twice only once", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Twice" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Twice", title: "A" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "Twice", prefix: "state", value: "wip" } });
+
+    const r = await client.callTool({
+      name: "tag_assign",
+      arguments: { project: "Twice", ticket: "A", tickets: ["A"], prefix: "state", value: "wip" },
+    });
+    expect(JSON.parse((r.content as any)[0].text)).toEqual([{ ticket: "A", tag: "state:wip", status: "assigned" }]);
+  });
 });

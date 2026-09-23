@@ -463,22 +463,34 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       assertOneValuePerPrefix(validatedTags);
 
       return withProject(resolveProject(project), async (db, proj) => {
-        const out: { ticket: string; tag: string; status: "assigned" | "already_assigned"; replaced?: string[] }[] = [];
-        for (const title of allTickets) {
-          const ticket = await resolveTicket(db, proj.id, title);
-          for (const t of validatedTags) {
-            const tag = await getTag(db, proj.id, t.prefix, t.value);
-            if (!tag) throw new AppError(`Tag "${t.prefix}:${t.value}" not found. Create it first with tag_create.`);
-            const { assigned, replaced } = await assignTag(db, ticket.id, tag.id);
-            out.push({
-              ticket: title,
-              tag: `${t.prefix}:${t.value}`,
-              status: assigned ? "assigned" : "already_assigned",
-              ...(replaced.length > 0 ? { replaced } : {}),
-            });
-          }
+        // Resolve everything first, then assign in one transaction, so a
+        // missing ticket or tag aborts the whole batch instead of half of it.
+        const tickets: { title: string; id: number }[] = [];
+        for (const title of new Set(allTickets)) {
+          tickets.push({ title, id: (await resolveTicket(db, proj.id, title)).id });
         }
-        return out;
+        const tags: { label: string; id: number }[] = [];
+        for (const t of validatedTags) {
+          const tag = await getTag(db, proj.id, t.prefix, t.value);
+          if (!tag) throw new AppError(`Tag "${t.prefix}:${t.value}" not found. Create it first with tag_create.`);
+          tags.push({ label: `${t.prefix}:${t.value}`, id: tag.id });
+        }
+
+        return db.transaction(async () => {
+          const out: { ticket: string; tag: string; status: "assigned" | "already_assigned"; replaced?: string[] }[] = [];
+          for (const ticket of tickets) {
+            for (const tag of tags) {
+              const { assigned, replaced } = await assignTag(db, ticket.id, tag.id);
+              out.push({
+                ticket: ticket.title,
+                tag: tag.label,
+                status: assigned ? "assigned" : "already_assigned",
+                ...(replaced.length > 0 ? { replaced } : {}),
+              });
+            }
+          }
+          return out;
+        });
       });
     })
   );
