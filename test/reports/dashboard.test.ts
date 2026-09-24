@@ -6,6 +6,7 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createRelation } from "../../src/relations/repository.js";
 import { renderDashboard } from "../../src/reports/dashboard.js";
+import { setWeights } from "../../src/weights/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
 
@@ -68,5 +69,12 @@ describe("dashboard report", () => {
     assert.ok(!html.includes("<td>Done already</td>"));
     assert.ok(html.includes("<td>Still open</td>"));
     assert.ok(html.includes("1 done ticket is not listed."));
+  });
+
+  it("says the ranking is unweighted when the project has its own weights", async () => {
+    await createTicket(db, { projectId, title: "A" });
+    assert.ok(!(await renderDashboard(db, projectId, "Dash")).includes("without the project's weights"));
+    await setWeights(db, projectId, 0.1, 5, 1.5, 1.5);
+    assert.ok((await renderDashboard(db, projectId, "Dash")).includes("without the project's weights"));
   });
 });

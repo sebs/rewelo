@@ -71,6 +71,8 @@ Scores use the Fibonacci scale: 1, 2, 3, 5, 8, 13, 21.
 
 Sort fields: `priority`, `value`, `cost`, `benefit`, `penalty`, `estimate`, `risk`.
 
+`priority` here, in `report summary` and on the dashboard is always the unweighted value / cost. The project's weights (`config weights`) apply only to the weighted priority that `rw calc priority` shows next to it.
+
 `ticket list` supports filtering, search, pagination, and score thresholds:
 
 ```bash

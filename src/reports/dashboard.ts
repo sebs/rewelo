@@ -4,6 +4,7 @@ import { byPriority, priority } from "../calculations/priority.js";
 import { getDistribution } from "./distribution.js";
 import { doneTicketIds, getBacklogHealth } from "./health.js";
 import { listProjectRelations } from "../relations/repository.js";
+import { getWeights } from "../weights/repository.js";
 
 const FIBS = [1, 2, 3, 5, 8, 13, 21];
 
@@ -54,6 +55,8 @@ export async function renderDashboard(
       priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
     }));
 
+  const weights = await getWeights(db, projectId);
+  const customWeights = [weights.w1, weights.w2, weights.w3, weights.w4].some((w) => w !== 1.5);
   const distribution = await getDistribution(db, projectId);
   const health = await getBacklogHealth(db, projectId);
   const relations = await listProjectRelations(db, projectId);
@@ -150,6 +153,7 @@ ${generated}
 
 <h2>Open tickets by priority</h2>
 ${done.size > 0 ? `<p class="meta">${done.size} done ticket${done.size === 1 ? " is" : "s are"} not listed.</p>` : ""}
+${customWeights ? `<p class="meta">Priority is value / cost without the project's weights; <code>rw calc priority</code> shows the weighted priority.</p>` : ""}
 <table>
   <thead><tr><th>Title</th><th>B</th><th>P</th><th>E</th><th>R</th><th>Value</th><th>Cost</th><th>Priority</th></tr></thead>
   <tbody>${priorityRows}</tbody>
