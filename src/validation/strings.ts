@@ -85,10 +85,14 @@ export function validateTicketTitle(title: string): string {
   if (/[\u0000-\u001f\u007f-\u009f]/.test(title)) {
     throw new ValidationError("Ticket title must not contain control characters");
   }
-  // Bidi overrides make a title display differently from what it is, and
-  // invisible spaces make distinct titles look identical. Joiners
-  // (U+200C/U+200D) stay allowed: emoji sequences and some scripts need them.
-  if (/[\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/.test(title)) {
+  // Bidi controls make a title display differently from what it is, and
+  // invisible characters make distinct titles look identical: reject format
+  // (Cf) and default-ignorable characters, and the blank braille pattern.
+  // Kept: joiners (U+200C/U+200D), variation selectors and tag characters,
+  // which emoji sequences and some scripts need; they can't stand alone.
+  const EMOJI_PARTS = /[\u200C\u200D\uFE00-\uFE0F\u{E0020}-\u{E007F}]/gu;
+  const stripped = title.replace(EMOJI_PARTS, "");
+  if (/[\p{Cf}\p{Default_Ignorable_Code_Point}\u2800]/u.test(stripped) || stripped.trim() === "") {
     throw new ValidationError("Ticket title must not contain invisible or text-direction characters");
   }
   // Node decodes invalid UTF-8 (in arguments and files) to U+FFFD, so this is

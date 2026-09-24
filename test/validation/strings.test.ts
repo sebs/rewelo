@@ -182,3 +182,22 @@ describe("invalid UTF-8", () => {
     assert.throws(() => validateTicketTitle(Buffer.from([0x78, 0xff]).toString("utf-8")), /not valid UTF-8/);
   });
 });
+
+describe("invisible characters by category", () => {
+  it("rejects every invisible or bidi character, not just a hand-picked few", () => {
+    for (const ch of ["\u00AD", "\u061C", "\u180E", "\u034F", "\u3164", "\u115F", "\u206A", "\uFFF9", "\u2800", "\u{E0001}", "\u{1D173}"]) {
+      assert.throws(() => validateTicketTitle(`Login page${ch}`), /invisible or text-direction/, ch.codePointAt(0)!.toString(16));
+    }
+  });
+
+  it("rejects titles made only of joiners", () => {
+    for (const title of ["\u200D", "\u200C", "\u200D\u200D"]) {
+      assert.throws(() => validateTicketTitle(title), /invisible or text-direction/);
+    }
+  });
+
+  it("keeps emoji sequences with variation selectors and tags", () => {
+    validateTicketTitle("Love \u2764\uFE0F");
+    validateTicketTitle("Scotland \u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}");
+  });
+});
