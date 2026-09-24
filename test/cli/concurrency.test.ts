@@ -4,14 +4,14 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BIN, runCli } from "./run.js";
+import { BIN, childEnv, runCli } from "./run.js";
 
 // Runs the same CLI command in `n` processes at once
 function inParallel(n: number, args: (i: number) => string[]): Promise<number[]> {
   return Promise.all(
     Array.from({ length: n }, (_, i) =>
       new Promise<number>((resolve) => {
-        const child = spawn(process.execPath, [BIN, ...args(i)], { stdio: "ignore" });
+        const child = spawn(process.execPath, [BIN, ...args(i)], { stdio: "ignore", env: childEnv() });
         child.once("exit", (code) => resolve(code ?? -1));
       })
     )
@@ -52,7 +52,7 @@ describe("concurrent CLI writes", () => {
     const results = await Promise.all(
       Array.from({ length: 8 }, () =>
         new Promise<string>((resolve) => {
-          const child = spawn(process.execPath, [BIN, "--db", db, "project", "create", "Same"], { stdio: ["ignore", "ignore", "pipe"] });
+          const child = spawn(process.execPath, [BIN, "--db", db, "project", "create", "Same"], { stdio: ["ignore", "ignore", "pipe"], env: childEnv() });
           let stderr = "";
           child.stderr!.on("data", (d) => (stderr += d));
           child.once("exit", () => resolve(stderr.trim()));

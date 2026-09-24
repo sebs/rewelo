@@ -5,6 +5,7 @@ import { createMcpServer } from "../../src/mcp/server.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { childEnv } from "../cli/run.js";
 
 describe("MCP server", () => {
   let client: Client;
@@ -570,6 +571,7 @@ describe("MCP server", () => {
   it("rw serve logs its version, transport and database on stderr", async () => {
     const child = spawn(process.execPath, [resolve(__dirname, "../../src/index.js"), "--db", ":memory:", "serve"], {
       stdio: ["pipe", "pipe", "pipe"],
+      env: childEnv(),
     });
     const line = await new Promise<string>((resolveLine) => child.stderr!.once("data", (d) => resolveLine(String(d))));
     child.kill();

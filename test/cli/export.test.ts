@@ -4,7 +4,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, w
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { BIN, runCli } from "./run.js";
+import { BIN, childEnv, runCli } from "./run.js";
 
 describe("rw export (CLI)", () => {
   let dir: string;
@@ -64,7 +64,7 @@ describe("rw export (CLI)", () => {
     writeFileSync(csv, "title,description\n" + Array.from({ length: 2000 }, (_, i) => `T${i},${"x".repeat(200)}`).join("\n"));
     rw("import", "csv", csv, "--project", "P");
 
-    const child = spawn(process.execPath, [BIN, "--db", db, "export", "csv", "--project", "P"], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [BIN, "--db", db, "export", "csv", "--project", "P"], { stdio: ["ignore", "pipe", "pipe"], env: childEnv() });
     let stderr = "";
     child.stderr!.on("data", (d) => (stderr += d));
     child.stdout!.once("data", () => child.stdout!.destroy());

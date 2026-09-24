@@ -10,6 +10,14 @@ export interface CliResult {
   code: number | null;
 }
 
+// The environment for CLI processes the tests start: no database from the
+// developer's shell, and no colour settings. With FORCE_COLOR set in the
+// shell, NO_COLOR makes Node print a warning on stderr, which broke tests
+// that read stderr.
+export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  return { ...process.env, RW_DB_PATH: undefined, FORCE_COLOR: undefined, NO_COLOR: "1", ...extra };
+}
+
 export function runCli(
   args: string[],
   opts: { cwd?: string; input?: string; env?: Record<string, string> } = {}
@@ -18,7 +26,7 @@ export function runCli(
     cwd: opts.cwd,
     input: opts.input ?? "",
     encoding: "utf-8",
-    env: { ...process.env, RW_DB_PATH: undefined, NO_COLOR: "1", ...opts.env },
+    env: childEnv(opts.env),
   });
   return { stdout: r.stdout, stderr: r.stderr, code: r.status };
 }
