@@ -609,14 +609,15 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     "Calculate weighted priorities for all tickets, sorted descending. Inline w1-w4 override stored weights for this call only. Returns {title, priority, weighted} per ticket. For de-risk-first ordering, use ticket_list with sort='risk' instead.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      tag: z.string().optional().describe("Only tickets with this tag (prefix:value)"),
       w1: z.number().optional().describe("Benefit weight (default 1.5). Higher = benefit matters more in value."),
       w2: z.number().optional().describe("Penalty weight (default 1.5). Higher = penalty matters more in value."),
       w3: z.number().optional().describe("Estimate weight (default 1.5). Higher = large estimates are penalised more."),
       w4: z.number().optional().describe("Risk weight (default 1.5). Higher = risky items are penalised more. To de-risk first, sort by risk via ticket_list instead."),
     },
-    safe(({ project, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) =>
+    safe(({ project, tag, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) =>
       withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id);
+        const tickets = await listTickets(db, proj.id, tag !== undefined ? { includeTags: [parseTag(tag)] } : undefined);
         const config = await getWeights(db, proj.id);
         const w1 = uw1 ?? config.w1;
         const w2 = uw2 ?? config.w2;

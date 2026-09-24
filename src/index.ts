@@ -1118,6 +1118,7 @@ calcCmd
   .command("priority")
   .description("show weighted priorities")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
+  .option("--tag <prefix:value>", "only tickets with this tag (repeatable, intersection)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .option("--w1 <n>", "benefit weight", once(parseFloatOption))
   .option("--w2 <n>", "penalty weight", once(parseFloatOption))
   .option("--w3 <n>", "estimate weight", once(parseFloatOption))
@@ -1125,7 +1126,8 @@ calcCmd
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const tickets = await listTickets(db, project.id);
+      const includeTags = (cmdOpts.tag as string[]).map((s) => parseTag(s));
+      const tickets = await listTickets(db, project.id, includeTags.length > 0 ? { includeTags } : undefined);
       const config = await getWeights(db, project.id);
       const w1 = cmdOpts.w1 ?? config.w1;
       const w2 = cmdOpts.w2 ?? config.w2;

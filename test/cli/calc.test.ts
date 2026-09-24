@@ -108,4 +108,13 @@ describe("rw calc (CLI)", () => {
     assert.equal(twice.code, 1);
     assert.match(twice.stderr, /--w1 <n>.*already given/);
   });
+
+  it("calc priority can be scoped to tags like calc weights", () => {
+    rw("project", "create", "S");
+    rw("ticket", "create", "--project", "S", "--title", "In");
+    rw("ticket", "create", "--project", "S", "--title", "Out");
+    rw("tag", "assign", "feature:x", "--project", "S", "--ticket", "In");
+    const titles = JSON.parse(rw("--json", "calc", "priority", "--project", "S", "--tag", "feature:x").stdout).map((r: any) => r.title);
+    assert.deepEqual(titles, ["In"]);
+  });
 });
