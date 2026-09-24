@@ -26,7 +26,7 @@ describe("rw calc (CLI)", () => {
     assert.equal(negative.code, 1);
     assert.ok(negative.stderr.includes("Weight w1 must be a non-negative number"));
 
-    const huge = rw("calc", "priority", "--project", "P", "--w1", "1e308", "--w2", "1e308");
+    const huge = rw("calc", "priority", "--project", "P", "--w1", "1000", "--w2", "1000");
     assert.equal(huge.code, 1);
     assert.ok(huge.stderr.includes("must not exceed 100"));
 
@@ -63,6 +63,8 @@ describe("rw calc (CLI)", () => {
       [["--set", "--reset", "--w1", "3"], "Use either --set or --reset"],
       [["--set"], "--set needs at least one of --w1, --w2, --w3, --w4"],
       [["--set", "--w1", "2abc"], '"2abc" is not a valid number'],
+      [["--set", "--w1", "0x10"], '"0x10" is not a valid number'],
+      [["--set", "--w1", "1e2"], '"1e2" is not a valid number'],
     ];
     for (const [args, message] of cases) {
       const r = weights(...args);
@@ -71,5 +73,6 @@ describe("rw calc (CLI)", () => {
     }
     assert.ok(weights("--json").stdout.includes('"w1":1.5'));
     assert.ok(weights("--set", "--w1", "2.5").stdout.includes("w1=2.5"));
+    assert.ok(weights("--set", "--w1", ".5").stdout.includes("w1=0.5"));
   });
 });

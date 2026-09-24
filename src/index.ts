@@ -193,8 +193,9 @@ function parseScoreOption(value: string): number {
 // into weight/threshold calculations (producing NaN output or zero results).
 // Require a finite number instead.
 function parseFloatOption(value: string): number {
-  // The whole value must be a number: parseFloat reads "2abc" as 2
-  const n = value.trim() === "" ? NaN : Number(value);
+  // The whole value must be a plain decimal: parseFloat reads "2abc" as 2,
+  // and Number accepts "0x10" (16) and "1e2"
+  const n = /^\s*[+-]?(\d+(\.\d*)?|\.\d+)\s*$/.test(value) ? Number(value) : NaN;
   if (!Number.isFinite(n)) {
     throw new ValidationError(`"${value}" is not a valid number`);
   }
