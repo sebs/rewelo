@@ -55,6 +55,16 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketA, ticketB, "relates-to");
   });
 
+  it("rejects an order that contradicts one stated with another type", async () => {
+    await createRelation(db, projectId, ticketA, ticketB, "blocks");
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "depends-on"), /contradicts an existing relation: "Auth service" blocks "Login page"/);
+    await assert.rejects(createRelation(db, projectId, ticketB, ticketA, "precedes"), /contradicts/);
+    await assert.rejects(createRelation(db, projectId, ticketB, ticketA, "is-depended-on-by"), /contradicts/);
+    // The same order in other words is fine
+    await createRelation(db, projectId, ticketB, ticketA, "depends-on");
+    await createRelation(db, projectId, ticketA, ticketB, "precedes");
+  });
+
   it("creates depends-on / is-depended-on-by", async () => {
     await createRelation(db, projectId, ticketB, ticketA, "depends-on");
     const relB = await listRelations(db, projectId, ticketB);

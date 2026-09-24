@@ -183,6 +183,8 @@ rw relation list-all --project <name>
 
 Relation types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
 
+A relation can't contradict an existing one: `B blocks A` is refused when `A blocks B` exists, and so are `A depends-on B` and `B precedes A`, which put the two tickets in the opposite order.
+
 ### report
 
 ```bash

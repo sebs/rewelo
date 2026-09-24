@@ -20,6 +20,12 @@ export interface RelationView {
   direction: "outgoing" | "incoming" | "both";
 }
 
+// Which ticket of a relation comes first, for the types that order two
+// tickets: the source (1) or the target (-1)
+const ORDER: Record<string, 1 | -1> = { blocks: 1, precedes: 1, "depends-on": -1 };
+const firstOf = (r: Pick<Relation, "source_id" | "target_id" | "relation_type">): number | undefined =>
+  r.relation_type in ORDER ? (ORDER[r.relation_type] === 1 ? r.source_id : r.target_id) : undefined;
+
 // "C" blocks "A", by titles: "the target blocks the source" read backwards
 // when the new relation was given by its inverse name (is-blocked-by)
 async function describe(db: DB, relation: Relation): Promise<string> {
@@ -80,6 +86,27 @@ export async function createRelation(
       );
       if (reverse.length > 0) {
         throw new ValidationError(`The reverse relation already exists: ${await describe(db, reverse[0])}`);
+      }
+    }
+
+    // Relations that order two tickets must agree across types: A blocks B
+    // and A depends-on B say opposite things
+    const first = firstOf({ source_id: sourceId, target_id: targetId, relation_type: relationType });
+    if (first !== undefined) {
+      const ordering = await db.all<Relation>(
+        `SELECT * FROM ticket_relations
+         WHERE project_id = ? AND relation_type IN (${Object.keys(ORDER).map(() => "?").join(", ")})
+           AND ((source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?))`,
+        projectId,
+        ...Object.keys(ORDER),
+        sourceId,
+        targetId,
+        targetId,
+        sourceId
+      );
+      const opposite = ordering.find((r) => firstOf(r) !== first);
+      if (opposite) {
+        throw new ValidationError(`This contradicts an existing relation: ${await describe(db, opposite)}`);
       }
     }
 
