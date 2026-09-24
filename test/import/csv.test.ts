@@ -204,4 +204,15 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
     assert.deepEqual(await importCsv(db, projectId, "title,description\rB,x\rC,y\r"), { imported: 2 });
     assert.deepEqual((await listTickets(db, projectId)).map((t) => [t.title, t.description]), [["B", "x"], ["C", "y"]]);
   });
+
+  it("rejects malformed quoting instead of reading it leniently", async () => {
+    await assert.rejects(
+      importCsv(db, projectId, 'title,description,benefit\nT10,"oops,3\nT11,fine,5\n'),
+      /Row 1: a quoted field is never closed/
+    );
+    await assert.rejects(importCsv(db, projectId, 'title,description\nT9,a"b'), /Row 1: a quote inside an unquoted field/);
+    await assert.rejects(importCsv(db, projectId, 'title,description\nT9,"a"b'), /Row 1: unexpected character after a closing quote/);
+    assert.equal((await listTickets(db, projectId)).length, 0);
+    assert.deepEqual(await importCsv(db, projectId, 'title,description\nOk, "quoted, fine"'), { imported: 1 });
+  });
 });

@@ -37,13 +37,24 @@ function parseCsv(csv: string): string[][] {
   let fields: string[] = [];
   let current = "";
   let inQuotes = false;
+  let quoted = false; // the current field was quoted and its quotes are closed
 
-  const endRecord = () => {
+  // Malformed quoting used to be read leniently, and an unclosed quote then
+  // swallowed the rest of the file into one field
+  const fail = (problem: string): never => {
+    const where = records.length === 0 ? "Header" : `Row ${records.length}`;
+    throw new ValidationError(`${where}: ${problem}`);
+  };
+  const endField = () => {
     fields.push(current);
+    current = "";
+    quoted = false;
+  };
+  const endRecord = () => {
+    endField();
     // Skip blank lines
     if (fields.length > 1 || fields[0].trim().length > 0) records.push(fields);
     fields = [];
-    current = "";
   };
 
   for (let i = 0; i < csv.length; i++) {
@@ -55,25 +66,31 @@ function parseCsv(csv: string): string[][] {
           i++;
         } else {
           inQuotes = false;
+          quoted = true;
         }
       } else {
         current += ch;
       }
-    } else if (ch === '"') {
-      inQuotes = true;
     } else if (ch === ",") {
-      fields.push(current);
-      current = "";
+      endField();
     } else if (ch === "\n") {
       endRecord();
     } else if (ch === "\r") {
       // CRLF: the \n ends the record. A lone CR (classic Mac line ending)
       // ends it itself; appending it made the whole file one header row.
       if (csv[i + 1] !== "\n") endRecord();
+    } else if (quoted) {
+      fail(`unexpected character after a closing quote`);
+    } else if (ch === '"') {
+      // A quote may only open a field (after optional blanks)
+      if (current.trim() !== "") fail(`a quote inside an unquoted field; quote the whole field and double inner quotes`);
+      current = "";
+      inQuotes = true;
     } else {
       current += ch;
     }
   }
+  if (inQuotes) fail("a quoted field is never closed");
   endRecord();
   return records;
 }
