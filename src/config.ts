@@ -27,6 +27,9 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
       // leak its content, so, as for --db and --output, no symbolic links
       const stat = lstatSync(candidate);
       if (stat.isSymbolicLink()) throw new ValidationError(`${candidate} must be a regular file, not a symbolic link`);
+      // Reading a FIFO or a device blocks, which hung the CLI and the MCP
+      // server (it loads the config at startup)
+      if (!stat.isFile() && !stat.isDirectory()) throw new ValidationError(`${candidate} must be a regular file`);
       if (stat.isFile() && stat.size > MAX_CONFIG_BYTES) throw new ValidationError(`${candidate} is too large for a .rewelo.json`);
       raw = readFileSync(candidate, "utf-8");
     } catch (e) {

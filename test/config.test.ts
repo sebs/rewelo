@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
+import { execFileSync } from "child_process";
 import { tmpdir } from "os";
 import { loadConfig } from "../src/config.js";
 
@@ -77,6 +78,11 @@ describe("loadConfig", () => {
     const child = join(dir, "child");
     mkdirSync(join(child, ".rewelo.json"), { recursive: true });
     assert.throws(() => loadConfig(child), /Cannot read/);
+  });
+
+  it("refuses a FIFO named .rewelo.json instead of waiting for it", { skip: process.platform === "win32" }, () => {
+    execFileSync("mkfifo", [join(dir, ".rewelo.json")]);
+    assert.throws(() => loadConfig(dir), /must be a regular file/);
   });
 
   it("reports unknown keys, such as a misspelt project", () => {
