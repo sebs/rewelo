@@ -49,7 +49,8 @@ describe("relations repository", () => {
   it("rejects an asymmetric relation that reverses an existing one", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "blocks");
     await assert.rejects(createRelation(db, projectId, ticketB, ticketA, "blocks"), /reverse relation already exists/);
-    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "is-blocked-by"), /reverse relation already exists/);
+    // Named as it exists, whichever name the new one used
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "is-blocked-by"), /reverse relation already exists: "Auth service" blocks "Login page"/);
     // Symmetric relations have no direction to contradict
     await createRelation(db, projectId, ticketA, ticketB, "relates-to");
   });

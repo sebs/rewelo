@@ -20,6 +20,14 @@ export interface RelationView {
   direction: "outgoing" | "incoming" | "both";
 }
 
+// "C" blocks "A", by titles: "the target blocks the source" read backwards
+// when the new relation was given by its inverse name (is-blocked-by)
+async function describe(db: DB, relation: Relation): Promise<string> {
+  const title = async (id: number) =>
+    (await db.all<{ title: string }>(`SELECT title FROM tickets WHERE id = ?`, id))[0]?.title;
+  return `"${await title(relation.source_id)}" ${relation.relation_type} "${await title(relation.target_id)}"`;
+}
+
 export async function createRelation(
   db: DB,
   projectId: number,
@@ -71,7 +79,7 @@ export async function createRelation(
         relationType
       );
       if (reverse.length > 0) {
-        throw new ValidationError(`The reverse relation already exists: the target ${relationType} the source`);
+        throw new ValidationError(`The reverse relation already exists: ${await describe(db, reverse[0])}`);
       }
     }
 
