@@ -67,6 +67,10 @@ export function validateTicketTitle(title: string): string {
   if (/[\n\r]/.test(title)) {
     throw new ValidationError("Ticket title must not contain newline characters");
   }
+  // Escape sequences would be echoed raw into terminals (colours, cursor moves)
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(title)) {
+    throw new ValidationError("Ticket title must not contain control characters");
+  }
   const normalized = normalize(title.trim());
   if (normalized.length > MAX_TICKET_TITLE) {
     throw new ValidationError(
@@ -84,6 +88,11 @@ export function validateTicketDescription(
     throw new ValidationError(
       "Ticket description must not contain null bytes"
     );
+  }
+  // Line breaks and tabs are fine in free text; other control characters
+  // (e.g. ESC) would be echoed raw into terminals.
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(description)) {
+    throw new ValidationError("Ticket description must not contain control characters");
   }
   const normalized = normalize(description);
   if (normalized.length > MAX_TICKET_DESCRIPTION) {

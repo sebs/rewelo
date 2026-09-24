@@ -219,4 +219,10 @@ describe("JSON import", () => {
     const json = "\uFEFF" + JSON.stringify({ tickets: [{ title: "Bom" }] });
     expect((await importJson(db, projectId, json)).imported).toBe(1);
   });
+
+  it("rejects control characters in imported titles and descriptions", async () => {
+    const bad = (t: Record<string, string>) => JSON.stringify({ tickets: [t] });
+    await expect(importJson(db, projectId, bad({ title: "a\u001b[31m" }))).rejects.toThrow("Ticket 1: Ticket title must not contain control characters");
+    await expect(importJson(db, projectId, bad({ title: "ok", description: "a\u001b[31m" }))).rejects.toThrow("control characters");
+  });
 });

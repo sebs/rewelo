@@ -136,3 +136,17 @@ describe("validateTagValue", () => {
     expect(() => validateTagValue("a".repeat(101))).toThrow("exceed");
   });
 });
+
+describe("control characters", () => {
+  it("are rejected in ticket titles", () => {
+    expect(() => validateTicketTitle("esc\u001b[31mRED")).toThrow("must not contain control characters");
+    expect(() => validateTicketTitle("tab\there")).toThrow("must not contain control characters");
+    expect(() => validateTicketTitle("c1\u009bx")).toThrow("must not contain control characters");
+  });
+
+  it("are rejected in descriptions except line breaks and tabs", () => {
+    expect(validateTicketDescription("line1\nline2\r\n\tindented")).toBe("line1\nline2\r\n\tindented");
+    expect(() => validateTicketDescription("esc\u001b[31mRED")).toThrow("must not contain control characters");
+  });
+});
+

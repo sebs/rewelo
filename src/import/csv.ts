@@ -3,7 +3,7 @@ import { createTicket } from "../tickets/repository.js";
 import { createTag, getTag } from "../tags/repository.js";
 import { assertOneValuePerPrefix, assignTag } from "../tags/assignment.js";
 import { assertFibonacci } from "../db/types.js";
-import { ValidationError, parseTagPair, validateTagPrefix, validateTagValue, validateTicketTitle } from "../validation/strings.js";
+import { ValidationError, parseTagPair, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { TagPair } from "../serialization/export-project.js";
 
 const MAX_ROWS = 100_000;
@@ -121,6 +121,7 @@ function parseRows(csv: string): CsvRow[] {
     let title: string;
     try {
       title = validateTicketTitle(stripCsvFormulaGuard(row.title ?? ""));
+      validateTicketDescription(stripCsvFormulaGuard(row.description ?? ""));
     } catch (e) {
       throw new ValidationError(`Row ${i}: ${(e as Error).message}`);
     }
