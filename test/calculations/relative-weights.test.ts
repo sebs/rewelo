@@ -67,21 +67,19 @@ describe("relative weight calculations", () => {
     const all = calculateAllRelativeWeights(stories);
     stories.forEach((t, i) => assert.deepEqual(all[i], { ...t, ...calculateRelativeWeights(t, stories) }));
 
-    // Linear, not quadratic: 8x the tickets must take far less than the 64x
-    // a quadratic pass needs (a ratio, so the check holds on a busy machine
-    // too; best of 5)
-    const time = (n: number) => {
-      const tickets = Array.from({ length: n }, () => ({ benefit: 5, penalty: 1, estimate: 1, risk: 1 }));
-      let best = Infinity;
-      for (let i = 0; i < 5; i++) {
-        const started = performance.now();
-        calculateAllRelativeWeights(tickets);
-        best = Math.min(best, performance.now() - started);
+    // Linear, not quadratic: count score reads instead of timing (timings
+    // flaked on a busy machine). Summing once reads each ticket a few times;
+    // re-summing per ticket reads every ticket for each ticket.
+    let reads = 0;
+    const counted = Array.from({ length: 1000 }, () => {
+      const ticket = {} as Scoreable;
+      for (const key of ["benefit", "penalty", "estimate", "risk"] as const) {
+        Object.defineProperty(ticket, key, { enumerable: true, get: () => (reads++, 1) });
       }
-      return best;
-    };
-    const ratio = time(40_000) / Math.max(time(5_000), 0.5);
-    assert.ok(ratio < 32, `8x the tickets took ${ratio.toFixed(1)}x as long`);
+      return ticket;
+    });
+    calculateAllRelativeWeights(counted);
+    assert.ok(reads < 20 * counted.length, `${reads} score reads for ${counted.length} tickets`);
   });
 
   it("keeps small shares in large backlogs instead of rounding them to 0", () => {
