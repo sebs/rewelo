@@ -8,7 +8,7 @@ Feature: MCP Server
   Scenario: Start the MCP server
     When I run "rw serve"
     Then the MCP server should start and listen for connections
-    And it should log the transport method being used
+    And it should log the version, the transport method and the database path to stderr
 
   Scenario: Server uses stdio transport by default
     When I run "rw serve"
@@ -20,24 +20,43 @@ Feature: MCP Server
     When a client connects and requests the tool list
     Then the server should expose tools for:
       | tool                  |
+      | server_version        |
       | project_create        |
       | project_list          |
       | project_delete        |
+      | project_history       |
+      | project_diff          |
       | ticket_create         |
       | ticket_list           |
       | ticket_update         |
+      | ticket_upsert         |
       | ticket_delete         |
       | ticket_history        |
       | tag_create            |
       | tag_assign            |
       | tag_remove            |
       | tag_list              |
+      | tag_rename            |
+      | weight_get            |
+      | weight_set            |
+      | weight_reset          |
       | calc_priority         |
       | calc_weights          |
       | report_summary        |
       | report_times          |
-      | export                |
-      | import                |
+      | report_health         |
+      | report_distribution   |
+      | report_group          |
+      | report_dashboard      |
+      | event_log             |
+      | export_csv            |
+      | export_json           |
+      | import_csv            |
+      | import_json           |
+      | relation_create       |
+      | relation_remove       |
+      | relation_list         |
+      | relation_list_all     |
 
   # -- Tool invocation --
 

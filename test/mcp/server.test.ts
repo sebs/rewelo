@@ -2,6 +2,9 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { spawn } from "node:child_process";
 
 describe("MCP server", () => {
   let client: Client;
@@ -553,5 +556,23 @@ describe("MCP server", () => {
     const csv = "title\n" + Array.from({ length: 6000 }, (_, i) => `T${i}${"\\".repeat(95)}`).join("\n");
     const r = await client.callTool({ name: "import_csv", arguments: { project: "Big", csv } });
     assert.doesNotMatch((r.content as any)[0].text, /payload too large/);
+  });
+
+  it("exposes exactly the tools features/mcp-server.feature lists", async () => {
+    // build/test/mcp -> repository root
+    const spec = readFileSync(resolve(__dirname, "../../../features/mcp-server.feature"), "utf-8");
+    const table = spec.slice(spec.indexOf("| tool "), spec.indexOf("# -- Tool invocation --"));
+    const specified = [...table.matchAll(/^\s*\| ([a-z_]+) +\|$/gm)].map((m) => m[1]).filter((name) => name !== "tool").sort();
+    const registered = (await client.listTools()).tools.map((t) => t.name).sort();
+    assert.deepEqual(registered, specified);
+  });
+
+  it("rw serve logs its version, transport and database on stderr", async () => {
+    const child = spawn(process.execPath, [resolve(__dirname, "../../src/index.js"), "--db", ":memory:", "serve"], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const line = await new Promise<string>((resolveLine) => child.stderr!.once("data", (d) => resolveLine(String(d))));
+    child.kill();
+    assert.match(line, /^rewelo \S+ MCP server on stdio transport, database :memory:/);
   });
 });

@@ -894,4 +894,6 @@ export async function startMcpServer(dbPath: string): Promise<void> {
   process.on("SIGTERM", shutdown);
 
   await server.connect(transport);
+  // stdout carries the protocol; say on stderr what is running where
+  console.error(`rewelo ${VERSION} MCP server on stdio transport, database ${dbPath}`);
 }
