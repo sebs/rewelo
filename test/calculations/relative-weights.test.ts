@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  calculateAllRelativeWeights,
   calculateRelativeWeights,
   Scoreable,
 } from "../../src/calculations/relative-weights.js";
@@ -60,5 +61,15 @@ describe("relative weight calculations", () => {
       []
     );
     assert.equal(rw.relativeBenefit, 0);
+  });
+
+  it("computes every ticket's weights in one pass with the same results", () => {
+    const all = calculateAllRelativeWeights(stories);
+    stories.forEach((t, i) => assert.deepEqual(all[i], { ...t, ...calculateRelativeWeights(t, stories) }));
+
+    const many = Array.from({ length: 50_000 }, () => ({ benefit: 5, penalty: 1, estimate: 1, risk: 1 }));
+    const started = Date.now();
+    calculateAllRelativeWeights(many);
+    assert.ok(Date.now() - started < 1000, "linear in the number of tickets");
   });
 });

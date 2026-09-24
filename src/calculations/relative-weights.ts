@@ -17,19 +17,40 @@ function safeRatio(value: number, total: number): number {
   return Math.round((value / total) * 100) / 100;
 }
 
+function totals(all: Scoreable[]): Scoreable {
+  const sum: Scoreable = { benefit: 0, penalty: 0, estimate: 0, risk: 0 };
+  for (const t of all) {
+    sum.benefit += t.benefit;
+    sum.penalty += t.penalty;
+    sum.estimate += t.estimate;
+    sum.risk += t.risk;
+  }
+  return sum;
+}
+
+function relativeTo(ticket: Scoreable, sum: Scoreable): RelativeWeights {
+  return {
+    relativeBenefit: safeRatio(ticket.benefit, sum.benefit),
+    relativePenalty: safeRatio(ticket.penalty, sum.penalty),
+    relativeEstimate: safeRatio(ticket.estimate, sum.estimate),
+    relativeRisk: safeRatio(ticket.risk, sum.risk),
+  };
+}
+
 export function calculateRelativeWeights(
   ticket: Scoreable,
   all: Scoreable[]
 ): RelativeWeights {
-  const sumBenefit = all.reduce((s, t) => s + t.benefit, 0);
-  const sumPenalty = all.reduce((s, t) => s + t.penalty, 0);
-  const sumEstimate = all.reduce((s, t) => s + t.estimate, 0);
-  const sumRisk = all.reduce((s, t) => s + t.risk, 0);
+  return relativeTo(ticket, totals(all));
+}
 
-  return {
-    relativeBenefit: safeRatio(ticket.benefit, sumBenefit),
-    relativePenalty: safeRatio(ticket.penalty, sumPenalty),
-    relativeEstimate: safeRatio(ticket.estimate, sumEstimate),
-    relativeRisk: safeRatio(ticket.risk, sumRisk),
-  };
+/**
+ * Relative weights of every ticket. Sums the backlog once: calling
+ * calculateRelativeWeights per ticket is quadratic (minutes for 20,000 tickets).
+ */
+export function calculateAllRelativeWeights<T extends Scoreable>(
+  all: T[]
+): (T & RelativeWeights)[] {
+  const sum = totals(all);
+  return all.map((t) => ({ ...t, ...relativeTo(t, sum) }));
 }

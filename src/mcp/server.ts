@@ -30,8 +30,7 @@ import {
 import { listRevisions, listProjectRevisions } from "../revisions/repository.js";
 import { byPriority, exactPriority, priority } from "../calculations/priority.js";
 import {
-  calculateRelativeWeights,
-  Scoreable,
+  calculateAllRelativeWeights,
 } from "../calculations/relative-weights.js";
 import { exactWeightedPriority, weightedPriority } from "../calculations/weighted-priority.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
@@ -644,8 +643,13 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     safe(({ project, tag }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const tickets = await listTickets(db, proj.id, tag !== undefined ? { includeTags: [parseTag(tag)] } : undefined);
-        const scoreables: Scoreable[] = tickets;
-        return tickets.map((t) => ({ title: t.title, ...calculateRelativeWeights(t, scoreables) }));
+        return calculateAllRelativeWeights(tickets).map((t) => ({
+          title: t.title,
+          relativeBenefit: t.relativeBenefit,
+          relativePenalty: t.relativePenalty,
+          relativeEstimate: t.relativeEstimate,
+          relativeRisk: t.relativeRisk,
+        }));
       })
     )
   );
