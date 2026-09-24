@@ -397,10 +397,11 @@ projectCmd
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--since <timestamp>", "only show revisions after this ISO timestamp")
   .option("--limit <n>", "maximum number of revisions", parseNonNegativeIntOption)
+  .option("--offset <n>", "number of revisions to skip", parseNonNegativeIntOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const revisions = await listProjectRevisions(db, project.id, cmdOpts.since, cmdOpts.limit);
+      const revisions = await listProjectRevisions(db, project.id, cmdOpts.since, cmdOpts.limit, cmdOpts.offset);
       if (opts.json) {
         console.log(JSON.stringify(revisions));
       } else if (opts.quiet) {
@@ -684,6 +685,8 @@ ticketCmd
   .description("show revision history for a ticket")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--title <title>", "ticket title")
+  .option("--limit <n>", "maximum number of revisions", parseNonNegativeIntOption)
+  .option("--offset <n>", "number of revisions to skip", parseNonNegativeIntOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -692,7 +695,7 @@ ticketCmd
         console.error(`Ticket "${cmdOpts.title}" not found`);
         process.exit(1);
       }
-      const revisions = await listRevisions(db, ticket.id);
+      const revisions = await listRevisions(db, ticket.id, cmdOpts.limit, cmdOpts.offset);
       if (opts.json) {
         console.log(JSON.stringify(revisions));
       } else if (opts.quiet) {

@@ -62,13 +62,24 @@ export async function createRevision(
   );
 }
 
+// LIMIT -1 is SQLite's "no limit", needed for an OFFSET on its own
+const page = (limit?: number, offset?: number) => ({
+  sql: " LIMIT ? OFFSET ?",
+  params: [limit ?? -1, offset ?? 0],
+});
+
+/** Oldest first; limit and offset page through a long history */
 export async function listRevisions(
   db: DB,
-  ticketId: number
+  ticketId: number,
+  limit?: number,
+  offset?: number
 ): Promise<TicketRevision[]> {
+  const paging = page(limit, offset);
   const rows = await db.all<TicketRevisionRaw>(
-    `SELECT * FROM ticket_revisions WHERE ticket_id = ? ORDER BY revised_at, id`,
-    ticketId
+    `SELECT * FROM ticket_revisions WHERE ticket_id = ? ORDER BY revised_at, id${paging.sql}`,
+    ticketId,
+    ...paging.params
   );
   return rows.map(parseRevisionTags);
 }
@@ -77,7 +88,8 @@ export async function listProjectRevisions(
   db: DB,
   projectId: number,
   since?: string,
-  limit?: number
+  limit?: number,
+  offset?: number
 ): Promise<(TicketRevision & { ticket_title: string })[]> {
   let sql = `SELECT r.*, t.title AS ticket_title
      FROM ticket_revisions r
@@ -92,12 +104,13 @@ export async function listProjectRevisions(
     params.push(normalizeSince(since));
   }
 
-  sql += ` ORDER BY r.revised_at DESC, r.id DESC`;
-
-  if (limit !== undefined) {
-    sql += ` LIMIT ?`;
-    params.push(limit);
-  }
+  // Without since: the newest revisions. With since: the ones right after
+  // it, oldest first, as in the event log (newest first, a limit skipped
+  // the revisions right after since, and nothing could reach them)
+  sql += since !== undefined ? ` ORDER BY r.revised_at, r.id` : ` ORDER BY r.revised_at DESC, r.id DESC`;
+  const paging = page(limit, offset);
+  sql += paging.sql;
+  params.push(...paging.params);
 
   const rows = await db.all<TicketRevisionRaw & { ticket_title: string }>(sql, ...params);
   return rows.map((row) => ({

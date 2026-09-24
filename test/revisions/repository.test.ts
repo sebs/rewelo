@@ -6,7 +6,7 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket, updateTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
-import { createRevision, listRevisions } from "../../src/revisions/repository.js";
+import { createRevision, listProjectRevisions, listRevisions } from "../../src/revisions/repository.js";
 
 describe("ticket revisions", () => {
   let db: DB;
@@ -84,5 +84,21 @@ describe("ticket revisions", () => {
 
     const revisions = await listRevisions(db, ticket.id);
     assert.equal(revisions[0].title, "Login page");
+  });
+
+  it("pages a ticket's and a project's history, and lists the revisions right after since first", async () => {
+    const ticket = await createTicket(db, { projectId, title: "Paged" });
+    const scores = [2, 3, 5, 8, 13];
+    for (const benefit of scores) await updateTicket(db, projectId, ticket.id, { benefit });
+    // revisions hold the scores before each update: 1, 2, 3, 5, 8
+    const all = await listRevisions(db, ticket.id);
+    assert.deepEqual(all.map((r) => r.benefit), [1, 2, 3, 5, 8]);
+    assert.deepEqual((await listRevisions(db, ticket.id, 2, 1)).map((r) => r.benefit), [2, 3]);
+    assert.deepEqual((await listRevisions(db, ticket.id, undefined, 4)).map((r) => r.benefit), [8]);
+
+    assert.deepEqual((await listProjectRevisions(db, projectId, undefined, 2)).map((r) => r.benefit), [8, 5]);
+    const since = "2000-01-01T00:00:00Z";
+    assert.deepEqual((await listProjectRevisions(db, projectId, since, 2)).map((r) => r.benefit), [1, 2]);
+    assert.deepEqual((await listProjectRevisions(db, projectId, since, 2, 2)).map((r) => r.benefit), [3, 5]);
   });
 });

@@ -498,25 +498,28 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       title: z.string().optional().describe("Ticket title (provide title or id)"),
       id: z.number().int().positive().optional().describe("Ticket numeric ID (provide title or id)"),
+      limit: z.number().int().nonnegative().optional().describe("Maximum number of revisions to return (oldest first)"),
+      offset: z.number().int().nonnegative().optional().describe("Number of revisions to skip"),
     },
-    safe(({ project, title, id }) =>
+    safe(({ project, title, id, limit, offset }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title, id);
-        return listRevisions(db, ticket.id);
+        return listRevisions(db, ticket.id, limit, offset);
       })
     )
   );
 
   tool(
     "project_history",
-    "List revision history across all tickets in a project, newest first. Use instead of calling ticket_history per ticket. Supports since/limit filters.",
+    "List revision history across all tickets in a project: newest first, or with since the revisions right after it, oldest first. Use instead of calling ticket_history per ticket. Page with limit and offset.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
-      since: z.string().optional().describe("Only show revisions after this ISO timestamp"),
+      since: z.string().optional().describe("Only show revisions after this ISO timestamp (then oldest first)"),
       limit: z.number().int().nonnegative().optional().describe("Maximum number of revisions to return"),
+      offset: z.number().int().nonnegative().optional().describe("Number of revisions to skip"),
     },
-    safe(({ project, since, limit }) =>
-      withProject(resolveProject(project), (db, proj) => listProjectRevisions(db, proj.id, since, limit))
+    safe(({ project, since, limit, offset }) =>
+      withProject(resolveProject(project), (db, proj) => listProjectRevisions(db, proj.id, since, limit, offset))
     )
   );
 

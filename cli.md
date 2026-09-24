@@ -34,11 +34,11 @@ Only `project create` and `import json` create the database file; other commands
 rw project create <name>
 rw project list
 rw project delete <name> [--force]
-rw project history --project <name> [--since <timestamp>] [--limit <n>]
+rw project history --project <name> [--since <timestamp>] [--limit <n>] [--offset <n>]
 rw project diff --project <name> --since <timestamp>
 ```
 
-`delete` prompts for confirmation unless `--force` is passed. `history` lists the revisions of all tickets, newest first. `diff` compares the project now with its state at `--since`: new, updated and deleted tickets and net tag changes. Timestamps are ISO dates or date-times; without an offset they are read as UTC.
+`delete` prompts for confirmation unless `--force` is passed. `history` lists the revisions of all tickets, newest first; with `--since`, the revisions right after it, oldest first. `--limit` and `--offset` page through them. `diff` compares the project now with its state at `--since`: new, updated and deleted tickets and net tag changes. Timestamps are ISO dates or date-times; without an offset they are read as UTC.
 
 ### ticket
 
@@ -57,7 +57,7 @@ rw ticket update --project <name> --title <title> [--new-title <title>] \
 
 rw ticket delete --project <name> --title <title>
 
-rw ticket history --project <name> --title <title>
+rw ticket history --project <name> --title <title> [--limit <n>] [--offset <n>]
 
 rw ticket upsert --project <name> --title <title> [--description <text>] \
   [--benefit <n>] [--penalty <n>] [--estimate <n>] [--risk <n>]
@@ -97,7 +97,7 @@ rw ticket list --project Acme --max-cost 5       # quick wins
 rw ticket list --project Acme --min-value 10      # high-value items
 ```
 
-JSON output includes `{ total, offset, items }` for pagination. `ticket list` also supports `--csv` output. `ticket history` shows the revision log for a ticket.
+JSON output includes `{ total, offset, items }` for pagination. `ticket list` also supports `--csv` output. `ticket history` shows the revision log for a ticket, oldest first; `--limit` and `--offset` page through it.
 
 ### tag
 

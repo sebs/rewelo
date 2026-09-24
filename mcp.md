@@ -107,7 +107,7 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data g
 | `project_create`  | Create a new project               | `name`                        |
 | `project_list`    | List all projects                  |                               |
 | `project_delete`  | Delete a project and all its data  | `name`                        |
-| `project_history` | Revision history across all tickets in a project | `project?`, `since?`, `limit?` |
+| `project_history` | Revision history across all tickets in a project: newest first, or after `since` oldest first | `project?`, `since?`, `limit?`, `offset?` |
 
 ### Tickets
 
@@ -118,7 +118,7 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data g
 | `ticket_update`   | Update a ticket                    | `project?`, `title`, `newTitle?`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
 | `ticket_upsert`   | Create or update by title (idempotent) | `project?`, `title`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
 | `ticket_delete`   | Delete a ticket                    | `project?`, `title`                                                |
-| `ticket_history`  | Show revision history              | `project?`, `title?`, `id?`                                       |
+| `ticket_history`  | Show revision history, oldest first | `project?`, `title?`, `id?`, `limit?`, `offset?`                  |
 
 Score parameters (`benefit`, `penalty`, `estimate`, `risk`) must be Fibonacci values: 1, 2, 3, 5, 8, 13, or 21.
 
