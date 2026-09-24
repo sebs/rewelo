@@ -71,6 +71,12 @@ export function validateTicketTitle(title: string): string {
   if (/[\u0000-\u001f\u007f-\u009f]/.test(title)) {
     throw new ValidationError("Ticket title must not contain control characters");
   }
+  // Bidi overrides make a title display differently from what it is, and
+  // invisible spaces make distinct titles look identical. Joiners
+  // (U+200C/U+200D) stay allowed: emoji sequences and some scripts need them.
+  if (/[\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/.test(title)) {
+    throw new ValidationError("Ticket title must not contain invisible or text-direction characters");
+  }
   const normalized = normalize(title.trim());
   if (normalized.length > MAX_TICKET_TITLE) {
     throw new ValidationError(

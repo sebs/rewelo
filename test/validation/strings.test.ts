@@ -151,3 +151,14 @@ describe("control characters", () => {
   });
 });
 
+describe("invisible and text-direction characters", () => {
+  it("rejects bidi overrides and invisible spaces in titles", () => {
+    for (const title of ["\u202Eevil", "zero\u200Bwidth", "a\u2066b\u2069", "\uFEFFbom"]) {
+      assert.throws(() => validateTicketTitle(title), /invisible or text-direction/, JSON.stringify(title));
+    }
+  });
+
+  it("keeps joiners that emoji sequences need", () => {
+    assert.equal(validateTicketTitle("Family \u{1F468}\u200D\u{1F469}\u200D\u{1F467}"), "Family \u{1F468}\u200D\u{1F469}\u200D\u{1F467}");
+  });
+});
