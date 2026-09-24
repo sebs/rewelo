@@ -69,4 +69,17 @@ describe("since filters", () => {
     await assert.rejects(listProjectRevisions(db, projectId, "yesterday"), /Invalid timestamp/);
     await assert.rejects(getProjectDiff(db, projectId, "garbage"), ValidationError);
   });
+
+  it("rejects values Date.parse would guess at, such as free text and impossible dates", async () => {
+    for (const since of ["Ticket 12", "1", "2026-02-30", "2026-13-01", "2026-03-10T25:00"]) {
+      await assert.rejects(getProjectDiff(db, projectId, since), /Invalid timestamp/, since);
+    }
+    for (const since of ["2026-03-10", "2026-03-10T09:00", "2026-03-10T09:00:00.123Z", "2026-03-10T09:00:00+02:00"]) {
+      await getProjectDiff(db, projectId, since);
+    }
+  });
+
+  it("reports the normalised since in the diff", async () => {
+    assert.equal((await getProjectDiff(db, projectId, "2026-03-10T09:00:00+02:00")).since, "2026-03-10T07:00:00.000Z");
+  });
 });

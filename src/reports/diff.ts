@@ -149,7 +149,7 @@ export async function getProjectDiff(
   );
 
   return {
-    since,
+    since: sinceUtc,
     now,
     newTickets,
     updatedTickets,
