@@ -251,4 +251,14 @@ describe("tickets repository", () => {
     assert.deepEqual(await titles("login\u00A0page"), ["Login page"]);
     assert.deepEqual(await titles("old spaced"), ["Old  spaced"]);
   });
+
+  it("leaves a ticket untouched when its delete fails part-way", async () => {
+    const t = await createTicket(db, { projectId, title: "Keep me", benefit: 1 });
+    await updateTicket(db, projectId, t.id, { benefit: 5 });
+    await db.exec("CREATE TRIGGER fail_delete BEFORE DELETE ON tickets BEGIN SELECT RAISE(ABORT, 'simulated'); END");
+
+    await assert.rejects(deleteTicket(db, projectId, t.id), /simulated/);
+    assert.equal((await db.all("SELECT 1 FROM ticket_revisions WHERE ticket_id = ?", t.id)).length, 1);
+    assert.equal((await db.all("SELECT 1 FROM ticket_deletions")).length, 0);
+  });
 });

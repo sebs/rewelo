@@ -600,7 +600,11 @@ ticketCmd
         console.error(`Ticket "${cmdOpts.title}" not found`);
         process.exit(1);
       }
-      await deleteTicket(db, project.id, ticket.id);
+      // Another process may have deleted it since the lookup
+      if (!(await deleteTicket(db, project.id, ticket.id))) {
+        console.error(`Ticket "${cmdOpts.title}" not found`);
+        process.exit(1);
+      }
       if (opts.json) console.log(JSON.stringify({ deleted: true, title: ticket.title }));
       else if (!opts.quiet) console.log(`Deleted ticket "${ticket.title}"`);
     });

@@ -63,4 +63,12 @@ describe("concurrent CLI writes", () => {
     assert.equal(errors.length, 7);
     for (const e of errors) assert.equal(e, 'A project named "Same" already exists');
   });
+
+  it("records a ticket deleted by several processes at once only once", async () => {
+    runCli(["--db", db, "ticket", "create", "--project", "C", "--title", "Gone"]);
+    const codes = await inParallel(6, () => ["--db", db, "ticket", "delete", "--project", "C", "--title", "Gone"]);
+    assert.equal(codes.filter((c) => c === 0).length, 1);
+    const events = JSON.parse(runCli(["--db", db, "--json", "report", "event-log", "--project", "C"]).stdout);
+    assert.equal(events.filter((e: { type: string }) => e.type === "ticket_deleted").length, 1);
+  });
 });

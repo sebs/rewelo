@@ -397,7 +397,8 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     safe(({ project, title }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title);
-        return { deleted: await deleteTicket(db, proj.id, ticket.id) };
+        if (!(await deleteTicket(db, proj.id, ticket.id))) throw new AppError(`Ticket "${title}" not found`);
+        return { deleted: true };
       })
     )
   );

@@ -289,27 +289,31 @@ export async function deleteTicket(
   projectId: number,
   ticketId: number
 ): Promise<boolean> {
-  const ticket = await getTicketById(db, projectId, ticketId);
-  if (!ticket) return false;
+  // All or nothing: a failure part-way left a ticket without its history but
+  // with a deletion record, and parallel deletes each recorded a deletion
+  return db.transaction(async () => {
+    const ticket = await getTicketById(db, projectId, ticketId);
+    if (!ticket) return false;
 
-  // Remembered so project diffs can report the deletion
-  await db.run(
-    `INSERT INTO ticket_deletions (project_id, ticket_id, title, created_at) VALUES (?, ?, ?, ?)`,
-    projectId,
-    ticketId,
-    ticket.title,
-    ticket.created_at
-  );
+    // Remembered so project diffs can report the deletion
+    await db.run(
+      `INSERT INTO ticket_deletions (project_id, ticket_id, title, created_at) VALUES (?, ?, ?, ?)`,
+      projectId,
+      ticketId,
+      ticket.title,
+      ticket.created_at
+    );
 
-  // The schema has no ON DELETE CASCADE, so we cascade manually.
-  await db.run(`DELETE FROM ticket_relations WHERE source_id = ? OR target_id = ?`, ticketId, ticketId);
-  await db.run(`DELETE FROM ticket_revisions WHERE ticket_id = ?`, ticketId);
-  await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
-  await db.run(`DELETE FROM ticket_tags WHERE ticket_id = ?`, ticketId);
-  await db.run(
-    `DELETE FROM tickets WHERE id = ? AND project_id = ?`,
-    ticketId,
-    projectId
-  );
-  return true;
+    // The schema has no ON DELETE CASCADE, so we cascade manually.
+    await db.run(`DELETE FROM ticket_relations WHERE source_id = ? OR target_id = ?`, ticketId, ticketId);
+    await db.run(`DELETE FROM ticket_revisions WHERE ticket_id = ?`, ticketId);
+    await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
+    await db.run(`DELETE FROM ticket_tags WHERE ticket_id = ?`, ticketId);
+    await db.run(
+      `DELETE FROM tickets WHERE id = ? AND project_id = ?`,
+      ticketId,
+      projectId
+    );
+    return true;
+  });
 }
