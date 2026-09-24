@@ -119,3 +119,15 @@ Table ticket_deletions {
 
   Note: 'Record of deleted tickets so project diff can report deletions.'
 }
+
+Table event_order {
+  seq bigint [pk, increment]
+  source text [not null, note: 'ticket, revision, tag_change or deletion']
+  row_id bigint [not null, note: 'Id of the row in the source table']
+
+  indexes {
+    (source, row_id) [unique]
+  }
+
+  Note: 'The order history rows were written in, filled by triggers. Breaks timestamp ties (ms resolution) in the event log.'
+}

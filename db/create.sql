@@ -13,10 +13,10 @@
 -- Foreign keys are enforced (the app enables PRAGMA foreign_keys). There is no
 -- ON DELETE CASCADE; cascading deletes are handled in application code.
 
--- Marks the file as a rewelo database ("RWLO") at schema version 3;
+-- Marks the file as a rewelo database ("RWLO") at schema version 4;
 -- see src/db/migrate.ts.
 PRAGMA application_id = 1381452879;
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
 
 -- =============================================================================
 --  1. PROJECTS
@@ -159,6 +159,36 @@ CREATE TABLE ticket_deletions (
     title      TEXT NOT NULL,
     deleted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+
+-- =============================================================================
+--  9. EVENT ORDER (the order history rows were written in)
+-- =============================================================================
+
+-- Timestamps have millisecond resolution, and ids of different tables can't
+-- be compared, so the event log needs this to order events written in the
+-- same millisecond. Filled by triggers; rows are removed with their source row.
+CREATE TABLE IF NOT EXISTS event_order (
+    seq    INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL CHECK (source IN ('ticket', 'revision', 'tag_change', 'deletion')),
+    row_id INTEGER NOT NULL,
+    UNIQUE (source, row_id)
+);
+CREATE TRIGGER IF NOT EXISTS tickets_event_order_insert AFTER INSERT ON tickets
+BEGIN INSERT INTO event_order (source, row_id) VALUES ('ticket', NEW.id); END;
+CREATE TRIGGER IF NOT EXISTS tickets_event_order_delete AFTER DELETE ON tickets
+BEGIN DELETE FROM event_order WHERE source = 'ticket' AND row_id = OLD.id; END;
+CREATE TRIGGER IF NOT EXISTS ticket_revisions_event_order_insert AFTER INSERT ON ticket_revisions
+BEGIN INSERT INTO event_order (source, row_id) VALUES ('revision', NEW.id); END;
+CREATE TRIGGER IF NOT EXISTS ticket_revisions_event_order_delete AFTER DELETE ON ticket_revisions
+BEGIN DELETE FROM event_order WHERE source = 'revision' AND row_id = OLD.id; END;
+CREATE TRIGGER IF NOT EXISTS ticket_tag_changes_event_order_insert AFTER INSERT ON ticket_tag_changes
+BEGIN INSERT INTO event_order (source, row_id) VALUES ('tag_change', NEW.id); END;
+CREATE TRIGGER IF NOT EXISTS ticket_tag_changes_event_order_delete AFTER DELETE ON ticket_tag_changes
+BEGIN DELETE FROM event_order WHERE source = 'tag_change' AND row_id = OLD.id; END;
+CREATE TRIGGER IF NOT EXISTS ticket_deletions_event_order_insert AFTER INSERT ON ticket_deletions
+BEGIN INSERT INTO event_order (source, row_id) VALUES ('deletion', NEW.id); END;
+CREATE TRIGGER IF NOT EXISTS ticket_deletions_event_order_delete AFTER DELETE ON ticket_deletions
+BEGIN DELETE FROM event_order WHERE source = 'deletion' AND row_id = OLD.id; END;
 
 -- #############################################################################
 -- #  End of Schema Definition

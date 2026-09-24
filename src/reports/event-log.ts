@@ -37,7 +37,7 @@ export async function getEventLog(
       SELECT
         t.created_at AS ts,
         'ticket_created' AS type,
-        0 AS rank, t.id AS seq,
+        0 AS rank, (SELECT eo.seq FROM event_order eo WHERE eo.source = 'ticket' AND eo.row_id = t.id) AS seq,
         t.id AS ticket_id,
         t.title AS ticket_title,
         -- Scores at creation: revisions hold the state *before* each update,
@@ -56,7 +56,7 @@ export async function getEventLog(
       SELECT
         r.revised_at AS ts,
         'ticket_updated' AS type,
-        1 AS rank, r.id AS seq,
+        1 AS rank, (SELECT eo.seq FROM event_order eo WHERE eo.source = 'revision' AND eo.row_id = r.id) AS seq,
         r.ticket_id,
         t.title AS ticket_title,
         json_object('prev_title', r.title, 'prev_description', r.description,
@@ -71,7 +71,7 @@ export async function getEventLog(
       SELECT
         c.changed_at AS ts,
         CASE WHEN c.action = 'added' THEN 'tag_added' ELSE 'tag_removed' END AS type,
-        1 AS rank, c.id AS seq,
+        1 AS rank, (SELECT eo.seq FROM event_order eo WHERE eo.source = 'tag_change' AND eo.row_id = c.id) AS seq,
         c.ticket_id,
         t.title AS ticket_title,
         json_object('prefix', c.prefix, 'value', c.value) AS detail
@@ -84,7 +84,7 @@ export async function getEventLog(
       SELECT
         d.deleted_at AS ts,
         'ticket_deleted' AS type,
-        2 AS rank, d.id AS seq,
+        2 AS rank, (SELECT eo.seq FROM event_order eo WHERE eo.source = 'deletion' AND eo.row_id = d.id) AS seq,
         d.ticket_id,
         d.title AS ticket_title,
         json_object() AS detail
@@ -92,9 +92,8 @@ export async function getEventLog(
       WHERE d.project_id = ?${sinceClause.replace("ts", "d.deleted_at")}
     ) events
     -- Timestamps have millisecond resolution, so break ties by the order the
-    -- rows were written: creation first, deletion last, and within one table
-    -- by id (assigning state:done removes state:wip after adding it).
-    ORDER BY ts DESC, rank DESC, seq DESC
+    -- rows were written (event_order), across all four tables
+    ORDER BY ts DESC, seq DESC, rank DESC
   `;
 
   // Add projectId for each UNION branch

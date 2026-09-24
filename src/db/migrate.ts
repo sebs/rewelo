@@ -61,6 +61,40 @@ const MIGRATIONS: { version: number; sql: string }[] = [
     DROP TABLE ticket_tag_changes;
     ALTER TABLE ticket_tag_changes_v3 RENAME TO ticket_tag_changes;`,
   },
+  {
+    // A shared write order for the event log (timestamps tie within a
+    // millisecond). Existing rows are ordered as well as their timestamps allow.
+    version: 4,
+    sql: `CREATE TABLE IF NOT EXISTS event_order (
+        seq    INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL CHECK (source IN ('ticket', 'revision', 'tag_change', 'deletion')),
+        row_id INTEGER NOT NULL,
+        UNIQUE (source, row_id)
+    );
+    CREATE TRIGGER IF NOT EXISTS tickets_event_order_insert AFTER INSERT ON tickets
+    BEGIN INSERT INTO event_order (source, row_id) VALUES ('ticket', NEW.id); END;
+    CREATE TRIGGER IF NOT EXISTS tickets_event_order_delete AFTER DELETE ON tickets
+    BEGIN DELETE FROM event_order WHERE source = 'ticket' AND row_id = OLD.id; END;
+    CREATE TRIGGER IF NOT EXISTS ticket_revisions_event_order_insert AFTER INSERT ON ticket_revisions
+    BEGIN INSERT INTO event_order (source, row_id) VALUES ('revision', NEW.id); END;
+    CREATE TRIGGER IF NOT EXISTS ticket_revisions_event_order_delete AFTER DELETE ON ticket_revisions
+    BEGIN DELETE FROM event_order WHERE source = 'revision' AND row_id = OLD.id; END;
+    CREATE TRIGGER IF NOT EXISTS ticket_tag_changes_event_order_insert AFTER INSERT ON ticket_tag_changes
+    BEGIN INSERT INTO event_order (source, row_id) VALUES ('tag_change', NEW.id); END;
+    CREATE TRIGGER IF NOT EXISTS ticket_tag_changes_event_order_delete AFTER DELETE ON ticket_tag_changes
+    BEGIN DELETE FROM event_order WHERE source = 'tag_change' AND row_id = OLD.id; END;
+    CREATE TRIGGER IF NOT EXISTS ticket_deletions_event_order_insert AFTER INSERT ON ticket_deletions
+    BEGIN INSERT INTO event_order (source, row_id) VALUES ('deletion', NEW.id); END;
+    CREATE TRIGGER IF NOT EXISTS ticket_deletions_event_order_delete AFTER DELETE ON ticket_deletions
+    BEGIN DELETE FROM event_order WHERE source = 'deletion' AND row_id = OLD.id; END;
+    INSERT OR IGNORE INTO event_order (source, row_id)
+    SELECT source, row_id FROM (
+      SELECT 'ticket' AS source, id AS row_id, created_at AS ts, 0 AS rank FROM tickets
+      UNION ALL SELECT 'revision', id, revised_at, 1 FROM ticket_revisions
+      UNION ALL SELECT 'tag_change', id, changed_at, 1 FROM ticket_tag_changes
+      UNION ALL SELECT 'deletion', id, deleted_at, 2 FROM ticket_deletions
+    ) ORDER BY ts, rank, row_id;`,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

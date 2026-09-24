@@ -67,10 +67,18 @@ describe("migrate", () => {
     await assert.rejects(migrate(db), /not a rewelo database/);
   });
 
+  // Versions before 4 have neither the event_order table nor its triggers
+  async function dropEventOrder(): Promise<void> {
+    const triggers = await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'trigger'");
+    for (const { name } of triggers) await db.exec(`DROP TRIGGER ${name}`);
+    await db.exec("DROP TABLE event_order");
+  }
+
   // The schema as first released with SQLite, before application_id and
   // user_version existed.
   async function simulateVersion1(markApplicationId: boolean): Promise<void> {
     await migrate(db);
+    await dropEventOrder();
     await db.exec(`DROP TABLE ticket_deletions; PRAGMA user_version = 0;`);
     if (!markApplicationId) await db.exec("PRAGMA application_id = 0");
   }
@@ -100,6 +108,23 @@ describe("migrate", () => {
     await migrate(db);
     const [row] = await db.all<{ user_version: number }>("PRAGMA user_version");
     assert.equal(row.user_version, SCHEMA_VERSION);
+  });
+
+  it("orders existing history rows when adding the event order", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec(`
+      INSERT INTO projects (id, name) VALUES (1, 'P');
+      INSERT INTO tickets (id, project_id, title, created_at) VALUES (1, 1, 'A', '2026-01-02T00:00:00.000Z');
+      INSERT INTO ticket_deletions (project_id, ticket_id, title, deleted_at) VALUES (1, 9, 'Gone', '2026-01-01T00:00:00.000Z');
+      PRAGMA user_version = 3;`);
+    await dropEventOrder();
+
+    await migrate(db);
+    const rows = await db.all<{ source: string }>("SELECT source FROM event_order ORDER BY seq");
+    assert.deepEqual(rows.map((r) => r.source), ["deletion", "ticket"]);
+    await db.run("INSERT INTO tickets (project_id, title) VALUES (1, 'B')");
+    assert.equal((await db.all("SELECT 1 FROM event_order")).length, 3);
   });
 
   it("refuses a database from a newer schema version", async () => {

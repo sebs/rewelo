@@ -134,4 +134,23 @@ describe("event log", () => {
     assert.equal(latest.type, "ticket_deleted");
     assert.equal(latest.ticketTitle, "Gone");
   });
+
+  it("orders same-millisecond events from different tables by when they were written", async () => {
+    const t = await createTicket(db, { projectId, title: "Mixed" });
+    const tag = await createTag(db, projectId, "x", "v");
+    // Let tag change ids run ahead of revision ids
+    for (let i = 0; i < 5; i++) {
+      await assignTag(db, t.id, tag.id);
+      await removeTag(db, t.id, tag.id);
+    }
+    await assignTag(db, t.id, tag.id);
+    await updateTicket(db, projectId, t.id, { description: "later" });
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-01T00:00:00.000Z'");
+    await db.run("UPDATE ticket_revisions SET revised_at = '2026-01-01T00:00:00.000Z'");
+    await db.run("UPDATE tickets SET created_at = '2025-12-31T00:00:00.000Z'");
+
+    const [newest, before] = await getEventLog(db, projectId, undefined, 2);
+    assert.equal(newest.type, "ticket_updated");
+    assert.equal(before.type, "tag_added");
+  });
 });
