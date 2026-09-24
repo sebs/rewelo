@@ -192,6 +192,14 @@ describe("relations repository", () => {
     assert.equal((relA.filter((r) => r.direction === "outgoing")).length, 2);
   });
 
+  it("reports the same relation id from both tickets, as listed project-wide", async () => {
+    const created = await createRelation(db, projectId, ticketB, ticketA, "blocks");
+    const [fromA] = await listRelations(db, projectId, ticketA);
+    const [fromB] = await listRelations(db, projectId, ticketB);
+    assert.deepEqual([fromA.id, fromB.id], [created.id, created.id]);
+    assert.equal((await listProjectRelations(db, projectId))[0].id, created.id);
+  });
+
   it("shows relations another ticket holds as incoming, and symmetric ones as both", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "blocks");
     await createRelation(db, projectId, ticketC, ticketA, "blocks");

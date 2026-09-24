@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { ValidationError } from "../validation/strings.js";
-import { canonicalRelation, forwardTypeNames, getRelationType, getInverse, isSymmetric, symmetricTypeNames } from "./types.js";
+import { allRelationTypes, canonicalRelation, forwardTypeNames, getRelationType, getInverse, isSymmetric, symmetricTypeNames } from "./types.js";
 
 export interface Relation {
   id: number;
@@ -236,11 +236,22 @@ export async function listRelations(
   // rows are stored in id order, which says nothing about direction.
   const forward = new Set(forwardTypeNames());
   const symmetric = new Set(symTypes);
+  // An inverse row is an internal mirror: report the id of the relation it
+  // mirrors, the one relation_list_all shows
+  const forwardOf = new Map(allRelationTypes().map((rt) => [rt.inverse, rt.forward]));
   const result: RelationView[] = [];
   for (const r of rows) {
     const otherId = r.source_id === ticketId ? r.target_id : r.source_id;
+    let id = r.id;
+    if (!forward.has(r.relation_type) && !symmetric.has(r.relation_type)) {
+      const [mirrored] = await db.all<{ id: number }>(
+        `SELECT id FROM ticket_relations WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
+        projectId, r.target_id, r.source_id, forwardOf.get(r.relation_type)
+      );
+      if (mirrored) id = mirrored.id;
+    }
     result.push({
-      id: r.id,
+      id,
       relation_type: r.relation_type,
       ticket_id: otherId,
       ticket_title: titleMap.get(otherId) ?? `#${otherId}`,
