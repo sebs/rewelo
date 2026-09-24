@@ -1,6 +1,6 @@
 {
   "name": "rewelo",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Prioritisation tool using the relative weight method with SQLite",
   "bin": {
     "rw": "dist/index.js"
