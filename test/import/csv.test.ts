@@ -231,4 +231,9 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
   it("names the earlier row when titles repeat after normalisation", async () => {
     await assert.rejects(importCsv(db, projectId, 'title\nCaf\u00e9\ncafe\u0301x\n"a b"\n"a  b"'), /Row 4: title "a b" is the same as row 3's/);
   });
+
+  it("counts skipped blank lines in row numbers", async () => {
+    await assert.rejects(importCsv(db, projectId, "title,benefit\nA,3\n\n\nB,4\n"), /Row 4: benefit must be a Fibonacci value/);
+    await assert.rejects(importCsv(db, projectId, "title\nA\n\nA\n"), /Row 3: title "A" is the same as row 1's/);
+  });
 });

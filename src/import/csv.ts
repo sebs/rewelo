@@ -14,6 +14,8 @@ const KNOWN_COLUMNS = ["title", "description", "benefit", "penalty", "estimate",
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 interface CsvRow {
+  /** Row number in the file (blank lines counted) */
+  row: number;
   title: string;
   description: string;
   benefit: number;
@@ -32,8 +34,12 @@ function stripCsvFormulaGuard(field: string): string {
 
 // Parse the whole input at once (RFC 4180): quoted fields may contain commas,
 // escaped quotes ("") and line breaks, so we cannot split into lines first.
-function parseCsv(csv: string): string[][] {
-  const records: string[][] = [];
+// Each record with its row number: data rows count from 1 after the header,
+// blank lines included, so an error names the row as it appears in the file
+function parseCsv(csv: string): { fields: string[]; row: number }[] {
+  const records: { fields: string[]; row: number }[] = [];
+  let seen = 0; // records ended so far, blank lines included
+  let headerAt: number | undefined;
   let fields: string[] = [];
   let current = "";
   let inQuotes = false;
@@ -42,7 +48,7 @@ function parseCsv(csv: string): string[][] {
   // Malformed quoting used to be read leniently, and an unclosed quote then
   // swallowed the rest of the file into one field
   const fail = (problem: string): never => {
-    const where = records.length === 0 ? "Header" : `Row ${records.length}`;
+    const where = headerAt === undefined ? "Header" : `Row ${seen + 1 - headerAt}`;
     throw new ValidationError(`${where}: ${problem}`);
   };
   let recordQuoted = false; // a field of the current record was quoted
@@ -56,7 +62,11 @@ function parseCsv(csv: string): string[][] {
     endField();
     // Skip blank lines, but not a record holding a quoted blank field ("  "):
     // that is a row with an empty title, to be reported
-    if (fields.length > 1 || fields[0].trim().length > 0 || recordQuoted) records.push(fields);
+    seen++;
+    if (fields.length > 1 || fields[0].trim().length > 0 || recordQuoted) {
+      headerAt ??= seen;
+      records.push({ fields, row: seen - headerAt });
+    }
     fields = [];
     recordQuoted = false;
   };
@@ -116,7 +126,7 @@ function parseRows(csv: string): CsvRow[] {
   const records = parseCsv(csv);
   if (records.length === 0) throw new ValidationError("CSV is empty");
 
-  const headers = records[0].map((h) => h.trim().toLowerCase());
+  const headers = records[0].fields.map((h) => h.trim().toLowerCase());
   if (!headers.includes("title")) {
     throw new ValidationError("Missing required CSV column: title");
   }
@@ -139,9 +149,9 @@ function parseRows(csv: string): CsvRow[] {
 
   const rows: CsvRow[] = [];
   for (let i = 1; i < records.length; i++) {
-    const fields = records[i];
+    const { fields, row: rowNumber } = records[i];
     if (fields.length > headers.length) {
-      throw new ValidationError(`Row ${i}: ${fields.length} fields but only ${headers.length} columns`);
+      throw new ValidationError(`Row ${rowNumber}: ${fields.length} fields but only ${headers.length} columns`);
     }
     // Keep free text exactly as written; trim only structured cells
     const row: Record<string, string> = {};
@@ -161,7 +171,7 @@ function parseRows(csv: string): CsvRow[] {
       assertFibonacci(estimate, "estimate");
       assertFibonacci(risk, "risk");
     } catch (e) {
-      throw new ValidationError(`Row ${i}: ${(e as Error).message}`);
+      throw new ValidationError(`Row ${rowNumber}: ${(e as Error).message}`);
     }
 
     let title: string;
@@ -169,7 +179,7 @@ function parseRows(csv: string): CsvRow[] {
       title = validateTicketTitle(stripCsvFormulaGuard(row.title ?? ""));
       validateTicketDescription(stripCsvFormulaGuard(row.description ?? ""));
     } catch (e) {
-      throw new ValidationError(`Row ${i}: ${(e as Error).message}`);
+      throw new ValidationError(`Row ${rowNumber}: ${(e as Error).message}`);
     }
 
     let tags: TagPair[];
@@ -184,10 +194,11 @@ function parseRows(csv: string): CsvRow[] {
         });
       assertOneValuePerPrefix(tags);
     } catch (e) {
-      throw new ValidationError(`Row ${i}: ${(e as Error).message}`);
+      throw new ValidationError(`Row ${rowNumber}: ${(e as Error).message}`);
     }
 
     rows.push({
+      row: rowNumber,
       title,
       description: stripCsvFormulaGuard(row.description ?? ""),
       benefit,
@@ -215,13 +226,13 @@ export async function importCsv(
 
   return db.transaction(async () => {
     const firstRow = new Map<string, number>();
-    for (const [i, row] of rows.entries()) {
+    for (const row of rows) {
       // Titles are normalised by now, so "café" (NFC/NFD) or "a  b" repeat here
       const earlier = firstRow.get(row.title);
       if (earlier !== undefined) {
-        throw new ValidationError(`Row ${i + 1}: title "${row.title}" is the same as row ${earlier + 1}'s`);
+        throw new ValidationError(`Row ${row.row}: title "${row.title}" is the same as row ${earlier}'s`);
       }
-      firstRow.set(row.title, i);
+      firstRow.set(row.title, row.row);
       let ticket;
       try {
         ticket = await createTicket(db, {
@@ -235,7 +246,7 @@ export async function importCsv(
         });
       } catch (e) {
         // e.g. a title already taken, in the project or earlier in the file
-        if (e instanceof ValidationError) throw new ValidationError(`Row ${i + 1}: ${e.message}`);
+        if (e instanceof ValidationError) throw new ValidationError(`Row ${row.row}: ${e.message}`);
         throw e;
       }
 
