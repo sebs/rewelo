@@ -36,4 +36,10 @@ describe("rw report (CLI)", () => {
       averageCycleTimeDays: null,
     });
   });
+
+  it("report times --csv leaves a missing cycle time empty", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Done");
+    rw("tag", "assign", "state:done", "--project", "P", "--ticket", "Done");
+    assert.equal(rw("--csv", "report", "times", "--project", "P").stdout, "Title,Lead Time,Cycle Time\nDone,0d,\n");
+  });
 });

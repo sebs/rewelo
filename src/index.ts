@@ -1347,12 +1347,14 @@ reportCmd
       } else if (withDone.length === 0 && !opts.csv) {
         console.log("No completed tickets found.");
       } else {
+        // An empty CSV field, not "-" (which the formula guard turns into '-)
+        const none = opts.csv ? "" : "-";
         const rows = withDone.map((t) => {
           const ticket = tickets.find((tk) => tk.id === t.ticketId);
           return [
             ticket?.title || String(t.ticketId),
-            t.leadTimeDays !== undefined ? `${t.leadTimeDays}d` : "-",
-            t.cycleTimeDays !== undefined ? `${t.cycleTimeDays}d` : "-",
+            t.leadTimeDays !== undefined ? `${t.leadTimeDays}d` : none,
+            t.cycleTimeDays !== undefined ? `${t.cycleTimeDays}d` : none,
           ];
         });
         console.log(formatTable(["Title", "Lead Time", "Cycle Time"], rows));
