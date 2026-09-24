@@ -106,7 +106,8 @@ describe("rw calc (CLI)", () => {
 
     const twice = rw("calc", "priority", "--project", "T", "--w1", "1", "--w1", "2");
     assert.equal(twice.code, 1);
-    assert.match(twice.stderr, /--w1 <n>.*already given/);
+    assert.match(twice.stderr, /option '--w1 <n>' was given more than once/);
+    assert.doesNotMatch(twice.stderr, /invalid/);
   });
 
   it("refuses any single-value option given twice, but still collects --tag", () => {
@@ -119,7 +120,7 @@ describe("rw calc (CLI)", () => {
     ]) {
       const r = rw(...args);
       assert.equal(r.code, 1, args.join(" "));
-      assert.match(r.stderr, /already given/);
+      assert.match(r.stderr, /was given more than once/);
     }
     assert.doesNotMatch(rw("--json", "ticket", "list", "--project", "T").stdout, /"title"/);
     assert.equal(rw("ticket", "list", "--project", "T", "--tag", "a:b", "--tag", "c:d").code, 0);

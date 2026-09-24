@@ -274,7 +274,9 @@ function refuseRepeatedOptions(cmd: Command): void {
     const parse = option.parseArg;
     let given = false;
     option.argParser((value: string, previous: unknown) => {
-      if (given) throw new InvalidArgumentError("the option was already given");
+      // cmd.error, not InvalidArgumentError: that blames the value ("argument
+      // 'a.db' is invalid"), while the problem is the repetition
+      if (given) cmd.error(`error: option '${option.flags}' was given more than once`, { code: "rw.optionRepeated" });
       given = true;
       return parse ? parse(value, previous) : value;
     });
