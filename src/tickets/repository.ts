@@ -100,30 +100,38 @@ export async function listTickets(
   let sql = `SELECT t.* FROM tickets t WHERE t.project_id = ?`;
   const params: unknown[] = [projectId];
 
-  // Each include tag adds an EXISTS subquery (intersection: all tags must match)
-  if (options?.includeTags) {
-    for (const tag of options.includeTags) {
-      sql += `
-        AND EXISTS (
-          SELECT 1 FROM ticket_tags tt
-          JOIN tags tg ON tg.id = tt.tag_id
-          WHERE tt.ticket_id = t.id AND tg.prefix = ? AND tg.value = ?
-        )`;
-      params.push(tag.prefix, tag.value);
-    }
+  // One flat subquery per direction, whatever the number of tags: an
+  // EXISTS per tag hit SQLite's expression depth limit at about 1,000 filters.
+  // Repeated filters count once.
+  const distinct = (tags: TagFilter[] = []) => [...new Map(tags.map((t) => [`${t.prefix}:${t.value}`, t])).values()];
+  const tagList = (tags: TagFilter[]) => {
+    params.push(...tags.flatMap((t) => [t.prefix, t.value]));
+    return tags.map(() => "(?, ?)").join(", ");
+  };
+
+  // Intersection: the ticket has every included tag
+  const include = distinct(options?.includeTags);
+  if (include.length > 0) {
+    sql += `
+      AND t.id IN (
+        SELECT tt.ticket_id FROM ticket_tags tt
+        JOIN tags tg ON tg.id = tt.tag_id
+        WHERE (tg.prefix, tg.value) IN (VALUES ${tagList(include)})
+        GROUP BY tt.ticket_id
+        HAVING count(*) = ?
+      )`;
+    params.push(include.length);
   }
 
-  // Each exclude tag adds a NOT EXISTS subquery
-  if (options?.excludeTags) {
-    for (const tag of options.excludeTags) {
-      sql += `
-        AND NOT EXISTS (
-          SELECT 1 FROM ticket_tags tt
-          JOIN tags tg ON tg.id = tt.tag_id
-          WHERE tt.ticket_id = t.id AND tg.prefix = ? AND tg.value = ?
-        )`;
-      params.push(tag.prefix, tag.value);
-    }
+  // The ticket has none of the excluded tags
+  const exclude = distinct(options?.excludeTags);
+  if (exclude.length > 0) {
+    sql += `
+      AND NOT EXISTS (
+        SELECT 1 FROM ticket_tags tt
+        JOIN tags tg ON tg.id = tt.tag_id
+        WHERE tt.ticket_id = t.id AND (tg.prefix, tg.value) IN (VALUES ${tagList(exclude)})
+      )`;
   }
 
   // Title search (case-insensitive). Escape LIKE wildcards so a literal

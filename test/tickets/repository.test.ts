@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { validateTicketTitle } from "../../src/validation/strings.js";
+import { createTag } from "../../src/tags/repository.js";
+import { assignTag } from "../../src/tags/assignment.js";
 import { createProject } from "../../src/projects/repository.js";
 import {
   createTicket,
@@ -270,5 +272,15 @@ describe("tickets repository", () => {
   it("finds nothing for a search longer than any title, instead of failing", async () => {
     await createTicket(db, { projectId, title: "x" });
     assert.deepEqual(await listTickets(db, projectId, { search: "x".repeat(60_000) }), []);
+  });
+
+  it("handles thousands of tag filters, counting repeated ones once", async () => {
+    const t = await createTicket(db, { projectId, title: "Tagged" });
+    await assignTag(db, t.id, (await createTag(db, projectId, "a", "b")).id);
+    const many = Array.from({ length: 2000 }, () => ({ prefix: "a", value: "b" }));
+    assert.deepEqual((await listTickets(db, projectId, { includeTags: many })).map((x) => x.title), ["Tagged"]);
+    const others = Array.from({ length: 2000 }, (_, i) => ({ prefix: "a", value: `v${i}` }));
+    assert.deepEqual((await listTickets(db, projectId, { excludeTags: others })).map((x) => x.title), ["Tagged"]);
+    assert.deepEqual(await listTickets(db, projectId, { includeTags: [...many, { prefix: "a", value: "c" }] }), []);
   });
 });
