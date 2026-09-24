@@ -1,12 +1,14 @@
-import { readFileSync } from "fs";
+import { lstatSync, readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { ValidationError } from "./validation/strings.js";
+import { describeFsError } from "./validation/errors.js";
 
 export interface ReweloConfig {
   project?: string;
 }
 
 const CONFIG_FILENAME = ".rewelo.json";
+const MAX_CONFIG_BYTES = 64 * 1024;
 
 /**
  * Walk up from `startDir` looking for `.rewelo.json`.
@@ -20,13 +22,20 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
     const candidate = resolve(dir, CONFIG_FILENAME);
     let raw: string | undefined;
     try {
+      // Errors quote the file (to point at a mistake), and the MCP server
+      // passes them to its client: a link to another file (a secret) would
+      // leak its content, so, as for --db and --output, no symbolic links
+      const stat = lstatSync(candidate);
+      if (stat.isSymbolicLink()) throw new ValidationError(`${candidate} must be a regular file, not a symbolic link`);
+      if (stat.isFile() && stat.size > MAX_CONFIG_BYTES) throw new ValidationError(`${candidate} is too large for a .rewelo.json`);
       raw = readFileSync(candidate, "utf-8");
     } catch (e) {
+      if (e instanceof ValidationError) throw e;
       // No config here: walk up. Anything else (a directory of that name,
       // no permission) must not silently fall through to a parent's config.
       const code = (e as NodeJS.ErrnoException).code;
       if (code !== "ENOENT" && code !== "ENOTDIR") {
-        throw new ValidationError(`Cannot read ${candidate}: ${(e as Error).message}`);
+        throw describeFsError(e, "read", candidate);
       }
     }
     if (raw !== undefined) {
@@ -35,8 +44,9 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
       let parsed;
       try {
         parsed = JSON.parse(raw.replace(/^\uFEFF/, "")); // editors may add a BOM
-      } catch (e) {
-        throw new ValidationError(`Invalid JSON in ${candidate}: ${(e as Error).message}`);
+      } catch {
+        // Not the parser's message: it quotes the file's content
+        throw new ValidationError(`Invalid JSON in ${candidate}; it should look like {"project": "Acme"}`);
       }
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
         throw new ValidationError(`${candidate} must contain a JSON object, e.g. {"project": "Acme"}`);
