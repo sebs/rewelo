@@ -21,23 +21,31 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
     let raw: string | undefined;
     try {
       raw = readFileSync(candidate, "utf-8");
-    } catch {
-      // no config here — walk up
+    } catch (e) {
+      // No config here: walk up. Anything else (a directory of that name,
+      // no permission) must not silently fall through to a parent's config.
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT" && code !== "ENOTDIR") {
+        throw new ValidationError(`Cannot read ${candidate}: ${(e as Error).message}`);
+      }
     }
     if (raw !== undefined) {
       // A broken config must not silently fall through to a parent's config
       // (which may name a different project).
       let parsed;
       try {
-        parsed = JSON.parse(raw);
+        parsed = JSON.parse(raw.replace(/^\uFEFF/, "")); // editors may add a BOM
       } catch (e) {
         throw new ValidationError(`Invalid JSON in ${candidate}: ${(e as Error).message}`);
       }
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        return {};
+        throw new ValidationError(`${candidate} must contain a JSON object, e.g. {"project": "Acme"}`);
       }
       const config: ReweloConfig = {};
-      if (typeof parsed.project === "string" && parsed.project.trim().length > 0) {
+      if (parsed.project !== undefined) {
+        if (typeof parsed.project !== "string" || parsed.project.trim().length === 0) {
+          throw new ValidationError(`The "project" field in ${candidate} must be a non-empty string`);
+        }
         config.project = parsed.project.trim();
       }
       return config;

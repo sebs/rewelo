@@ -50,21 +50,32 @@ describe("loadConfig", () => {
     assert.throws(() => loadConfig(child), `Invalid JSON in ${join(child, ".rewelo.json")}`);
   });
 
-  it("ignores non-object JSON (array)", () => {
+  it("reports a config that is not an object", () => {
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify([1, 2, 3]));
-    const config = loadConfig(dir);
-    assert.deepEqual(config, {});
+    assert.throws(() => loadConfig(dir), /must contain a JSON object/);
   });
 
-  it("ignores empty project string", () => {
+  it("reports an empty or non-string project instead of ignoring it", () => {
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: "   " }));
-    const config = loadConfig(dir);
-    assert.equal(config.project, undefined);
+    assert.throws(() => loadConfig(dir), /"project" field .* must be a non-empty string/);
+    writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: 42 }));
+    assert.throws(() => loadConfig(dir), /"project" field .* must be a non-empty string/);
   });
 
-  it("ignores non-string project value", () => {
-    writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: 42 }));
-    const config = loadConfig(dir);
-    assert.equal(config.project, undefined);
+  it("accepts a config without a project field", () => {
+    writeFileSync(join(dir, ".rewelo.json"), "{}");
+    assert.deepEqual(loadConfig(dir), {});
+  });
+
+  it("accepts a UTF-8 BOM", () => {
+    writeFileSync(join(dir, ".rewelo.json"), '\uFEFF{"project":"acme"}');
+    assert.equal(loadConfig(dir).project, "acme");
+  });
+
+  it("reports a directory named .rewelo.json instead of using a parent's config", () => {
+    writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: "parent" }));
+    const child = join(dir, "child");
+    mkdirSync(join(child, ".rewelo.json"), { recursive: true });
+    assert.throws(() => loadConfig(child), /Cannot read/);
   });
 });
