@@ -546,4 +546,12 @@ describe("MCP server", () => {
     assert.equal(r.isError, true);
     assert.match((r.content as any)[0].text, /Provide both prefix and value/);
   });
+
+  it("measures the payload limit on the argument, not its JSON escaping", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Big" } });
+    // about 600 KB, but over 1 MB once every backslash is escaped
+    const csv = "title\n" + Array.from({ length: 6000 }, (_, i) => `T${i}${"\\".repeat(95)}`).join("\n");
+    const r = await client.callTool({ name: "import_csv", arguments: { project: "Big", csv } });
+    assert.doesNotMatch((r.content as any)[0].text, /payload too large/);
+  });
 });

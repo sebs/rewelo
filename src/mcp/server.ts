@@ -102,8 +102,10 @@ class RateLimiter {
   }
 }
 
-function checkPayloadSize(args: Record<string, unknown>): void {
-  const bytes = Buffer.byteLength(JSON.stringify(args), "utf-8");
+// Measures the argument itself: JSON.stringify would count every backslash
+// and quote in it twice
+function checkPayloadSize(argument: string): void {
+  const bytes = Buffer.byteLength(argument, "utf-8");
   if (bytes > MAX_PAYLOAD_BYTES) {
     throw new AppError(`Request payload too large (${bytes} bytes, max ${MAX_PAYLOAD_BYTES})`);
   }
@@ -792,7 +794,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       csv: z.string().describe("CSV content"),
     },
     safe(async ({ project, csv }) => {
-      checkPayloadSize({ csv });
+      checkPayloadSize(csv);
       return withProject(resolveProject(project), (db, proj) => importCsv(db, proj.id, csv));
     })
   );
@@ -805,7 +807,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       json: z.string().describe("JSON content"),
     },
     safe(async ({ project, json }) => {
-      checkPayloadSize({ json });
+      checkPayloadSize(json);
       return withDb((db) => importJsonAsProject(db, resolveProject(project), json));
     })
   );
