@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command, InvalidArgumentError } from "commander";
 import { DB } from "./db/connection.js";
+import { warnIfNoVolume } from "./volume.js";
 import { migrate } from "./db/migrate.js";
 import {
   createProject,
@@ -94,6 +95,7 @@ async function withDb<T>(
     console.error(`Database ${dbPath} does not exist. Create a project first (rw project create <name>), or check --db / RW_DB_PATH.`);
     process.exit(1);
   }
+  warnIfNoVolume(dbPath);
   const db = await DB.open(dbPath);
   try {
     await migrate(db);
@@ -1526,6 +1528,7 @@ program
   .action(async (_opts: unknown, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     const dbPath = resolveDbPath(opts);
+    warnIfNoVolume(dbPath);
     // Loaded on demand: the MCP SDK roughly quadruples CLI startup time,
     // and no other command needs it.
     const { startMcpServer } = await import("./mcp/server.js");

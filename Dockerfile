@@ -36,6 +36,8 @@ RUN mkdir -p /data && chown rw:rw /data
 
 # Environment
 ENV RW_DB_PATH=/data/relative-weight.db
+# Warn when no volume is mounted at /data (the database would be lost)
+ENV RW_DATA_VOLUME=/data
 # Large transactions spill to temporary files; with --read-only the default
 # temp directory is not writable, so keep them on the data volume
 ENV SQLITE_TMPDIR=/data
@@ -56,5 +58,5 @@ USER rw
 ENTRYPOINT ["node", "dist/index.js"]
 CMD ["--help"]
 
-# Volume for database persistence
-VOLUME ["/data"]
+# No VOLUME: an anonymous volume for /data hid a missing -v (the data went
+# into it and was removed with the container); without a mount the CLI warns.

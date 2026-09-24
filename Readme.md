@@ -138,7 +138,7 @@ docker run --rm -v rw-data:/data ghcr.io/sebs/rewelo:latest project list
 docker run --rm -i -v rw-data:/data ghcr.io/sebs/rewelo:latest serve
 ```
 
-Use a named volume (`rw-data`) or a bind mount to persist the database across container restarts.
+Use a named volume (`rw-data`) or a bind mount to persist the database across container restarts. Without one, the database stays inside the container and is lost when it is removed (with `--read-only` it can't be written at all); rw warns about this on stderr.
 
 ## MCP Server
 

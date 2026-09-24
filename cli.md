@@ -226,4 +226,4 @@ docker run --rm -v rw-data:/data rw project list
 docker run --rm -i -v rw-data:/data rw serve
 ```
 
-The container stores the database at `/data/relative-weight.db`. Use a named volume or bind mount to persist data between runs.
+The container stores the database at `/data/relative-weight.db`. Use a named volume or bind mount to persist data between runs; without one, rw warns on stderr that the database is lost when the container is removed.
