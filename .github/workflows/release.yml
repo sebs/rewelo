@@ -1,5 +1,9 @@
 name: Release
 
+# Fires when a version tag is pushed, e.g. by `npm version <patch|minor|major>`
+# followed by `git push --follow-tags`. Builds and tests the tagged source,
+# creates the GitHub release (tarball, SBOM, OCI image, changelog) and pushes
+# the image to GHCR. Publishing to npm is a separate, manual step: publish.yml.
 on:
   push:
     tags: ["v*"]
@@ -19,6 +23,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify tag matches package.json version
+        run: |
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME#v}" != "$pkg" ]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match package.json version '$pkg'."
+            exit 1
+          fi
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:

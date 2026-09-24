@@ -17,3 +17,5 @@ findings-*.md
 build/
 # written by scripts/inject-version.mjs (npm run build / npm test)
 src/version.generated.ts
+# website built by site/build.mjs
+_site/

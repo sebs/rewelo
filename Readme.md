@@ -4,6 +4,7 @@
 
 A prioritization tool that uses the **relative weight** method to rank stories and tickets by different criteria. Built on SQLite (Node's built-in `node:sqlite`) for embedded, zero-dependency data storage, exposed through a CLI or as a Docker-based MCP server.
 
+* [Website and docs](https://sebs.github.io/rewelo/)
 * [Blogpost](https://dev.to/sebs/i-was-so-angry-i-actually-shipped-it-2m19)
 * [Initial Idea](https://dev.to/sebs/i-was-so-angry-i-built-my-own-4mj1)
 
@@ -100,31 +101,41 @@ The tool is designed around projects as the top-level boundary. Tags, tickets, a
 
 ## Releasing a New Version
 
-1. Bump the version in `package.json`:
+Four GitHub Actions workflows in `.github/workflows/` cover building, releasing and publishing:
+
+| Workflow      | Runs on                   | Does |
+|---------------|---------------------------|------|
+| `ci.yml`      | pushes and pull requests to `main` | Type check, build, test, and a smoke test of the Docker image |
+| `release.yml` | pushing a `v*` tag        | Checks the tag matches `package.json`, tests, and creates the GitHub release with the npm tarball, SBOM, OCI image and changelog; pushes the image to `ghcr.io/sebs/rewelo` |
+| `publish.yml` | manual (with a version)   | Publishes that tagged version to npm via trusted publishing, with provenance |
+| `pages.yml`   | pushes to `main`          | Builds the website from `site/` and the docs, and deploys it to GitHub Pages |
+
+To release:
+
+1. Bump the version, which commits it and creates the matching tag:
 
 ```bash
-npm version patch   # 0.1.0 → 0.1.1
-# or
-npm version minor   # 0.1.0 → 0.2.0
-# or
-npm version major   # 0.1.0 → 1.0.0
+npm version patch   # 0.1.0 → 0.1.1 (or minor, major)
 ```
 
-2. Build and tag the Docker image:
+2. Push the commit and the tag; `release.yml` builds the release:
 
 ```bash
-VERSION=$(node -p "require('./package.json').version")
-docker build --build-arg APP_VERSION=$VERSION -t rewelo-mcp:$VERSION -t rewelo-mcp:latest .
+git push --follow-tags
 ```
 
-3. Run the latest container:
+3. Publish to npm: run the Publish workflow with the new version (Actions → Publish → Run workflow), or `gh workflow run publish.yml -f version=0.1.1`.
+
+One-time setup: add `sebs/rewelo` with workflow `publish.yml` as a trusted publisher of the `rewelo` package on npmjs.com, and set Settings → Pages → Source to "GitHub Actions".
+
+To run the released image:
 
 ```bash
 # CLI
-docker run --rm -v rw-data:/data rewelo-mcp:latest project list
+docker run --rm -v rw-data:/data ghcr.io/sebs/rewelo:latest project list
 
 # MCP server
-docker run --rm -i -v rw-data:/data rewelo-mcp:latest serve
+docker run --rm -i -v rw-data:/data ghcr.io/sebs/rewelo:latest serve
 ```
 
 Use a named volume (`rw-data`) or a bind mount to persist the database across container restarts.

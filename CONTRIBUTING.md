@@ -37,6 +37,7 @@ src/
   mcp/          MCP server (stdio transport)
   serialization/ Project export/import serialization
 test/           Mirror of src/ with *.test.ts files
+site/           Website: node site/build.mjs renders it (and the docs) into _site/
 features/       Gherkin specifications
 db/             SQL schema and DBML model
 ```

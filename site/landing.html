@@ -1,0 +1,58 @@
+<main class="landing">
+<section class="hero">
+  <p class="eyebrow">rewelo {{version}} · experimental</p>
+  <h1>Prioritise your backlog by value for effort</h1>
+  <p class="lede">rewelo ranks tickets with the <strong>relative weight</strong> method: score each one for benefit, penalty, estimate and risk, and it tells you what returns the most for the least. From the command line, or from your AI assistant through MCP.</p>
+  <div class="cta">
+    <a class="button" href="/docs/">Read the docs</a>
+    <a class="button secondary" href="https://github.com/sebs/rewelo">View on GitHub</a>
+  </div>
+</section>
+
+<section class="install">
+  <div>
+    <h2>Command line</h2>
+    <pre><code>npm install -g rewelo
+rw project create Acme
+rw ticket create --project Acme --title "Login page" \
+  --benefit 8 --penalty 5 --estimate 3 --risk 2
+rw ticket list --project Acme --sort priority</code></pre>
+  </div>
+  <div>
+    <h2>MCP server in Docker</h2>
+    <pre><code>docker run --rm -i --init --cap-drop=ALL \
+  --read-only --memory=256m \
+  -v rw-data:/data ghcr.io/sebs/rewelo serve</code></pre>
+    <p>Add it to Claude Desktop or Claude Code as described in the <a href="/docs/mcp/">MCP guide</a>.</p>
+  </div>
+</section>
+
+<section class="method">
+  <h2>How the method works</h2>
+  <div class="formula">
+    <div><span class="k">Value</span> = Benefit + Penalty</div>
+    <div><span class="k">Cost</span> = Estimate + Risk</div>
+    <div><span class="k">Priority</span> = Value / Cost</div>
+  </div>
+  <p>Every dimension uses the agile Fibonacci scale: 1, 2, 3, 5, 8, 13, 21. Weights let you emphasise what matters to you, and relative weights compare a ticket with the whole backlog or with a tagged subset. The <a href="/docs/calculations/">calculations</a> page has the details.</p>
+</section>
+
+<section class="features">
+  <div class="card">
+    <h3>Tags, not fields</h3>
+    <p><code>prefix:value</code> tags such as <code>state:wip</code> or <code>feature:auth</code> organise tickets, one value per prefix, with every change in an audit log.</p>
+  </div>
+  <div class="card">
+    <h3>Reports</h3>
+    <p>Summary, backlog health, score distribution, lead and cycle times, an event stream, diffs since any date, and a self-contained HTML dashboard.</p>
+  </div>
+  <div class="card">
+    <h3>Your data, one file</h3>
+    <p>Everything lives in a single SQLite file via Node's built-in <code>node:sqlite</code>. Export and import CSV or JSON, including full history.</p>
+  </div>
+  <div class="card">
+    <h3>Built for assistants</h3>
+    <p>MCP tools let Claude create, score, tag, relate and report on tickets, with the same validation as the CLI.</p>
+  </div>
+</section>
+</main>
