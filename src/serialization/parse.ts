@@ -299,7 +299,14 @@ function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
       if (c.action === "added") held.set(key, c.tag === null ? null : name);
       else held.delete(key);
     });
-    const expected = new Set(tags.map((t) => `${t.prefix}:${t.value}`));
+    // A tag no change mentions was there before its history is known: a
+    // ticket restored from a file without tag changes holds such tags, and
+    // its own backup has to restore
+    const mentioned = new Set(history.tagChanges.map((c) => {
+      const { prefix, value } = c.tag ?? c;
+      return `${prefix}:${value}`;
+    }));
+    const expected = new Set(tags.map((t) => `${t.prefix}:${t.value}`).filter((name) => mentioned.has(name)));
     const names = [...held.values()];
     if (names.length !== expected.size || names.some((k) => k === null || !expected.has(k))) {
       throw new ValidationError("tagChanges do not end in the ticket's tags");

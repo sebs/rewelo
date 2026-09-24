@@ -283,6 +283,22 @@ describe("round-trip", () => {
     ]);
   });
 
+  it("a restored backup whose tags have no recorded changes can be backed up and restored again", async () => {
+    const old = { tickets: [{ title: "A", tags: [{ prefix: "state", value: "done" }], createdAt: "2025-01-01T00:00:00.000Z" }] };
+    await importJson(db, projectId, JSON.stringify(old));
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+    const [copy] = await listTickets(db, target.id);
+    assert.deepEqual((await getTicketTags(db, copy.id)).map((t) => `${t.prefix}:${t.value}`), ["state:done"]);
+
+    // Changes that do mention a tag still have to add up
+    const bad = { tickets: [{ title: "B", tags: [{ prefix: "state", value: "done" }], createdAt: "2025-01-01T00:00:00.000Z",
+      tagChanges: [{ action: "added", prefix: "state", value: "done", changed_at: "2025-01-02T00:00:00.000Z" },
+        { action: "removed", prefix: "state", value: "done", changed_at: "2025-01-03T00:00:00.000Z" }] }] };
+    await assert.rejects(importJson(db, target.id, JSON.stringify(bad)), /tagChanges do not end in the ticket's tags/);
+  });
+
   it("JSON import stores a blank revision description as null", async () => {
     const revisions = [
       { title: "T", description: "   ", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: [], revised_at: "2026-01-01T00:00:00Z" },
