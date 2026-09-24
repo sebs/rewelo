@@ -1,7 +1,7 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
-import { exactPriority } from "../calculations/priority.js";
+import { exactPriority, round2 } from "../calculations/priority.js";
 
 export interface TagGroup {
   value: string;
@@ -29,11 +29,12 @@ export async function groupByTagPrefix(
     }
   }
 
+  // Sort on the exact average, round (half up) for the result
   return Object.entries(groups)
+    .sort(([, a], [, b]) => b.sumPriority / b.count - a.sumPriority / a.count)
     .map(([value, data]) => ({
       value,
       ticketCount: data.count,
-      averagePriority: Math.round((data.sumPriority / data.count) * 100) / 100,
-    }))
-    .sort((a, b) => b.averagePriority - a.averagePriority);
+      averagePriority: round2(data.sumPriority / data.count),
+    }));
 }

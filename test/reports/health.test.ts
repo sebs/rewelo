@@ -62,4 +62,10 @@ describe("backlog health report", () => {
     const health = await getBacklogHealth(db, projectId);
     assert.equal(health.highToLowRatio, null);
   });
+
+  it("rounds the high:low ratio half up", async () => {
+    for (let i = 0; i < 41; i++) await createTicket(db, { projectId, title: `h${i}`, benefit: 21, penalty: 21 });
+    for (let i = 0; i < 40; i++) await createTicket(db, { projectId, title: `l${i}`, estimate: 21, risk: 21 });
+    assert.equal((await getBacklogHealth(db, projectId)).highToLowRatio, 1.03); // 41/40 = 1.025
+  });
 });

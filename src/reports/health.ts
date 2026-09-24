@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { exactPriority } from "../calculations/priority.js";
+import { exactPriority, round2 } from "../calculations/priority.js";
 
 export interface BacklogHealth {
   totalTickets: number;
@@ -53,7 +53,7 @@ export async function getBacklogHealth(
     openTickets: tickets.length - doneCount,
     highPriorityCount: highCount,
     lowPriorityCount: lowCount,
-    highToLowRatio: lowCount > 0 ? Math.round((highCount / lowCount) * 100) / 100 : null,
+    highToLowRatio: lowCount > 0 ? round2(highCount / lowCount) : null,
     totalBacklogCost: backlogCost,
   };
 }

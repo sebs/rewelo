@@ -56,4 +56,14 @@ describe("group by tag prefix report", () => {
     assert.equal(groups[0].ticketCount, 2);
     assert.ok(groups[0].averagePriority > 0);
   });
+
+  it("rounds the average half up", async () => {
+    const tag = await createTag(db, projectId, "team", "x");
+    // priorities 2/5 = 0.4 and 3/4 = 0.75, mean 0.575
+    const a = await createTicket(db, { projectId, title: "Ga", benefit: 1, penalty: 1, estimate: 2, risk: 3 });
+    const b = await createTicket(db, { projectId, title: "Gb", benefit: 1, penalty: 2, estimate: 1, risk: 3 });
+    await assignTag(db, a.id, tag.id);
+    await assignTag(db, b.id, tag.id);
+    assert.equal((await groupByTagPrefix(db, projectId, "team"))[0].averagePriority, 0.58);
+  });
 });
