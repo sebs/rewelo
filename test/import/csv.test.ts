@@ -103,7 +103,7 @@ New1,5,state:wip
 Existing,3,
 New2,2,`;
 
-    await assert.rejects(importCsv(db, projectId, csv), /already exists/);
+    await assert.rejects(importCsv(db, projectId, csv), /^ValidationError: Row 2: .*already exists/);
     const titles = (await listTickets(db, projectId)).map((t) => t.title);
     assert.deepEqual(titles, ["Existing"]);
     assert.equal((await listTags(db, projectId)).length, 0);
@@ -114,7 +114,7 @@ New2,2,`;
 Dup,5
 Dup,3`;
 
-    await assert.rejects(importCsv(db, projectId, csv), /already exists/);
+    await assert.rejects(importCsv(db, projectId, csv), /Row 2: A ticket with title "Dup" already exists/);
     assert.equal((await listTickets(db, projectId)).length, 0);
   });
 

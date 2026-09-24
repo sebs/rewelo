@@ -190,16 +190,23 @@ export async function importCsv(
   const rows = parseRows(csv);
 
   return db.transaction(async () => {
-    for (const row of rows) {
-      const ticket = await createTicket(db, {
-        projectId,
-        title: row.title,
-        description: row.description || undefined,
-        benefit: row.benefit,
-        penalty: row.penalty,
-        estimate: row.estimate,
-        risk: row.risk,
-      });
+    for (const [i, row] of rows.entries()) {
+      let ticket;
+      try {
+        ticket = await createTicket(db, {
+          projectId,
+          title: row.title,
+          description: row.description || undefined,
+          benefit: row.benefit,
+          penalty: row.penalty,
+          estimate: row.estimate,
+          risk: row.risk,
+        });
+      } catch (e) {
+        // e.g. a title already taken, in the project or earlier in the file
+        if (e instanceof ValidationError) throw new ValidationError(`Row ${i + 1}: ${e.message}`);
+        throw e;
+      }
 
       for (const { prefix, value } of row.tags) {
         let tag = await getTag(db, projectId, prefix, value);

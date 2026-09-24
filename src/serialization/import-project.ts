@@ -66,16 +66,23 @@ export async function importProjectData(
       }
     }
 
-    for (const t of tickets) {
-      const ticket = await createTicket(db, {
-        projectId,
-        title: t.title,
-        description: t.description ?? undefined,
-        benefit: t.benefit,
-        penalty: t.penalty,
-        estimate: t.estimate,
-        risk: t.risk,
-      });
+    for (const [i, t] of tickets.entries()) {
+      let ticket;
+      try {
+        ticket = await createTicket(db, {
+          projectId,
+          title: t.title,
+          description: t.description ?? undefined,
+          benefit: t.benefit,
+          penalty: t.penalty,
+          estimate: t.estimate,
+          risk: t.risk,
+        });
+      } catch (e) {
+        // e.g. a title already taken, in the project or earlier in the file
+        if (e instanceof ValidationError) throw new ValidationError(`Ticket ${i + 1}: ${e.message}`);
+        throw e;
+      }
 
       if (t.tags) {
         for (const tagDef of t.tags) {

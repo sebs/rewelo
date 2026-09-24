@@ -236,4 +236,9 @@ describe("JSON import", () => {
       /Ticket 1: description must be a string, got 12345/
     );
   });
+
+  it("names the ticket whose title is already taken", async () => {
+    const json = JSON.stringify({ tickets: [{ title: "Dup" }, { title: "Dup" }] });
+    await assert.rejects(importJson(db, projectId, json), /Ticket 2: A ticket with title "Dup" already exists/);
+  });
 });
