@@ -69,11 +69,11 @@ describe("backlog health report", () => {
     assert.equal((await getBacklogHealth(db, projectId)).highToLowRatio, 1.03); // 41/40 = 1.025
   });
 
-  it("still counts tickets as done after state:done is renamed", async () => {
-    const t = await createTicket(db, { projectId, title: "Finished" });
+  it("counts tickets as done by the tag's current name, like the summary", async () => {
+    const t = await createTicket(db, { projectId, title: "Was done" });
     const done = await createTag(db, projectId, "state", "done");
     await assignTag(db, t.id, done.id);
-    await renameTag(db, projectId, done.id, "state", "closed");
-    assert.equal((await getBacklogHealth(db, projectId)).doneTickets, 1);
+    await renameTag(db, projectId, done.id, "state", "wip");
+    assert.equal((await getBacklogHealth(db, projectId)).doneTickets, 0);
   });
 });

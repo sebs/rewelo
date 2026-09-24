@@ -4,7 +4,7 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
-import { createTag, renameTag } from "../../src/tags/repository.js";
+import { createTag, deleteTag, getTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { getTicketTimes, averageLeadTime } from "../../src/calculations/time.js";
 
@@ -135,20 +135,38 @@ describe("lead and cycle time", () => {
     assert.equal((await getTicketTimes(db, t.id)).cycleTimeDays, 0);
   });
 
-  it("treats a renamed state tag as the same state for every ticket", async () => {
-    const x = await createTicket(db, { projectId, title: "Before rename" });
-    const y = await createTicket(db, { projectId, title: "After rename" });
-    const wip = await createTag(db, projectId, "state", "wip");
-    await assignTag(db, x.id, wip.id);
-    await renameTag(db, projectId, wip.id, "state", "doing");
-    await assignTag(db, y.id, wip.id);
+  it("recognises states by name: renaming a state tag changes its meaning", async () => {
+    // done -> cancelled: no longer done; a new state:done is
+    const a = await createTicket(db, { projectId, title: "Cancelled" });
+    const b = await createTicket(db, { projectId, title: "Finished" });
     const done = await createTag(db, projectId, "state", "done");
-    for (const t of [x, y]) await assignTag(db, t.id, done.id);
-    await renameTag(db, projectId, done.id, "state", "closed");
+    await assignTag(db, a.id, done.id);
+    await renameTag(db, projectId, done.id, "state", "cancelled");
+    await assignTag(db, b.id, (await createTag(db, projectId, "state", "done")).id);
+    assert.equal((await getTicketTimes(db, a.id)).leadTimeDays, undefined);
+    assert.equal((await getTicketTimes(db, b.id)).leadTimeDays, 0);
 
-    for (const t of [x, y]) {
-      const times = await getTicketTimes(db, t.id);
-      assert.deepEqual([times.leadTimeDays, times.cycleTimeDays], [0, 0], t.title);
-    }
+    // wip -> backlog: tagging it afterwards doesn't start work
+    const y = await createTicket(db, { projectId, title: "Backlog first" });
+    const old = await createTag(db, projectId, "state", "wip");
+    await renameTag(db, projectId, old.id, "state", "backlog");
+    await assignTag(db, y.id, old.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-09-10T00:00:00.000Z' WHERE ticket_id = ?", y.id);
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, y.id, wip.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-09-20T00:00:00.000Z' WHERE ticket_id = ? AND value = 'wip'", y.id);
+    await assignTag(db, y.id, (await getTag(db, projectId, "state", "done"))!.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-09-24T00:00:00.000Z' WHERE ticket_id = ? AND value = 'done'", y.id);
+    assert.equal((await getTicketTimes(db, y.id)).cycleTimeDays, 4);
+  });
+
+  it("keeps cycle times when the renamed wip tag is deleted", async () => {
+    const t = await createTicket(db, { projectId, title: "Doing" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, t.id, wip.id);
+    await renameTag(db, projectId, wip.id, "state", "doing");
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
+    await deleteTag(db, projectId, wip.id);
+    assert.equal((await getTicketTimes(db, t.id)).cycleTimeDays, 0);
   });
 });

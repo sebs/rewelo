@@ -201,7 +201,7 @@ rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] 
 | `dashboard`    | Self-contained static HTML dashboard: tickets by priority, score distribution, backlog health and a table of relations |
 | `event-log`    | Ticket creations, updates, deletions and tag changes: the newest first (default 50), or after `--since`/`--after`, oldest first. `--after` takes an event's `sequence` (in `--json`) and polls without missing events |
 
-`times` requires `state:wip` and `state:done` tags to be assigned to tickets.
+`times` requires `state:wip` and `state:done` tags to be assigned to tickets. States are recognised by name: work starts the first time a ticket gets a tag called `state:wip` at that moment, and a ticket is done while it holds the tag now called `state:done` (`report health` counts done tickets the same way). Renaming a state tag changes its meaning: after `state:done` becomes `state:cancelled`, those tickets are no longer done.
 
 ### serve (MCP)
 
