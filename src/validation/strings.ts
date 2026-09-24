@@ -4,7 +4,7 @@
  */
 
 const MAX_PROJECT_NAME = 100;
-const MAX_TICKET_TITLE = 500;
+export const MAX_TICKET_TITLE = 500;
 const MAX_TICKET_DESCRIPTION = 10_000;
 const MAX_TAG_PREFIX = 50;
 const MAX_TAG_VALUE = 100;

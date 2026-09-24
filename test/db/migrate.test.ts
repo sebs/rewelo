@@ -173,6 +173,21 @@ describe("migrate", () => {
     }
   });
 
+  it("keeps titles within 500 characters when numbering clashes, and shortens longer ones", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    const long = "x".repeat(497);
+    await db.exec(`
+      INSERT INTO projects (id, name) VALUES (1, 'P');
+      INSERT INTO tickets (project_id, title) VALUES (1, '${long} y'), (1, '${long}  y'), (1, '${"z".repeat(503)}');
+      PRAGMA user_version = 5;`);
+
+    await migrate(db);
+    const rows = await db.all<{ title: string }>("SELECT title FROM tickets ORDER BY id");
+    assert.deepEqual(rows.map((r) => r.title.length), [499, 500, 500]);
+    assert.ok(rows[1].title.endsWith(" (2)"));
+  });
+
   it("refuses a database from a newer schema version", async () => {
     db = await DB.open(":memory:");
     await migrate(db);

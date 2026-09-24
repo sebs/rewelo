@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { DB } from "./connection.js";
-import { AppError, collapseSpaces } from "../validation/strings.js";
+import { AppError, MAX_TICKET_TITLE, collapseSpaces } from "../validation/strings.js";
 
 // Stored in the SQLite header by create.sql ("RWLO"), so we never mistake
 // another application's database for ours.
@@ -120,6 +120,12 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
     CREATE INDEX IF NOT EXISTS tickets_title ON tickets (project_id, title);
     CREATE INDEX IF NOT EXISTS ticket_deletions_project ON ticket_deletions (project_id, deleted_at);`,
   },
+  {
+    // Version 6 appended " (2)" without shortening, which could take a title
+    // past 500 characters, and such a project's export could not be imported
+    version: 8,
+    run: (db) => retitleTickets(db, (title) => title),
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -204,20 +210,27 @@ async function enableWal(db: DB): Promise<void> {
   }
 }
 
-async function collapseStoredTitles(db: DB): Promise<void> {
+// Give tickets the title `rewrite` makes of theirs, numbering clashes
+// ("a b (2)") and keeping every title within the length limit.
+async function retitleTickets(db: DB, rewrite: (title: string) => string): Promise<void> {
   const tickets = await db.all<{ id: number; project_id: number; title: string }>(
     "SELECT id, project_id, title FROM tickets ORDER BY project_id, id"
   );
   const taken = new Set(tickets.map((t) => `${t.project_id}/${t.title}`));
+  const fit = (base: string, suffix: string) => base.slice(0, MAX_TICKET_TITLE - suffix.length) + suffix;
   for (const t of tickets) {
-    const collapsed = collapseSpaces(t.title);
-    if (collapsed === t.title) continue;
-    let title = collapsed;
-    for (let n = 2; taken.has(`${t.project_id}/${title}`); n++) title = `${collapsed} (${n})`;
+    const base = rewrite(t.title);
+    if (base === t.title && t.title.length <= MAX_TICKET_TITLE) continue;
+    let title = fit(base, "");
+    for (let n = 2; taken.has(`${t.project_id}/${title}`); n++) title = fit(base, ` (${n})`);
     taken.delete(`${t.project_id}/${t.title}`);
     taken.add(`${t.project_id}/${title}`);
     await db.run("UPDATE tickets SET title = ? WHERE id = ?", title, t.id);
   }
+}
+
+async function collapseStoredTitles(db: DB): Promise<void> {
+  await retitleTickets(db, collapseSpaces);
 }
 
 async function pragma(db: DB, name: "application_id" | "user_version"): Promise<number> {
