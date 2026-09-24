@@ -63,10 +63,14 @@ function entryFor(version, range) {
   return entry;
 }
 
-// The range of commits a tag released: from the tag before it
+const isPrerelease = (tag) => tag.includes("-");
+
+// The range of commits a tag released: a prerelease from the tag before it,
+// a stable release from the stable release before it (from its release
+// candidate, 0.7.0's notes held only the fixes made after 0.7.0-rc.1)
 function rangeFor(tag) {
-  const index = tags.indexOf(tag);
-  const previous = index < tags.length - 1 ? tags[index + 1] : "";
+  const older = tags.slice(tags.indexOf(tag) + 1);
+  const previous = isPrerelease(tag) ? older[0] : older.find((t) => !isPrerelease(t));
   return previous ? `${previous}..${tag}` : tag;
 }
 

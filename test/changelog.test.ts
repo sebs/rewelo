@@ -82,4 +82,17 @@ describe("scripts/changelog.mjs", () => {
     assert.match(out, /- d/);
     assert.doesNotMatch(out, /- c/);
   });
+
+  it("lists everything since the last stable release in a release, not only since its release candidate", () => {
+    commit("feat: big feature");
+    git("tag", "v1.1.0-rc.1");
+    commit("fix: rc fix");
+    git("tag", "v1.1.0");
+    const release = changelog("v1.1.0");
+    assert.match(release, /- big feature/);
+    assert.match(release, /- rc fix/);
+    assert.match(release, /- after the release/);
+    // A prerelease still lists what is new since the tag before it
+    assert.doesNotMatch(changelog("v1.1.0-rc.1"), /rc fix|first feature/);
+  });
 });
