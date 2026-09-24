@@ -59,3 +59,25 @@ Supported relation types:
 | `relates-to` | Loosely connected, no ordering |
 | `splits-into` | A was broken down into B |
 | `see-also` | Reference link, no dependency |
+
+---
+
+## Priority with Custom Weights
+
+**Scenario.** Delivering value matters more to you than avoiding penalties, and risk should weigh twice as much as effort.
+
+> **Prompt you can paste into Claude Code:**
+>
+> *In rewelo project "prio-tool", show me the priorities with benefit weighted 3, penalty 1, estimate 1 and risk 2. If the ranking looks right, keep those weights for the project.*
+
+Behind the scenes, Claude will first try the weights for one call, then store them:
+
+```
+mcp tool: calc_priority { "project": "prio-tool", "w1": 3, "w2": 1, "w3": 1, "w4": 2 }
+→ [{ "title": "...", "priority": ..., "weighted": ... }, ...]   (sorted by weighted priority)
+
+mcp tool: weight_set    { "project": "prio-tool", "w1": 3, "w2": 1, "w3": 1, "w4": 2 }
+```
+
+Weighted priority is `(w1·benefit + w2·penalty) / (w3·estimate + w4·risk)`; see [calculations.md](calculations.md). Each weight is 0 or between 0.01 and 100, and `w3` and `w4` can't both be 0. `weight_reset` goes back to the defaults (all 1.5).
+

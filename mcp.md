@@ -205,6 +205,21 @@ Result:
   3. Dashboard Redesign — weighted: 1.38
 ```
 
+## Troubleshooting
+
+| Message | What to do |
+|---------|------------|
+| `Tool … not found` | The client talks to an older build. Call `server_version` (or run `rw --version`) and restart the MCP server after upgrading. |
+| `No project specified and no .rewelo.json config found` | Pass `project`, or add a `.rewelo.json` with `{"project": "<name>"}` in the server's working directory or a parent. |
+| `Project not found` | Check the name with `project_list`; names are matched exactly (after trimming). |
+| `The database is locked by another process. Try again later` | Another `rw` process holds the write lock for more than 5 seconds (for example a large import). Retry when it has finished. |
+| `The database uses schema version …, but this rewelo supports up to version …` | The database was upgraded by a newer rewelo. Upgrade the server. |
+| `The database file is not a rewelo database` | `--db` / `RW_DB_PATH` points at another application's SQLite file. |
+| `Rate limit exceeded. Try again shortly.` | More than 100 tool calls in one second. |
+| `Request payload too large` | `import_csv` / `import_json` take at most 1 MB; split the import. |
+
+To check the server by hand, see [Verifying the Server](#verifying-the-server).
+
 ## Validation and Security
 
 All tool inputs pass through the same validation layer as the CLI:
