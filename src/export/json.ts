@@ -29,6 +29,12 @@ export async function exportJson(
   projectId: number,
   options: JsonExportOptions = {}
 ): Promise<ExportedProject> {
+  // One snapshot: a ticket deleted or imported between the queries below
+  // made the export fail, or pair tickets with other tickets' history
+  return db.readTransaction(() => readProject(db, projectId, options));
+}
+
+async function readProject(db: DB, projectId: number, options: JsonExportOptions): Promise<ExportedProject> {
   const data = await exportProjectData(db, projectId);
 
   if (!options.withHistory) {
@@ -49,10 +55,13 @@ export async function exportJson(
   );
   const enrichedTickets: ExportedTicket[] = [];
 
-  for (let i = 0; i < data.tickets.length; i++) {
-    const exported: ExportedTicket = { ...data.tickets[i], createdAt: tickets[i].created_at };
-    exported.revisions = (await listRevisions(db, tickets[i].id)).map((r) => ({ ...r, sequence: sequences.get(`revision:${r.id}`) }));
-    exported.tagChanges = (await getTagChangeLog(db, tickets[i].id)).map((c) => ({
+  // Titles are unique in a project: pair by title, not by position
+  const byTitle = new Map(tickets.map((t) => [t.title, t]));
+  for (const serialized of data.tickets) {
+    const ticket = byTitle.get(serialized.title)!;
+    const exported: ExportedTicket = { ...serialized, createdAt: ticket.created_at };
+    exported.revisions = (await listRevisions(db, ticket.id)).map((r) => ({ ...r, sequence: sequences.get(`revision:${r.id}`) }));
+    exported.tagChanges = (await getTagChangeLog(db, ticket.id)).map((c) => ({
       ...c,
       tag: currentTags.get(c.tag_id),
       sequence: sequences.get(`tag_change:${c.id}`),

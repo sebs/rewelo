@@ -113,6 +113,20 @@ export class DB {
     }
   }
 
+  /**
+   * Reads in one snapshot: other processes' writes in between (WAL mode)
+   * are not seen, so several queries describe the same state.
+   */
+  async readTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.db.isTransaction) return fn();
+    await this.exec("BEGIN DEFERRED");
+    try {
+      return await fn();
+    } finally {
+      await this.exec("COMMIT");
+    }
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }
