@@ -365,7 +365,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "ticket_upsert",
-    "Create or update a ticket matched by exact title. Returns {ticket, action: 'created'|'updated'}. Idempotent — safe to call repeatedly without duplicate errors.",
+    "Create or update a ticket matched by exact title. Returns {ticket, action: 'created'|'updated'|'unchanged'}. Idempotent — safe to call repeatedly without duplicate errors.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       title: z.string().describe("Ticket title (used as the unique key)"),

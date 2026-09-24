@@ -177,7 +177,7 @@ describe("tickets repository", () => {
     assert.equal(r1.action, "created");
 
     const r2 = await upsertTicket(db, projectId, "Idempotent", { benefit: 5 });
-    assert.equal(r2.action, "updated");
+    assert.equal(r2.action, "unchanged");
     assert.equal(r2.ticket.id, r1.ticket.id);
     assert.equal(r2.ticket.benefit, 5);
 

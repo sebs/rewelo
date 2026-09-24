@@ -627,9 +627,13 @@ ticketCmd
         console.log(result.ticket.ticket_uuid);
       } else {
         const t = result.ticket;
-        console.log(
-          `${result.action === "created" ? "Created" : "Updated"} ticket "${t.title}" (${t.ticket_uuid}) [B:${t.benefit} P:${t.penalty} E:${t.estimate} R:${t.risk}]`
-        );
+        if (result.action === "unchanged") {
+          console.log(`No changes to "${t.title}"`);
+        } else {
+          console.log(
+            `${result.action === "created" ? "Created" : "Updated"} ticket "${t.title}" (${t.ticket_uuid}) [B:${t.benefit} P:${t.penalty} E:${t.estimate} R:${t.risk}]`
+          );
+        }
       }
     });
   });

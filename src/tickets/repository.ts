@@ -235,7 +235,7 @@ export async function updateTicket(
 
 export interface UpsertTicketResult {
   ticket: Ticket;
-  action: "created" | "updated";
+  action: "created" | "updated" | "unchanged";
 }
 
 export async function upsertTicket(
@@ -261,7 +261,10 @@ export async function upsertTicket(
 
   validateScores(input);
   const ticket = await updateTicket(db, projectId, existing.id, input);
-  return { ticket, action: "updated" };
+  const changed = (["title", "description", "benefit", "penalty", "estimate", "risk"] as const).some(
+    (field) => ticket[field] !== existing[field]
+  );
+  return { ticket, action: changed ? "updated" : "unchanged" };
 }
 
 export async function deleteTicket(
