@@ -176,3 +176,9 @@ describe("line separators", () => {
     assert.throws(() => validateTicketTitle("first\u2029second"), /must not contain newline characters/);
   });
 });
+
+describe("invalid UTF-8", () => {
+  it("rejects titles containing the replacement character invalid UTF-8 decodes to", () => {
+    assert.throws(() => validateTicketTitle(Buffer.from([0x78, 0xff]).toString("utf-8")), /not valid UTF-8/);
+  });
+});

@@ -91,6 +91,11 @@ export function validateTicketTitle(title: string): string {
   if (/[\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/.test(title)) {
     throw new ValidationError("Ticket title must not contain invisible or text-direction characters");
   }
+  // Node decodes invalid UTF-8 (in arguments and files) to U+FFFD, so this is
+  // almost always a sign of a wrongly encoded input rather than intended
+  if (title.includes("\uFFFD")) {
+    throw new ValidationError("Ticket title is not valid UTF-8 (it contains the replacement character \uFFFD)");
+  }
   const normalized = collapseSpaces(normalize(title.trim()));
   if (normalized.length > MAX_TICKET_TITLE) {
     throw new ValidationError(
