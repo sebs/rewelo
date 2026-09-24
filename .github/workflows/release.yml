@@ -52,7 +52,9 @@ jobs:
         run: npm pack
 
       - name: Generate SBOM
-        run: npx @cyclonedx/cdxgen@latest -t npm --required-only -o sbom.json
+        # Pinned like the actions: this job holds write permissions, and
+        # "latest" would run whatever was published most recently
+        run: npx --yes @cyclonedx/cdxgen@12.8.4 -t npm --required-only -o sbom.json
 
       - name: Attest npm tarball with SBOM
         uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
