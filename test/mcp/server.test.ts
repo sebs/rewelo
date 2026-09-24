@@ -575,4 +575,14 @@ describe("MCP server", () => {
     child.kill();
     assert.match(line, /^rewelo \S+ MCP server on stdio transport, database :memory:/);
   });
+
+  it("applies the payload limit to every tool and never echoes a huge input", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Big" } });
+    const huge = await client.callTool({ name: "ticket_update", arguments: { project: "Big", title: "x".repeat(2_000_000) } });
+    assert.equal(huge.isError, true);
+    assert.match((huge.content as any)[0].text, /^Request payload too large/);
+
+    const long = await client.callTool({ name: "ticket_update", arguments: { project: "Big", title: "y".repeat(900_000) } });
+    assert.ok((long.content as any)[0].text.length < 2000);
+  });
 });

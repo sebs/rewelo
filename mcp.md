@@ -218,7 +218,7 @@ Result:
 | `The database uses schema version …, but this rewelo supports up to version …` | The database was upgraded by a newer rewelo. Upgrade the server. |
 | `The database file is not a rewelo database` | `--db` / `RW_DB_PATH` points at another application's SQLite file. |
 | `Rate limit exceeded. Try again shortly.` | More than 100 tool calls in one second. |
-| `Request payload too large` | `import_csv` / `import_json` take at most 1 MB; split the import. |
+| `Request payload too large` | A tool call's text arguments may total at most 1 MB; split an import into several calls. |
 
 To check the server by hand, see [Verifying the Server](#verifying-the-server).
 

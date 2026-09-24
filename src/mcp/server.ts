@@ -73,11 +73,16 @@ function textResult(data: unknown): { content: Array<{ type: "text"; text: strin
 }
 
 function errorResult(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
+  // Messages quote input (e.g. a ticket title); never echo a huge one back
+  const message = sanitizeError(err);
+  const text = message.length > MAX_ERROR_LENGTH ? `${message.slice(0, MAX_ERROR_LENGTH)}… (truncated)` : message;
   return {
-    content: [{ type: "text" as const, text: sanitizeError(err) }],
+    content: [{ type: "text" as const, text }],
     isError: true,
   };
 }
+
+const MAX_ERROR_LENGTH = 1000;
 
 const fibonacciScore = z.union([
   z.literal(1), z.literal(2), z.literal(3),
@@ -102,10 +107,17 @@ class RateLimiter {
   }
 }
 
-// Measures the argument itself: JSON.stringify would count every backslash
-// and quote in it twice
-function checkPayloadSize(argument: string): void {
-  const bytes = Buffer.byteLength(argument, "utf-8");
+// Measures the text in a tool call's arguments: every string, in UTF-8.
+// (JSON.stringify would count every backslash and quote in them twice.)
+function payloadBytes(value: unknown): number {
+  if (typeof value === "string") return Buffer.byteLength(value, "utf-8");
+  if (Array.isArray(value)) return value.reduce((sum: number, v) => sum + payloadBytes(v), 0);
+  if (value && typeof value === "object") return Object.values(value).reduce((sum: number, v) => sum + payloadBytes(v), 0);
+  return 0;
+}
+
+function checkPayloadSize(args: unknown): void {
+  const bytes = payloadBytes(args);
   if (bytes > MAX_PAYLOAD_BYTES) {
     throw new AppError(`Request payload too large (${bytes} bytes, max ${MAX_PAYLOAD_BYTES})`);
   }
@@ -137,7 +149,16 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function tool(name: string, description: string, shape: z.ZodRawShape, handler: (args: any) => any) {
-    server.registerTool(name, { description, inputSchema: z.object(shape) }, handler);
+    // The payload limit applies to every tool, not only the imports: others
+    // took 20 MB titles and echoed them back in their errors
+    server.registerTool(name, { description, inputSchema: z.object(shape) }, (args: any) => {
+      try {
+        checkPayloadSize(args);
+      } catch (err) {
+        return errorResult(err);
+      }
+      return handler(args);
+    });
   }
 
   // Shared connection for the lifetime of the server (important for :memory: DBs)
@@ -797,7 +818,6 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       csv: z.string().describe("CSV content"),
     },
     safe(async ({ project, csv }) => {
-      checkPayloadSize(csv);
       return withProject(resolveProject(project), (db, proj) => importCsv(db, proj.id, csv));
     })
   );
@@ -810,7 +830,6 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       json: z.string().describe("JSON content"),
     },
     safe(async ({ project, json }) => {
-      checkPayloadSize(json);
       return withDb((db) => importJsonAsProject(db, resolveProject(project), json));
     })
   );
