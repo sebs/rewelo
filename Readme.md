@@ -124,7 +124,7 @@ npm version patch   # 0.1.0 → 0.1.1 (or minor, major)
 git push --follow-tags
 ```
 
-3. Publish to npm: run the Publish workflow with the new version (Actions → Publish → Run workflow), or `gh workflow run publish.yml -f version=0.1.1`. Prereleases such as `0.2.0-beta.1` are published under the `next` dist-tag, so `npm install rewelo` keeps getting the latest stable version.
+3. Publish to npm: run the Publish workflow with the new version (Actions → Publish → Run workflow), or `gh workflow run publish.yml -f version=0.1.1`. Prereleases such as `0.2.0-beta.1` are published under the `next` dist-tag, and a backport older than the current latest (0.5.2 after 0.6.1) under `backport`, so `npm install rewelo` keeps getting the newest stable version.
 
 One-time setup: add `sebs/rewelo` with workflow `publish.yml` as a trusted publisher of the `rewelo` package on npmjs.com, and set Settings → Pages → Source to "GitHub Actions".
 

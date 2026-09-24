@@ -67,9 +67,17 @@ jobs:
         run: npm test
 
       # prepack builds dist/ before the tarball is made. npm refuses to put a
-      # prerelease (0.7.0-beta.1) on "latest", so those go to "next".
+      # prerelease (0.7.0-beta.1) on "latest", so those go to "next"; a
+      # backport (0.5.2 after 0.6.1) goes to "backport", so that
+      # `npm install rewelo` keeps installing the newest stable version.
       - name: Publish to npm
         run: |
           dist_tag=latest
           case "$VERSION" in *-*) dist_tag=next ;; esac
+          current="$(npm view rewelo dist-tags.latest 2>/dev/null || true)"
+          if [ "$dist_tag" = latest ] && [ -n "$current" ] &&
+            [ "$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            dist_tag=backport
+          fi
+          echo "Publishing $VERSION under the \"$dist_tag\" dist-tag (latest is ${current:-not set})"
           npm publish --provenance --access public --tag "$dist_tag"
