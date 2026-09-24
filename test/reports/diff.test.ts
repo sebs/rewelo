@@ -4,7 +4,7 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject, deleteProject } from "../../src/projects/repository.js";
 import { createTicket, deleteTicket, updateTicket } from "../../src/tickets/repository.js";
-import { createTag, renameTag } from "../../src/tags/repository.js";
+import { createTag, deleteTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
 import { getProjectDiff } from "../../src/reports/diff.js";
@@ -96,6 +96,18 @@ describe("project diff", () => {
     const before = await now();
     await assignTag(db, t.id, tag.id);
     await removeTag(db, t.id, tag.id);
+
+    assert.deepEqual((await getProjectDiff(db, projectId, before)).tagChanges, []);
+  });
+
+  it("sees no change in a tag deleted and created again under the same name", async () => {
+    const t = await createTicket(db, { projectId, title: "Tagged" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, t.id, wip.id);
+    const before = await now();
+    await removeTag(db, t.id, wip.id);
+    await deleteTag(db, projectId, wip.id);
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "wip")).id);
 
     assert.deepEqual((await getProjectDiff(db, projectId, before)).tagChanges, []);
   });

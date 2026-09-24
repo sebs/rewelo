@@ -160,6 +160,14 @@ export async function getProjectDiff(
     if (hasIt) entry.added.push(`${last.current_prefix ?? last.prefix}:${last.current_value ?? last.value}`);
     else entry.removed.push(`${first.prefix}:${first.value}`);
   }
+  // A tag deleted and created again is a new tag with the old name: the
+  // ticket had state:wip then and has it now, which is no change
+  for (const [ticketId, entry] of tagDiffMap) {
+    const both = entry.added.filter((name) => entry.removed.includes(name));
+    entry.added = entry.added.filter((name) => !both.includes(name));
+    entry.removed = entry.removed.filter((name) => !both.includes(name));
+    if (entry.added.length === 0 && entry.removed.length === 0) tagDiffMap.delete(ticketId);
+  }
 
   // 4. Tickets deleted since the timestamp
   const deletedTickets = await db.all<{ id: number; title: string }>(
