@@ -211,6 +211,23 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 | `import_csv`      | Import tickets from CSV string     | `project?`, `csv`                          |
 | `import_json`     | Import project data from JSON (creates the project if needed) | `project?`, `json`                         |
 
+`export_json` writes tickets (with their tags), the project's tags, relations and weights; `import_json` takes the same format:
+
+```json
+{
+  "tickets": [
+    { "title": "SSO Integration", "description": null, "benefit": 8, "penalty": 5, "estimate": 5, "risk": 3,
+      "tags": [{ "prefix": "state", "value": "backlog" }] },
+    { "title": "Audit Log", "benefit": 3, "tags": [] }
+  ],
+  "tags": [{ "prefix": "state", "value": "backlog" }],
+  "relations": [{ "source": "SSO Integration", "type": "blocks", "target": "Audit Log" }],
+  "weights": { "w1": 1.5, "w2": 1.5, "w3": 1.5, "w4": 1.5 }
+}
+```
+
+Only `tickets` and each ticket's `title` are required; scores default to 1. Tags are `{prefix, value}` objects, not `"prefix:value"` strings. An import adds the relations and replaces the project's weights with the file's, and its result says so (`relationsCreated`, `weights`).
+
 ## Example Session
 
 ```

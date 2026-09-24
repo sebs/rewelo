@@ -61,9 +61,10 @@ export async function importProjectData(
   tickets: ImportableTicket[],
   projectTags?: TagPair[],
   extras: { relations?: SerializedRelation[]; weights?: SerializedWeights } = {}
-): Promise<{ imported: number; tagsCreated: number }> {
+): Promise<{ imported: number; tagsCreated: number; relationsCreated: number; weights?: SerializedWeights }> {
   return db.transaction(async () => {
     let tagsCreated = 0;
+    let relationsCreated = 0;
 
     // Pre-create any project-level tags
     if (projectTags) {
@@ -135,7 +136,10 @@ export async function importProjectData(
         projectId, from, to, canonical.type
       );
       try {
-        if (exists.length === 0) await createRelation(db, projectId, source.id, target.id, r.type);
+        if (exists.length === 0) {
+          await createRelation(db, projectId, source.id, target.id, r.type);
+          relationsCreated++;
+        }
       } catch (e) {
         // e.g. a self-relation, or one contradicting an earlier relation
         if (e instanceof ValidationError) throw new ValidationError(`Relation ${i + 1}: ${e.message}`);
@@ -148,7 +152,14 @@ export async function importProjectData(
       await setWeights(db, projectId, w1, w2, w3, w4);
     }
 
-    return { imported: tickets.length, tagsCreated };
+    // Say what else changed: the file's weights replace the project's, and
+    // neither that nor the relations showed in the result
+    return {
+      imported: tickets.length,
+      tagsCreated,
+      relationsCreated,
+      ...(extras.weights ? { weights: extras.weights } : {}),
+    };
   });
 }
 

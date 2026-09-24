@@ -1331,6 +1331,11 @@ importCmd
       } else if (!opts.quiet) {
         if (result.projectCreated) console.log(`Created project "${name}"`);
         console.log(`Imported ${result.imported} ticket${result.imported === 1 ? "" : "s"}`);
+        if (result.relationsCreated > 0) console.log(`Created ${result.relationsCreated} relation${result.relationsCreated === 1 ? "" : "s"}`);
+        if (result.weights) {
+          const { w1, w2, w3, w4 } = result.weights;
+          console.log(`Set the weights to w1=${w1} w2=${w2} w3=${w3} w4=${w4}`);
+        }
       }
     }, { create: true });
   });

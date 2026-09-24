@@ -904,7 +904,7 @@ export function createMcpServer(
 
   tool(
     "export_json",
-    "Export project tickets, tags, and optionally revision history as JSON. Use for backups of a single project.",
+    "Export a project as JSON: tickets, tags, relations and weights, and with withHistory each ticket's revisions and tag changes. Use for backups of a single project; import_json restores it.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       withHistory: z.boolean().optional().describe("Include revisions and audit log"),
@@ -941,7 +941,7 @@ export function createMcpServer(
 
   tool(
     "import_json",
-    "Import tickets and tags from a JSON object with a 'tickets' array. Tags are auto-created during import; the project is created if it does not exist.",
+    "Import a project from JSON as export_json writes it: {tickets: [{title, description?, benefit?, penalty?, estimate?, risk?, tags?: [{prefix, value}]}], tags?, relations?: [{source, type, target}], weights?: {w1, w2, w3, w4}}. Tags are created as needed and the project if it does not exist. Relations are added, and weights in the file replace the project's; the result reports relationsCreated and the weights set.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       json: z.string().describe("JSON content"),

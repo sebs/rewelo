@@ -163,6 +163,20 @@ describe("JSON import", () => {
     assert.equal((await listTags(db, project!.id)).length, 1);
   });
 
+  it("reports the relations it created and the weights it set", async () => {
+    const json = JSON.stringify({
+      tickets: [{ title: "A" }, { title: "B" }],
+      relations: [{ source: "A", type: "blocks", target: "B" }],
+      weights: { w1: 1, w2: 1, w3: 1, w4: 1 },
+    });
+    const result = await importJsonAsProject(db, "JsonImport", json);
+    assert.partialDeepStrictEqual(result, { imported: 2, relationsCreated: 1, weights: { w1: 1, w2: 1, w3: 1, w4: 1 } });
+
+    const plain = await importJsonAsProject(db, "Other", JSON.stringify({ tickets: [{ title: "C" }] }));
+    assert.equal(plain.relationsCreated, 0);
+    assert.equal("weights" in plain, false);
+  });
+
   it("imports into an existing project without creating one", async () => {
     const json = JSON.stringify({ tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1 }] });
     const result = await importJsonAsProject(db, "JsonImport", json);

@@ -35,7 +35,7 @@ export async function importJson(
   db: DB,
   projectId: number,
   json: string
-): Promise<{ imported: number }> {
+): Promise<Awaited<ReturnType<typeof importProjectData>>> {
   checkJsonSize(json, "JSON");
 
   const parsed = safeParseJson(json, "JSON");
@@ -55,7 +55,7 @@ export async function importJsonAsProject(
   db: DB,
   projectName: string,
   json: string
-): Promise<{ imported: number; projectCreated: boolean }> {
+): Promise<Awaited<ReturnType<typeof importJson>> & { projectCreated: boolean }> {
   return db.transaction(async () => {
     const existing = await getProjectByName(db, projectName);
     const project = existing ?? (await createProject(db, validateProjectName(projectName)));
