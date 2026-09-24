@@ -120,6 +120,15 @@ describe("global output flags (CLI)", () => {
     assert.deepEqual(JSON.parse(rw("--json", "report", "dashboard", "--project", "P", "--output", html).stdout), { output: html });
   });
 
+  it("--quiet shortens the calc and report lists to one line per item", () => {
+    const t = "A, with comma";
+    const quiet = (...args: string[]) => rw("--quiet", ...args, "--project", "P").stdout;
+    assert.equal(quiet("calc", "priority"), `${t}\t1.00\n`);
+    assert.equal(quiet("calc", "weights"), `${t}\t1\t1\t1\t1\n`);
+    assert.equal(quiet("report", "distribution").split("\n")[0], "benefit\t1\t0\t0\t0\t0\t0\t0");
+    assert.match(quiet("report", "event-log"), /^\S+\tticket_created\tA, with comma\n$/);
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);

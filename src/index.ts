@@ -1071,6 +1071,8 @@ calcCmd
         opts.csv ? String(x) : x > 0 && x < 0.005 ? "<0.01" : round2(x).toFixed(2);
       if (opts.json) {
         console.log(JSON.stringify(results));
+      } else if (opts.quiet) {
+        results.forEach((r) => console.log([r.title, r.relativeBenefit, r.relativePenalty, r.relativeEstimate, r.relativeRisk].join("\t")));
       } else if (results.length === 0 && !opts.csv) {
         console.log("No tickets found.");
       } else {
@@ -1116,6 +1118,8 @@ calcCmd
 
       if (opts.json) {
         console.log(JSON.stringify(results));
+      } else if (opts.quiet) {
+        results.forEach((r) => console.log(`${r.title}\t${r.weighted.toFixed(2)}`));
       } else if (results.length === 0 && !opts.csv) {
         console.log("No tickets found.");
       } else {
@@ -1291,6 +1295,8 @@ reportCmd
       const dist = await getDistribution(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(dist));
+      } else if (opts.quiet) {
+        dist.forEach((d) => console.log([d.dimension, ...[1, 2, 3, 5, 8, 13, 21].map((f) => d.counts[f] || 0)].join("\t")));
       } else if (dist.every((d) => Object.values(d.counts).every((c) => c === 0)) && !opts.csv) {
         console.log("No tickets found.");
       } else {
@@ -1378,6 +1384,8 @@ reportCmd
       const events = await getEventLog(db, project.id, cmdOpts.since, cmdOpts.limit);
       if (opts.json) {
         console.log(JSON.stringify(events));
+      } else if (opts.quiet) {
+        events.forEach((e) => console.log(`${e.timestamp}\t${e.type}\t${e.ticketTitle}`));
       } else if (events.length === 0 && !opts.csv) {
         console.log("No events found.");
       } else {
