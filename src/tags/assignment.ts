@@ -33,6 +33,11 @@ export interface AssignResult {
   replaced: string[];
 }
 
+async function assertTicketExists(db: DB, ticketId: number): Promise<void> {
+  const rows = await db.all(`SELECT 1 FROM tickets WHERE id = ?`, ticketId);
+  if (rows.length === 0) throw new AppError("Ticket not found (it may just have been deleted)");
+}
+
 export async function assignTag(
   db: DB,
   ticketId: number,
@@ -41,6 +46,9 @@ export async function assignTag(
   // One write transaction: in parallel processes the same-prefix check and
   // the insert interleaved and left a ticket with several state: tags
   return db.transaction(async () => {
+    // The ticket may have been deleted since the caller looked it up; the
+    // tables have no foreign keys, so a row for it would stay orphaned
+    await assertTicketExists(db, ticketId);
     // Check if already assigned (idempotent)
     const existing = await db.all(
       `SELECT 1 FROM ticket_tags WHERE ticket_id = ? AND tag_id = ?`,

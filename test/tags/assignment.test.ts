@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { createTicket } from "../../src/tickets/repository.js";
+import { createTicket, deleteTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import {
   assertOneValuePerPrefix,
@@ -178,5 +178,15 @@ describe("tag audit log", () => {
     for (let i = 1; i < log.length; i++) {
       assert.ok((new Date(log[i - 1].changed_at).getTime()) <= new Date(log[i].changed_at).getTime());
     }
+  });
+
+  it("refuses to tag a ticket that has been deleted, leaving no orphan rows", async () => {
+    const t = await createTicket(db, { projectId, title: "Deleted meanwhile" });
+    const tag = await createTag(db, projectId, "state", "wip");
+    await deleteTicket(db, projectId, t.id);
+
+    await assert.rejects(assignTag(db, t.id, tag.id), /Ticket not found/);
+    assert.equal((await db.all("SELECT 1 FROM ticket_tags WHERE ticket_id = ?", t.id)).length, 0);
+    assert.equal((await db.all("SELECT 1 FROM ticket_tag_changes WHERE ticket_id = ?", t.id)).length, 0);
   });
 });
