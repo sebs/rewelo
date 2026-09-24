@@ -19,7 +19,10 @@ export function validateDbPath(dbPath: string): string {
 
   if (ext === ".duckdb") {
     throw new ValidationError(
-      "DuckDB databases are no longer supported. Export your projects with rewelo 0.4.x (rw export json) and import them into a .db file"
+      `DuckDB databases are no longer supported. Export each project with the last DuckDB release, rewelo 0.4.2 (rw export json):\n` +
+        `  npx rewelo@0.4.2 --db ${dbPath} export json --project <name> --output <name>.json\n` +
+        `then import it into a .db file:\n` +
+        `  rw import json <name>.json --project <name>`
     );
   }
 

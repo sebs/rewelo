@@ -27,6 +27,6 @@ We use **SQLite via `node:sqlite`** as the sole database engine and remove the `
 
 - No native modules: installs are fast and identical on every platform and Node.js version.
 - `npm audit` is clean after removing DuckDB's build toolchain.
-- Existing `.duckdb` files cannot be opened. Users export each project with rewelo 0.4.x (`rw export json`) and import it into a new `.db` file (`rw import json`). The export covers tickets and tag assignments; revision history, tag change logs, relations and weight configurations are not carried over.
+- Existing `.duckdb` files cannot be opened. Users export each project with rewelo 0.4.2, the last DuckDB release (`npx rewelo@0.4.2 --db old.duckdb export json --project <name> --output <name>.json`), and import it into a new `.db` file (`rw import json <name>.json --project <name>`, which creates the project). The export covers tickets and tag assignments; revision history, tag change logs, relations and weight configurations are not carried over.
 - Timestamps have millisecond instead of microsecond precision. Queries that order by time need an explicit tiebreaker (e.g. the row id).
 - Users can inspect their data directly with the `sqlite3` CLI.

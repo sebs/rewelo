@@ -28,6 +28,8 @@ describe("validateDbPath", () => {
 
   it("rejects legacy .duckdb files with a migration hint", () => {
     expect(() => validateDbPath("./data.duckdb")).toThrow("rw export json");
+    // The hint names the last DuckDB release exactly: this build may share its version number
+    expect(() => validateDbPath("./data.duckdb")).toThrow("npx rewelo@0.4.2");
   });
 
   it("rejects null bytes", () => {
