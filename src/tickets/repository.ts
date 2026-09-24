@@ -52,26 +52,30 @@ export async function createTicket(
   db: DB,
   input: CreateTicketInput
 ): Promise<Ticket> {
-  validateScores(input);
+  // One write transaction: the title check and the write must not interleave
+  // with another process (which let two tickets get the same title)
+  return db.transaction(async () => {
+    validateScores(input);
 
-  const existing = await getTicketByTitle(db, input.projectId, input.title);
-  if (existing) {
-    throw new ValidationError(`A ticket with title "${input.title}" already exists in this project`);
-  }
+    const existing = await getTicketByTitle(db, input.projectId, input.title);
+    if (existing) {
+      throw new ValidationError(`A ticket with title "${input.title}" already exists in this project`);
+    }
 
-  const rows = await db.all<Ticket>(
-    `INSERT INTO tickets (project_id, title, description, benefit, penalty, estimate, risk)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     RETURNING *`,
-    input.projectId,
-    input.title,
-    input.description ?? null,
-    input.benefit ?? 1,
-    input.penalty ?? 1,
-    input.estimate ?? 1,
-    input.risk ?? 1
-  );
-  return rows[0];
+    const rows = await db.all<Ticket>(
+      `INSERT INTO tickets (project_id, title, description, benefit, penalty, estimate, risk)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`,
+      input.projectId,
+      input.title,
+      input.description ?? null,
+      input.benefit ?? 1,
+      input.penalty ?? 1,
+      input.estimate ?? 1,
+      input.risk ?? 1
+    );
+    return rows[0];
+  });
 }
 
 export interface TagFilter {
@@ -166,71 +170,75 @@ export async function updateTicket(
   ticketId: number,
   input: UpdateTicketInput
 ): Promise<Ticket> {
-  validateScores(input);
+  // One write transaction: the title check and the write must not interleave
+  // with another process (which let two tickets get the same title)
+  return db.transaction(async () => {
+    validateScores(input);
 
-  const current = await getTicketById(db, projectId, ticketId);
-  if (!current) throw new AppError("Ticket not found");
+    const current = await getTicketById(db, projectId, ticketId);
+    if (!current) throw new AppError("Ticket not found");
 
-  // Enforce title uniqueness on rename, mirroring createTicket. Without this,
-  // `update --new-title` could rename a ticket onto an existing title, leaving
-  // two tickets that share a title and making title-based lookups ambiguous.
-  if (input.title !== undefined && input.title !== current.title) {
-    const clash = await getTicketByTitle(db, projectId, input.title);
-    if (clash) {
-      throw new ValidationError(
-        `A ticket with title "${input.title}" already exists in this project`
-      );
+    // Enforce title uniqueness on rename, mirroring createTicket. Without this,
+    // `update --new-title` could rename a ticket onto an existing title, leaving
+    // two tickets that share a title and making title-based lookups ambiguous.
+    if (input.title !== undefined && input.title !== current.title) {
+      const clash = await getTicketByTitle(db, projectId, input.title);
+      if (clash) {
+        throw new ValidationError(
+          `A ticket with title "${input.title}" already exists in this project`
+        );
+      }
     }
-  }
 
-  const title = input.title ?? current.title;
-  const description = input.description ?? current.description;
-  const benefit = input.benefit ?? current.benefit;
-  const penalty = input.penalty ?? current.penalty;
-  const estimate = input.estimate ?? current.estimate;
-  const risk = input.risk ?? current.risk;
+    const title = input.title ?? current.title;
+    const description = input.description ?? current.description;
+    const benefit = input.benefit ?? current.benefit;
+    const penalty = input.penalty ?? current.penalty;
+    const estimate = input.estimate ?? current.estimate;
+    const risk = input.risk ?? current.risk;
 
-  // Nothing to do: don't write a revision snapshot or bump updated_at for an
-  // update that changes no fields (it would just pollute the history).
-  if (
-    title === current.title &&
-    description === current.description &&
-    benefit === current.benefit &&
-    penalty === current.penalty &&
-    estimate === current.estimate &&
-    risk === current.risk
-  ) {
-    return current;
-  }
+    // Nothing to do: don't write a revision snapshot or bump updated_at for an
+    // update that changes no fields (it would just pollute the history).
+    if (
+      title === current.title &&
+      description === current.description &&
+      benefit === current.benefit &&
+      penalty === current.penalty &&
+      estimate === current.estimate &&
+      risk === current.risk
+    ) {
+      return current;
+    }
 
-  // Snapshot the current state before mutating (automatic revision)
-  const tags = await getTicketTags(db, current.id);
-  const tagSnapshot = JSON.stringify(
-    tags.map((t) => ({ prefix: t.prefix, value: t.value }))
-  );
-  await db.run(
-    `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    current.id, current.title, current.description,
-    current.benefit, current.penalty, current.estimate, current.risk,
-    tagSnapshot
-  );
+    // Snapshot the current state before mutating (automatic revision)
+    const tags = await getTicketTags(db, current.id);
+    const tagSnapshot = JSON.stringify(
+      tags.map((t) => ({ prefix: t.prefix, value: t.value }))
+    );
+    await db.run(
+      `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      current.id, current.title, current.description,
+      current.benefit, current.penalty, current.estimate, current.risk,
+      tagSnapshot
+    );
 
-  const rows = await db.all<Ticket>(
-    `UPDATE tickets
-     SET title = ?, description = ?, benefit = ?, penalty = ?, estimate = ?, risk = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-     WHERE id = ? AND project_id = ?
-     RETURNING *`,
-    title,
-    description,
-    benefit,
-    penalty,
-    estimate,
-    risk,
-    ticketId,
-    projectId
-  );
-  return rows[0];
+    const rows = await db.all<Ticket>(
+      `UPDATE tickets
+       SET title = ?, description = ?, benefit = ?, penalty = ?, estimate = ?, risk = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+       WHERE id = ? AND project_id = ?
+       RETURNING *`,
+      title,
+      description,
+      benefit,
+      penalty,
+      estimate,
+      risk,
+      ticketId,
+      projectId
+    );
+    return rows[0];
+  });
 }
 
 export interface UpsertTicketResult {
@@ -244,27 +252,31 @@ export async function upsertTicket(
   title: string,
   input: UpdateTicketInput
 ): Promise<UpsertTicketResult> {
-  const existing = await getTicketByTitle(db, projectId, title);
+  // One write transaction: the title check and the write must not interleave
+  // with another process (which let two tickets get the same title)
+  return db.transaction(async () => {
+    const existing = await getTicketByTitle(db, projectId, title);
 
-  if (!existing) {
-    const ticket = await createTicket(db, {
-      projectId,
-      title,
-      description: input.description,
-      benefit: input.benefit,
-      penalty: input.penalty,
-      estimate: input.estimate,
-      risk: input.risk,
-    });
-    return { ticket, action: "created" };
-  }
+    if (!existing) {
+      const ticket = await createTicket(db, {
+        projectId,
+        title,
+        description: input.description,
+        benefit: input.benefit,
+        penalty: input.penalty,
+        estimate: input.estimate,
+        risk: input.risk,
+      });
+      return { ticket, action: "created" };
+    }
 
-  validateScores(input);
-  const ticket = await updateTicket(db, projectId, existing.id, input);
-  const changed = (["title", "description", "benefit", "penalty", "estimate", "risk"] as const).some(
-    (field) => ticket[field] !== existing[field]
-  );
-  return { ticket, action: changed ? "updated" : "unchanged" };
+    validateScores(input);
+    const ticket = await updateTicket(db, projectId, existing.id, input);
+    const changed = (["title", "description", "benefit", "penalty", "estimate", "risk"] as const).some(
+      (field) => ticket[field] !== existing[field]
+    );
+    return { ticket, action: changed ? "updated" : "unchanged" };
+  });
 }
 
 export async function deleteTicket(
