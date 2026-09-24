@@ -124,4 +124,12 @@ describe("rw ticket list (CLI)", () => {
     rw("ticket", "create", "--project", "P", "--title", "Only");
     assert.equal(rw("ticket", "list", "--project", "P", "--offset", "100").stdout.trim(), "Showing 0 of 1 tickets");
   });
+
+  it("rejects scores written with a sign or leading zeros, like CSV import", () => {
+    for (const score of ["05", "+5", "0005"]) {
+      const r = rw("ticket", "create", "--project", "P", "--title", `S${score}`, "--benefit", score);
+      assert.equal(r.code, 1, score);
+      assert.ok(r.stderr.includes("must be a whole number without sign or leading zeros"), score);
+    }
+  });
 });

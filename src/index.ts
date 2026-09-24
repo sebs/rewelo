@@ -201,8 +201,9 @@ function parseNonNegativeIntOption(value: string): number {
 // (8.5 -> 8, "13xyz" -> 13, "0x8" -> 8) before Fibonacci validation ever ran,
 // so validate the raw string is a plain integer first.
 function parseScoreOption(value: string): number {
-  if (!/^[+-]?\d+$/.test(value.trim())) {
-    throw new ValidationError(`Score "${value}" must be an integer`);
+  // Written as CSV import requires: plain digits, no sign, no leading zeros
+  if (!/^[1-9]\d*$/.test(value.trim())) {
+    throw new ValidationError(`Score "${value}" must be a whole number without sign or leading zeros`);
   }
   return parseInt(value, 10);
 }
