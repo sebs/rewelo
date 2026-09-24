@@ -109,6 +109,9 @@ export function parseTickets(
     let title: string;
     try {
       title = validateTicketTitle(t.title);
+      if (t.description !== undefined && t.description !== null && typeof t.description !== "string") {
+        throw new ValidationError(`description must be a string, got ${JSON.stringify(t.description)}`);
+      }
       if (typeof t.description === "string") validateTicketDescription(t.description);
     } catch (e) {
       throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);

@@ -229,4 +229,11 @@ describe("JSON import", () => {
     }
     assert.equal((await listTickets(db, projectId)).length, 0);
   });
+
+  it("rejects a description that is not a string instead of dropping it", async () => {
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "D", description: 12345 }] })),
+      /Ticket 1: description must be a string, got 12345/
+    );
+  });
 });
