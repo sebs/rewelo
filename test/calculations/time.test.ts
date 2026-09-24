@@ -109,4 +109,19 @@ describe("lead and cycle time", () => {
 
     assert.equal((await getTicketTimes(db, ticket.id)).leadTimeDays, 10);
   });
+
+  it("averages the exact lead times, not the rounded ones", async () => {
+    const done = await createTag(db, projectId, "state", "done");
+    const times = [];
+    // lead times of 12h (0.5 d) and 9h36m (0.4 d): mean 0.45 d
+    for (const [title, doneAt] of [["Half", "2026-01-01T12:00:00.000Z"], ["Less", "2026-01-01T09:36:00.000Z"]]) {
+      const t = await createTicket(db, { projectId, title });
+      await assignTag(db, t.id, done.id);
+      await db.run(`UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z' WHERE id = ?`, t.id);
+      await db.run(`UPDATE ticket_tag_changes SET changed_at = ? WHERE ticket_id = ?`, doneAt, t.id);
+      times.push(await getTicketTimes(db, t.id));
+    }
+    assert.deepEqual(times.map((t) => t.leadTimeDays), [1, 0]);
+    assert.equal(averageLeadTime(times), 0);
+  });
 });

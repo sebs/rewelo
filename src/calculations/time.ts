@@ -7,12 +7,14 @@ interface TimeResult {
   cycleTimeDays: number | undefined;
 }
 
-function daysBetween(a: string, b: string): number {
+function exactDaysBetween(a: string, b: string): number {
   const msPerDay = 86400000;
-  return Math.round(
-    (new Date(b).getTime() - new Date(a).getTime()) / msPerDay
-  );
+  return (new Date(b).getTime() - new Date(a).getTime()) / msPerDay;
 }
+
+// Unrounded lead times, so the average is taken before rounding: averaging
+// per-ticket whole days turned 0.5 d and 0.4 d (mean 0.45) into 1.
+const exactLeadTimes = new WeakMap<TimeResult, number>();
 
 export async function getTicketTimes(
   db: DB,
@@ -51,17 +53,20 @@ export async function getTicketTimes(
   const doneAt = doneRows.length > 0 ? doneRows[0].changed_at : undefined;
   const wipAt = wipRows.length > 0 ? wipRows[0].changed_at : undefined;
 
-  return {
+  const lead = doneAt ? exactDaysBetween(createdAt, doneAt) : undefined;
+  const result: TimeResult = {
     ticketId,
     ticketTitle: ticket[0].title,
-    leadTimeDays: doneAt ? daysBetween(createdAt, doneAt) : undefined,
-    cycleTimeDays: wipAt && doneAt ? daysBetween(wipAt, doneAt) : undefined,
+    leadTimeDays: lead !== undefined ? Math.round(lead) : undefined,
+    cycleTimeDays: wipAt && doneAt ? Math.round(exactDaysBetween(wipAt, doneAt)) : undefined,
   };
+  if (lead !== undefined) exactLeadTimes.set(result, lead);
+  return result;
 }
 
 export function averageLeadTime(times: TimeResult[]): number | undefined {
   const valid = times.filter((t) => t.leadTimeDays !== undefined);
   if (valid.length === 0) return undefined;
-  const sum = valid.reduce((s, t) => s + t.leadTimeDays!, 0);
+  const sum = valid.reduce((s, t) => s + (exactLeadTimes.get(t) ?? t.leadTimeDays!), 0);
   return Math.round(sum / valid.length);
 }
