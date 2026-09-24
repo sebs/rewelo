@@ -10,7 +10,7 @@
     "prepack": "npm run build",
     "test": "node --test --enable-source-maps \"build/test/**/*.test.js\"",
     "start": "node dist/index.js",
-    "pretest": "tsc -p tsconfig.test.json && node -e \"require('node:fs').cpSync('db', 'build/db', { recursive: true })\""
+    "pretest": "node scripts/inject-version.mjs && tsc -p tsconfig.test.json && node -e \"require('node:fs').cpSync('db', 'build/db', { recursive: true })\""
   },
   "files": [
     "dist/",
