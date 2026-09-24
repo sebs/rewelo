@@ -186,7 +186,7 @@ rw report dashboard --project <name> --output <path>
 | `distribution` | Histogram of Fibonacci scores across benefit, penalty, estimate, risk |
 | `health`       | High/low priority ratio, total backlog cost, done vs open counts |
 | `times`        | Lead time (created → done) and cycle time (wip → done) per ticket |
-| `dashboard`    | Self-contained HTML dashboard with priority tables, distributions, and dependency graph |
+| `dashboard`    | Self-contained static HTML dashboard: tickets by priority, score distribution, backlog health and a table of relations |
 
 `times` requires `state:wip` and `state:done` tags to be assigned to tickets.
 

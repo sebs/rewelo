@@ -85,7 +85,7 @@ Where:
 - w3: Estimate weight (default: 1.5)
 - w4: Risk weight (default: 1.5)
 
-Users can adjust these weights via UI sliders to emphasize different factors according to business priorities.
+Weights are set per project with `rw config weights --set --w1 … --w4 …` (MCP: `weight_set`), or given for a single run with `--w1`..`--w4` on `rw calc priority` (MCP: `calc_priority`), to emphasise different factors according to business priorities.
 
 ### Feature-Level Calculations
 
@@ -98,23 +98,23 @@ All of the above calculations can also be performed at the feature level:
 - Relative weights within a feature only consider other stories in the same feature
 - This provides more granular analysis for decision-making
 
-## Table Sorting
+## Sorting
 
-The HTML table displaying stories can be sorted by any column, including calculated values:
+`rw ticket list --sort <field>` (MCP: `ticket_list` with `sort`) sorts tickets in descending order by any of these fields:
 
-1. **Base Fields** (Benefit, Penalty, Estimate, Risk):
+1. **Base Fields** (`benefit`, `penalty`, `estimate`, `risk`):
    - Sorted directly by their numeric values
 
-2. **Value**:
+2. **`value`**:
    - Calculated as `Benefit + Penalty`
    - Sorted by this calculated value
 
-3. **Cost**:
+3. **`cost`**:
    - Calculated as `Estimate + Risk`
    - Sorted by this calculated value
 
-4. **Priority**:
+4. **`priority`**:
    - Calculated as `Value / Cost`
-   - The table is sorted by these priority values
+   - Sorted by the exact ratio, not the rounded value shown
 
-Importantly, while the database only stores the 4 base values (Benefit, Penalty, Estimate, Risk), the UI allows sorting by any of the calculated fields. These sorting operations are performed in-memory after retrieving the base data.
+The database only stores the 4 base values (Benefit, Penalty, Estimate, Risk); the calculated fields are computed in memory after retrieving them. The dashboard (`rw report dashboard`) is a static page whose ticket table is sorted by priority.
