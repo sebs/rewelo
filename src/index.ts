@@ -519,7 +519,8 @@ ticketCmd
           ]))
         );
       } else if (filtered.length === 0) {
-        console.log("No tickets found.");
+        // An offset past the end is not the same as no matching tickets
+        console.log(total > 0 ? `Showing 0 of ${total} tickets` : "No tickets found.");
       } else {
         if (total > filtered.length) console.log(`Showing ${filtered.length} of ${total} tickets\n`);
         console.log(

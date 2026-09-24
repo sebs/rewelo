@@ -119,4 +119,9 @@ describe("rw ticket list (CLI)", () => {
       assert.equal(r.stderr.trim(), "--project must not be empty");
     }
   });
+
+  it("says how many tickets there are when the offset is past the end", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Only");
+    assert.equal(rw("ticket", "list", "--project", "P", "--offset", "100").stdout.trim(), "Showing 0 of 1 tickets");
+  });
 });
