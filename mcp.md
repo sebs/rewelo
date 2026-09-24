@@ -240,6 +240,7 @@ Result:
 | `The database file is not a rewelo database` | `--db` / `RW_DB_PATH` points at another application's SQLite file. |
 | `Rate limit exceeded. Try again shortly.` | More than 100 tool calls in one second. |
 | `Request payload too large` | A tool call's text arguments may total at most 1 MB; split an import into several calls. |
+| `The result is too large` | Results are limited to 5 MB. Page through `ticket_list` with `limit` and `offset` (it returns 100 tickets by default), and export or render big projects with the `rw` CLI, which writes files. |
 
 To check the server by hand, see [Verifying the Server](#verifying-the-server).
 

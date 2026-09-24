@@ -6,6 +6,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { childEnv } from "../cli/run.js";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DB } from "../../src/db/connection.js";
 
 describe("MCP server", () => {
   let client: Client;
@@ -586,5 +590,35 @@ describe("MCP server", () => {
 
     const long = await client.callTool({ name: "ticket_update", arguments: { project: "Big", title: "y".repeat(900_000) } });
     assert.ok((long.content as any)[0].text.length < 2000);
+  });
+
+  it("pages ticket_list by 100 by default and refuses results over 5 MB", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-big-"));
+    const path = join(dir, "big.db");
+    const server = createMcpServer(path);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const big = new Client({ name: "big", version: "1" });
+    await server.connect(serverTransport);
+    await big.connect(clientTransport);
+    try {
+      await big.callTool({ name: "project_create", arguments: { name: "Big" } });
+      const db = await DB.open(path);
+      await db.transaction(async () => {
+        for (let i = 0; i < 12_000; i++) await db.run("INSERT INTO tickets (project_id, title) VALUES (1, ?)", `${i} ${"x".repeat(480)}`);
+      });
+      await db.close();
+
+      const page = await big.callTool({ name: "ticket_list", arguments: { project: "Big" } });
+      const body = JSON.parse((page.content as any)[0].text);
+      assert.deepEqual([body.total, body.items.length], [12_000, 100]);
+
+      const all = await big.callTool({ name: "ticket_list", arguments: { project: "Big", limit: 12_000 } });
+      assert.equal(all.isError, true);
+      assert.match((all.content as any)[0].text, /The result is too large/);
+    } finally {
+      await big.close();
+      await server.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

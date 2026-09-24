@@ -67,10 +67,20 @@ import { sanitizeError } from "../validation/errors.js";
 import { VERSION } from "../version.generated.js";
 import { loadConfig, type ReweloConfig } from "../config.js";
 
+// Results are compact JSON, and refused above this size: 30,000 tickets made
+// ticket_list 13.7 MB and export_json 19.6 MB, far more than a client can use
+const MAX_RESULT_BYTES = 5_000_000;
+const DEFAULT_TICKET_LIMIT = 100;
+
 function textResult(data: unknown): { content: Array<{ type: "text"; text: string }> } {
-  return {
-    content: [{ type: "text" as const, text: typeof data === "string" ? data : JSON.stringify(data, null, 2) }],
-  };
+  const text = typeof data === "string" ? data : JSON.stringify(data);
+  const bytes = Buffer.byteLength(text, "utf-8");
+  if (bytes > MAX_RESULT_BYTES) {
+    throw new AppError(
+      `The result is too large (${(bytes / 1_000_000).toFixed(1)} MB, max ${MAX_RESULT_BYTES / 1_000_000} MB). Narrow it (limit, offset, filters), or use the rw CLI, which writes exports and dashboards to files.`
+    );
+  }
+  return { content: [{ type: "text" as const, text }] };
 }
 
 function errorResult(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
@@ -306,7 +316,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       excludeTags: z.array(z.string()).optional().describe("Exclude tickets with these tags. Each as prefix:value"),
       search: z.string().optional().describe("Filter by title substring (case-insensitive)"),
       sort: z.string().optional().describe("Sort descending by: priority, benefit, penalty, estimate, risk, value, cost"),
-      limit: z.number().int().nonnegative().optional().describe("Max number of results to return"),
+      limit: z.number().int().nonnegative().optional().describe("Max number of results to return (default 100; total gives the full count)"),
       offset: z.number().int().nonnegative().optional().describe("Skip first N results (for pagination)"),
       minPriority: z.number().optional().describe("Minimum priority threshold"),
       minValue: z.number().optional().describe("Minimum value (benefit+penalty) threshold"),
@@ -352,9 +362,9 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
         // Pagination
         const total = filtered.length;
+        // Pages of 100 unless a limit is given; total says how many there are
         const off = offset ?? 0;
-        let page = filtered.slice(off);
-        if (limit != null) page = page.slice(0, limit);
+        const page = filtered.slice(off, off + (limit ?? DEFAULT_TICKET_LIMIT));
 
         return { total, offset: off, items: page };
       })
