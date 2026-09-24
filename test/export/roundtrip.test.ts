@@ -203,4 +203,12 @@ describe("round-trip", () => {
     }
     assert.equal((await listTickets(db, projectId)).length, 0);
   });
+
+  it("JSON import reports a string score in a revision as not a number", async () => {
+    const revisions = [{ title: "R", benefit: "5", penalty: 1, estimate: 1, risk: 1, tags: [], revised_at: "2026-01-01T00:00:00Z" }];
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "R", revisions }] })),
+      /Ticket 1: revision 1 benefit must be a number, got "5"/
+    );
+  });
 });

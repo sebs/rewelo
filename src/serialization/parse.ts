@@ -197,6 +197,8 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
     history.revisions = list(t.revisions, "revisions").map((r, j) => {
       const at = `revision ${j + 1}`;
       const score = (name: string) => {
+        // As for the ticket's own scores: no coercion from strings
+        if (typeof r[name] !== "number") throw new ValidationError(`${at} ${name} must be a number, got ${JSON.stringify(r[name])}`);
         assertFibonacci(r[name] as number, `${at} ${name}`);
         return r[name] as number;
       };
