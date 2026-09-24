@@ -92,7 +92,7 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data g
 
 ## Available Tools
 
-`project` is optional everywhere it appears: without it, a tool uses the `"project"` field of the nearest `.rewelo.json`, looked up from the server's working directory upwards (for example `{"project": "Acme"}`). A `?` marks optional parameters.
+`project` is optional everywhere it appears: without it, a tool uses the `"project"` field of the nearest `.rewelo.json`, looked up from the server's working directory upwards (for example `{"project": "Acme"}`). In the Docker setup above that directory is `/app` inside the container, where there is none: use `rw serve` [without Docker](#without-docker), started in the project's directory, or pass `project`. The server's instructions (sent on connecting) say which default project, if any, it found. A `?` marks optional parameters.
 
 ### Server
 
@@ -233,7 +233,7 @@ Result:
 | Message | What to do |
 |---------|------------|
 | `Tool … not found` | The client talks to an older build. Call `server_version` (or run `rw --version`) and restart the MCP server after upgrading. |
-| `No project specified and no .rewelo.json config found` | Pass `project`, or add a `.rewelo.json` with `{"project": "<name>"}` in the server's working directory or a parent. |
+| `No project specified and no .rewelo.json config found` | Pass `project`, or add a `.rewelo.json` with `{"project": "<name>"}` in the server's working directory or a parent (not possible with the Docker image, whose working directory is `/app`). |
 | `Project not found` | Check the name with `project_list`; names are matched exactly (after trimming). |
 | `The database is locked by another process. Try again later` | Another `rw` process has held the write lock for more than 30 seconds (for example a very large import). Retry when it has finished; reading is not blocked. |
 | `The database uses schema version …, but this rewelo supports up to version …` | The database was upgraded by a newer rewelo. Upgrade the server. |

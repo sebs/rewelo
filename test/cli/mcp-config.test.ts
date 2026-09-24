@@ -22,6 +22,7 @@ describe("MCP server with .rewelo.json", () => {
       })
     );
     try {
+      assert.match(client.getInstructions() ?? "", /The default project is "P" \(from \.rewelo\.json\)/);
       await client.callTool({ name: "project_create", arguments: { name: "P" } });
       await client.callTool({ name: "ticket_create", arguments: { title: "A" } });
 
@@ -54,6 +55,20 @@ describe("MCP server with .rewelo.json", () => {
     } finally {
       await client.close();
       rmSync(bad, { recursive: true, force: true });
+    }
+  });
+
+  it("says in its instructions when it found no default project", async () => {
+    const none = mkdtempSync(join(tmpdir(), "rw-mcp-"));
+    const client = new Client({ name: "test", version: "1" });
+    await client.connect(
+      new StdioClientTransport({ command: process.execPath, args: [BIN, "--db", join(none, "x.db"), "serve"], cwd: none })
+    );
+    try {
+      assert.match(client.getInstructions() ?? "", /No \.rewelo\.json with a default project was found .* pass the project parameter/);
+    } finally {
+      await client.close();
+      rmSync(none, { recursive: true, force: true });
     }
   });
 });

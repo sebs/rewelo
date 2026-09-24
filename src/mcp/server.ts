@@ -209,13 +209,23 @@ export function createMcpServer(
   const validDbPath = validateDbPath(dbPath);
   const rateLimiter = new RateLimiter(options?.maxRequestsPerSecond ?? 100, 1000, options?.maxRateLimitWaitMs ?? 10_000, options?.signal);
 
-  const server = new McpServer(
-    { name: "rewelo", version: VERSION },
-    {
-      capabilities: { tools: {} },
-      instructions: "If a .rewelo.json file exists in the working directory (or any parent), its \"project\" field is used as the default project name. This means the project parameter can be omitted from most tool calls when a .rewelo.json is present.",
-    }
-  );
+  // A broken .rewelo.json should not stop the server: report it when a
+  // call actually needs the project fallback.
+  let config: ReweloConfig = {};
+  let configError: unknown;
+  try {
+    config = loadConfig();
+  } catch (err) {
+    configError = err;
+  }
+
+  // Say what the fallback is here and now: in the Docker image the working
+  // directory is /app, where no .rewelo.json is, and promising one misled
+  const instructions = config.project
+    ? `The default project is "${config.project}" (from .rewelo.json): the project parameter can be omitted.`
+    : `No .rewelo.json with a default project was found from the server's working directory (${process.cwd()}) upwards, so pass the project parameter in every call.`;
+
+  const server = new McpServer({ name: "rewelo", version: VERSION }, { capabilities: { tools: {} }, instructions });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function tool(name: string, description: string, shape: z.ZodRawShape, handler: (args: any) => any) {
@@ -262,16 +272,6 @@ export function createMcpServer(
     const run = queue.then(() => fn(db));
     queue = run.catch(() => {});
     return run;
-  }
-
-  // A broken .rewelo.json should not stop the server: report it when a
-  // call actually needs the project fallback.
-  let config: ReweloConfig = {};
-  let configError: unknown;
-  try {
-    config = loadConfig();
-  } catch (err) {
-    configError = err;
   }
 
   async function withProject<T>(name: string, fn: (db: DB, project: Project) => Promise<T>): Promise<T> {
