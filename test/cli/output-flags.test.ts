@@ -73,6 +73,8 @@ describe("global output flags (CLI)", () => {
 
   it("--csv and --json never fall back to prose for empty results", () => {
     const empty = (...args: string[]) => runCli(["--db", join(dir, "empty.db"), ...args]).stdout;
+    empty("project", "create", "Gone");
+    empty("project", "delete", "Gone", "--force");
     assert.equal(empty("--csv", "project", "list"), "Name,UUID,Created\n");
     const t = "A, with comma";
     const csv = (...args: string[]) => rw("--csv", ...args).stdout;
@@ -140,8 +142,9 @@ describe("global output flags (CLI)", () => {
   });
 
   it("treats a blank RW_DB_PATH as unset and names the variable when its path is rejected", () => {
-    const blank = runCli(["project", "list"], { cwd: dir, env: { RW_DB_PATH: "  " } });
+    const blank = runCli(["project", "create", "Default"], { cwd: dir, env: { RW_DB_PATH: "  " } });
     assert.equal(blank.code, 0);
+    assert.ok(existsSync(join(dir, "relative-weight.db")), "the default database was used");
     const bad = runCli(["project", "list"], { cwd: dir, env: { RW_DB_PATH: "data.txt" } });
     assert.equal(bad.code, 1);
     assert.match(bad.stderr, /^RW_DB_PATH=data\.txt: Database file must have \.db extension/);
@@ -182,5 +185,13 @@ describe("global output flags (CLI)", () => {
     const r = runCli(["project", "create", "Default"], { cwd: dir, env: { RW_DB_PATH: "" } });
     assert.equal(r.code, 0, r.stderr);
     assert.equal(existsSync(join(dir, "relative-weight.db")), true);
+  });
+
+  it("reads only existing databases: a mistyped --db is an error, not a new empty database", () => {
+    const typo = join(dir, "typo.db");
+    const r = runCli(["--db", typo, "project", "list"]);
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /Database .*typo\.db does not exist/);
+    assert.ok(!existsSync(typo));
   });
 });

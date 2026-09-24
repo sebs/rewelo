@@ -58,7 +58,7 @@ import { getEventLog } from "./reports/event-log.js";
 import { renderDashboard } from "./reports/dashboard.js";
 import { getProjectDiff } from "./reports/diff.js";
 import { upsertTicket } from "./tickets/repository.js";
-import { writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
+import { existsSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
 import { loadConfig } from "./config.js";
 import { VERSION } from "./version.generated.js";
 import { displayWidth } from "./display-width.js";
@@ -82,9 +82,16 @@ function resolveDbPath(opts: { db?: string }): string {
 
 async function withDb<T>(
   opts: { db?: string },
-  fn: (db: DB) => Promise<T>
+  fn: (db: DB) => Promise<T>,
+  { create = false }: { create?: boolean } = {}
 ): Promise<T> {
   const dbPath = resolveDbPath(opts);
+  // Only commands that add data create the database: a mistyped --db for
+  // e.g. project list used to leave a new empty database behind
+  if (!create && dbPath !== ":memory:" && !existsSync(dbPath)) {
+    console.error(`Database ${dbPath} does not exist. Create a project first (rw project create <name>), or check --db / RW_DB_PATH.`);
+    process.exit(1);
+  }
   const db = await DB.open(dbPath);
   try {
     await migrate(db);
@@ -282,7 +289,7 @@ projectCmd
       } else {
         console.log(`Created project "${project.name}" (${project.project_uuid})`);
       }
-    });
+    }, { create: true });
   });
 
 projectCmd
@@ -1262,7 +1269,7 @@ importCmd
         if (result.projectCreated) console.log(`Created project "${name}"`);
         console.log(`Imported ${result.imported} ticket${result.imported === 1 ? "" : "s"}`);
       }
-    });
+    }, { create: true });
   });
 
 // =============================================================================
