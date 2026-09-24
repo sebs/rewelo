@@ -20,4 +20,9 @@ describe("site Markdown renderer", () => {
     assert.equal(render("- a\n1. b"), "<ul><li>a</li></ul><ol><li>b</li></ol>");
     assert.equal(render("3. c\n4. d"), '<ol start="3"><li>c</li><li>d</li></ol>');
   });
+
+  it("leaves link targets alone while formatting link text", () => {
+    assert.equal(render("[**a**](https://x.com/**b**)"), '<p><a href="https://x.com/**b**"><strong>a</strong></a></p>');
+    assert.equal(render("see `**x**` and *y*"), "<p>see <code>**x**</code> and <em>y</em></p>");
+  });
 });
