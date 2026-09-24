@@ -193,7 +193,7 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 | `report_health`   | Backlog health report              | `project?`, `threshold?`                   |
 | `report_distribution` | Fibonacci score distribution   | `project?`                                 |
 | `report_group`    | Group tickets by tag prefix        | `project?`, `prefix`                       |
-| `report_dashboard`| Self-contained HTML dashboard      | `project?`                                 |
+| `report_dashboard`| Self-contained HTML dashboard      | `project?`, `limit?`                       |
 
 ### Event Log & Diff
 

@@ -1502,11 +1502,13 @@ reportCmd
   .description("generate a self-contained HTML dashboard")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .requiredOption("--output <path>", "output HTML file path")
+  .option("--limit <n>", "rows per table (default 500)", parseNonNegativeIntOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const html = await renderDashboard(db, project.id, project.name, {
         generatedAt: new Date().toISOString(),
+        limit: cmdOpts.limit,
       });
       const outPath = validateExportPath(cmdOpts.output, [".html"]);
       writeFileSync(outPath, html, "utf-8");

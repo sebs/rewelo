@@ -77,4 +77,19 @@ describe("dashboard report", () => {
     await setWeights(db, projectId, 0.1, 5, 1.5, 1.5);
     assert.ok((await renderDashboard(db, projectId, "Dash")).includes("without the project's weights"));
   });
+
+  it("caps the ticket and relation tables and says how many are left out", async () => {
+    const ids = [];
+    for (let i = 0; i < 4; i++) ids.push((await createTicket(db, { projectId, title: `T${i}`, benefit: [1, 2, 3, 5][i] })).id);
+    for (let i = 1; i < 4; i++) await createRelation(db, projectId, ids[0], ids[i], "blocks");
+
+    const html = await renderDashboard(db, projectId, "DashTest", { limit: 2 });
+    assert.equal(html.match(/<td class="n strong">/g)?.length, 2);
+    assert.equal(html.match(/<td class="rel">/g)?.length, 2);
+    assert.match(html, /Showing 2 of 4 open tickets/);
+    assert.match(html, /Showing 2 of 3 relations/);
+
+    const all = await renderDashboard(db, projectId, "DashTest");
+    assert.doesNotMatch(all, /Showing/);
+  });
 });

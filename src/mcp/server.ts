@@ -774,10 +774,13 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   tool(
     "report_dashboard",
     "Render a self-contained HTML dashboard (tickets, distribution, health, relations). Returns the HTML document as text.",
-    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
-    safe(({ project }) =>
+    {
+      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      limit: z.number().int().nonnegative().optional().describe("Rows per table (default 500)"),
+    },
+    safe(({ project, limit }) =>
       withProject(resolveProject(project), (db, proj) =>
-        renderDashboard(db, proj.id, proj.name, { generatedAt: new Date().toISOString() })
+        renderDashboard(db, proj.id, proj.name, { generatedAt: new Date().toISOString(), limit })
       )
     )
   );
