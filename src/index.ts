@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { DB } from "./db/connection.js";
 import { migrate } from "./db/migrate.js";
 import {
@@ -22,7 +22,7 @@ import {
   listTags,
   renameTag,
 } from "./tags/repository.js";
-import { assertOneValuePerPrefix, assignTag, removeTag, listTicketsByTag } from "./tags/assignment.js";
+import { assertOneValuePerPrefix, assignTag, removeTag } from "./tags/assignment.js";
 import { getTagChangeLog } from "./tags/audit.js";
 import { listRevisions, listProjectRevisions } from "./revisions/repository.js";
 import { byPriority, exactPriority, priority, round2 } from "./calculations/priority.js";
@@ -228,6 +228,15 @@ process.stdout.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EPIPE" || err.code === "ENOTCONN") process.exit(0);
   throw err;
 });
+
+// For single-value options: commander keeps the last of repeated values
+// (--w1 1 --w1 2 silently used 2); refuse the repetition instead
+function once<T>(parse: (value: string) => T): (value: string, previous: T | undefined) => T {
+  return (value, previous) => {
+    if (previous !== undefined) throw new InvalidArgumentError("the option was already given");
+    return parse(value);
+  };
+}
 
 const program = new Command();
 
@@ -1001,10 +1010,10 @@ configCmd
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--set", "set the weights given with --w1..--w4 (at least one; the others keep their value)")
   .option("--reset", "reset weights to defaults")
-  .option("--w1 <n>", "benefit weight", parseFloatOption)
-  .option("--w2 <n>", "penalty weight", parseFloatOption)
-  .option("--w3 <n>", "estimate weight", parseFloatOption)
-  .option("--w4 <n>", "risk weight", parseFloatOption)
+  .option("--w1 <n>", "benefit weight", once(parseFloatOption))
+  .option("--w2 <n>", "penalty weight", once(parseFloatOption))
+  .option("--w3 <n>", "estimate weight", once(parseFloatOption))
+  .option("--w4 <n>", "risk weight", once(parseFloatOption))
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     // Reject combinations that would otherwise be silently ignored
@@ -1064,22 +1073,13 @@ calcCmd
   .command("weights")
   .description("show relative weights for tickets")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
-  .option("--tag <prefix:value>", "scope to a tag")
+  .option("--tag <prefix:value>", "scope to tickets with this tag (repeatable, intersection)", (val: string, prev: string[]) => [...prev, val], [] as string[])
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      let tickets = await listTickets(db, project.id);
-
-      if (cmdOpts.tag) {
-        const { prefix, value } = parseTag(cmdOpts.tag);
-        const tag = await getTag(db, project.id, prefix, value);
-        if (tag) {
-          const ids = await listTicketsByTag(db, project.id, tag.id);
-          tickets = tickets.filter((t) => ids.includes(t.id));
-        } else {
-          tickets = [];
-        }
-      }
+      // Several --tag options narrow the scope together, as in ticket list
+      const includeTags = (cmdOpts.tag as string[]).map((s) => parseTag(s));
+      const tickets = await listTickets(db, project.id, includeTags.length > 0 ? { includeTags } : undefined);
 
       const results = calculateAllRelativeWeights(tickets).map((t) => ({
         title: t.title,
@@ -1118,10 +1118,10 @@ calcCmd
   .command("priority")
   .description("show weighted priorities")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
-  .option("--w1 <n>", "benefit weight", parseFloatOption)
-  .option("--w2 <n>", "penalty weight", parseFloatOption)
-  .option("--w3 <n>", "estimate weight", parseFloatOption)
-  .option("--w4 <n>", "risk weight", parseFloatOption)
+  .option("--w1 <n>", "benefit weight", once(parseFloatOption))
+  .option("--w2 <n>", "penalty weight", once(parseFloatOption))
+  .option("--w3 <n>", "estimate weight", once(parseFloatOption))
+  .option("--w4 <n>", "risk weight", once(parseFloatOption))
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {

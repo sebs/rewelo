@@ -140,7 +140,7 @@ Weights `w1`-`w4` control how much each factor contributes to weighted priority:
 ### calc
 
 ```bash
-rw calc weights --project <name> [--tag <prefix:value>]
+rw calc weights --project <name> [--tag <prefix:value>...]
 rw calc priority --project <name> [--w1 <n>] [--w2 <n>] [--w3 <n>] [--w4 <n>]
 ```
 

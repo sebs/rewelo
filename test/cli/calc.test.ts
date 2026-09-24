@@ -94,4 +94,18 @@ describe("rw calc (CLI)", () => {
     const lines = rw("--csv", "calc", "weights", "--project", "Big").stdout.trim().split("\n");
     assert.equal(lines[1], "T0,0.004,0.004,0.004,0.004");
   });
+
+  it("calc weights intersects repeated --tag, and weights can't be given twice", () => {
+    rw("project", "create", "T");
+    for (const [title, tags] of [["A", ["feature:x", "state:done"]], ["B", ["feature:x"]], ["C", ["state:done"]]] as const) {
+      rw("ticket", "create", "--project", "T", "--title", title);
+      rw("tag", "assign", ...tags, "--project", "T", "--ticket", title);
+    }
+    const titles = JSON.parse(rw("--json", "calc", "weights", "--project", "T", "--tag", "feature:x", "--tag", "state:done").stdout).map((r: any) => r.title);
+    assert.deepEqual(titles, ["A"]);
+
+    const twice = rw("calc", "priority", "--project", "T", "--w1", "1", "--w1", "2");
+    assert.equal(twice.code, 1);
+    assert.match(twice.stderr, /--w1 <n>.*already given/);
+  });
 });
