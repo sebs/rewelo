@@ -138,6 +138,19 @@ describe("migrate", () => {
     assert.ok(columns.some((c) => c.name === "created_at"));
   });
 
+  it("collapses spaces in titles stored before 0.5.1, numbering clashes", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec(`
+      INSERT INTO projects (id, name) VALUES (1, 'P');
+      INSERT INTO tickets (project_id, title) VALUES (1, 'a b'), (1, 'a  b'), (1, 'c\u00A0 d');
+      PRAGMA user_version = 5;`);
+
+    await migrate(db);
+    const rows = await db.all<{ title: string }>("SELECT title FROM tickets ORDER BY id");
+    assert.deepEqual(rows.map((r) => r.title), ["a b", "a b (2)", "c d"]);
+  });
+
   it("refuses a database from a newer schema version", async () => {
     db = await DB.open(":memory:");
     await migrate(db);

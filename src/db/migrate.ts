@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { DB } from "./connection.js";
-import { AppError } from "../validation/strings.js";
+import { AppError, collapseSpaces } from "../validation/strings.js";
 
 // Stored in the SQLite header by create.sql ("RWLO"), so we never mistake
 // another application's database for ours.
@@ -23,7 +23,7 @@ const VERSION_1_TABLES = [
 
 // Upgrades for existing databases, applied in order. db/create.sql always
 // holds the complete current schema and sets user_version to SCHEMA_VERSION.
-const MIGRATIONS: { version: number; sql: string }[] = [
+const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<void> }[] = [
   {
     version: 2,
     sql: `CREATE TABLE ticket_deletions (
@@ -101,6 +101,13 @@ const MIGRATIONS: { version: number; sql: string }[] = [
     version: 5,
     sql: `ALTER TABLE ticket_deletions ADD COLUMN created_at TEXT`,
   },
+  {
+    // Titles are stored with runs of spaces collapsed since 0.5.1; older ones
+    // may still hold "a  b", which export/import can't take back when "a b"
+    // exists as well. Collapse them, numbering the clashes: "a b (2)".
+    version: 6,
+    run: collapseStoredTitles,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -146,10 +153,29 @@ export async function migrate(db: DB): Promise<void> {
 
     const version = await pragma(db, "user_version");
     for (const m of MIGRATIONS) {
-      if (m.version > version) await db.exec(m.sql);
+      if (m.version > version) {
+        if (m.sql) await db.exec(m.sql);
+        if (m.run) await m.run(db);
+      }
     }
     await db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   });
+}
+
+async function collapseStoredTitles(db: DB): Promise<void> {
+  const tickets = await db.all<{ id: number; project_id: number; title: string }>(
+    "SELECT id, project_id, title FROM tickets ORDER BY project_id, id"
+  );
+  const taken = new Set(tickets.map((t) => `${t.project_id}/${t.title}`));
+  for (const t of tickets) {
+    const collapsed = collapseSpaces(t.title);
+    if (collapsed === t.title) continue;
+    let title = collapsed;
+    for (let n = 2; taken.has(`${t.project_id}/${title}`); n++) title = `${collapsed} (${n})`;
+    taken.delete(`${t.project_id}/${t.title}`);
+    taken.add(`${t.project_id}/${title}`);
+    await db.run("UPDATE tickets SET title = ? WHERE id = ?", title, t.id);
+  }
 }
 
 async function pragma(db: DB, name: "application_id" | "user_version"): Promise<number> {
