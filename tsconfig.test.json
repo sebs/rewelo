@@ -1,0 +1,12 @@
+{
+  // Compiles src and test together into build/ for `node --test` (npm test)
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "build",
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": ["src", "test"],
+  "exclude": ["node_modules", "dist", "build"]
+}

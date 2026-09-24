@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -38,39 +39,37 @@ describe("multi-project isolation", () => {
     const ticketsA = await listTickets(db, projectA);
     const ticketsB = await listTickets(db, projectB);
 
-    expect(ticketsA).toHaveLength(1);
-    expect(ticketsA[0].title).toBe("Ticket A");
-    expect(ticketsB).toHaveLength(1);
-    expect(ticketsB[0].title).toBe("Ticket B");
+    assert.equal(ticketsA.length, 1);
+    assert.equal(ticketsA[0].title, "Ticket A");
+    assert.equal(ticketsB.length, 1);
+    assert.equal(ticketsB[0].title, "Ticket B");
   });
 
   it("getTicketById cannot access ticket from another project", async () => {
     const ticket = await createTicket(db, { projectId: projectA, title: "Secret" });
     const result = await getTicketById(db, projectB, ticket.id);
-    expect(result).toBeUndefined();
+    assert.equal(result, undefined);
   });
 
   it("updateTicket cannot modify ticket in another project", async () => {
     const ticket = await createTicket(db, { projectId: projectA, title: "Original" });
-    await expect(
-      updateTicket(db, projectB, ticket.id, { title: "Hacked" })
-    ).rejects.toThrow("Ticket not found");
+    await assert.rejects(updateTicket(db, projectB, ticket.id, { title: "Hacked" }), /Ticket not found/);
   });
 
   it("deleteTicket cannot delete ticket in another project", async () => {
     const ticket = await createTicket(db, { projectId: projectA, title: "Important" });
     const result = await deleteTicket(db, projectB, ticket.id);
-    expect(result).toBe(false);
+    assert.equal(result, false);
 
     // Ticket still exists in project A
     const still = await getTicketById(db, projectA, ticket.id);
-    expect(still).toBeDefined();
+    assert.notEqual(still, undefined);
   });
 
   it("getTagById cannot access tag from another project", async () => {
     const tag = await createTag(db, projectA, "state", "backlog");
     const result = await getTagById(db, projectB, tag.id);
-    expect(result).toBeUndefined();
+    assert.equal(result, undefined);
   });
 
   it("listTicketsByTag scopes to project", async () => {
@@ -83,10 +82,10 @@ describe("multi-project isolation", () => {
     await assignTag(db, ticketB.id, tagB.id);
 
     const idsA = await listTicketsByTag(db, projectA, tagA.id);
-    expect(idsA).toEqual([ticketA.id]);
+    assert.deepEqual(idsA, [ticketA.id]);
     // tagA should not return projectB tickets
     const crossIds = await listTicketsByTag(db, projectB, tagA.id);
-    expect(crossIds).toEqual([]);
+    assert.deepEqual(crossIds, []);
   });
 
   it("calculations are scoped to project", async () => {
@@ -95,8 +94,8 @@ describe("multi-project isolation", () => {
 
     // getTicketTimes works with ticket IDs but is called per-ticket
     const timesA = await getTicketTimes(db, ticketA.id);
-    expect(timesA.ticketId).toBe(ticketA.id);
+    assert.equal(timesA.ticketId, ticketA.id);
     const timesB = await getTicketTimes(db, ticketB.id);
-    expect(timesB.ticketId).toBe(ticketB.id);
+    assert.equal(timesB.ticketId, ticketB.id);
   });
 });

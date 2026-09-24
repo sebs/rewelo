@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
 
@@ -31,9 +32,9 @@ describe("MCP rate limiting and payload size", () => {
     }
 
     const errors = results.filter((r) => r.isError);
-    expect(errors.length).toBeGreaterThan(0);
+    assert.ok(errors.length > 0);
     const errorText = (errors[0].content as any)[0].text;
-    expect(errorText).toContain("Rate limit exceeded");
+    assert.ok(errorText.includes("Rate limit exceeded"));
   });
 
   it("rejects oversized import payload", async () => {
@@ -55,9 +56,9 @@ describe("MCP rate limiting and payload size", () => {
       name: "import_csv",
       arguments: { project: "Acme", csv: bigCsv },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
     const text = (result.content as any)[0].text;
-    expect(text).toContain("payload too large");
+    assert.ok(text.includes("payload too large"));
   });
 
   it("rejects oversized JSON import payload", async () => {
@@ -78,9 +79,9 @@ describe("MCP rate limiting and payload size", () => {
       name: "import_json",
       arguments: { project: "Acme", json: bigJson },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
     const text = (result.content as any)[0].text;
-    expect(text).toContain("payload too large");
+    assert.ok(text.includes("payload too large"));
   });
 
   it("measures the payload limit in bytes, not characters", async () => {
@@ -100,7 +101,7 @@ describe("MCP rate limiting and payload size", () => {
       name: "import_csv",
       arguments: { project: "Acme", csv: "title\n" + "é".repeat(600_000) },
     });
-    expect(result.isError).toBe(true);
-    expect((result.content as any)[0].text).toContain("payload too large");
+    assert.equal(result.isError, true);
+    assert.ok(((result.content as any)[0].text).includes("payload too large"));
   });
 });

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -24,9 +25,9 @@ describe("project summary report", () => {
 
   it("returns zeroes for empty project", async () => {
     const summary = await getProjectSummary(db, projectId);
-    expect(summary.totalTickets).toBe(0);
-    expect(summary.byState).toEqual({});
-    expect(summary.topByPriority).toHaveLength(0);
+    assert.equal(summary.totalTickets, 0);
+    assert.deepEqual(summary.byState, {});
+    assert.equal(summary.topByPriority.length, 0);
   });
 
   it("counts tickets by state tag", async () => {
@@ -41,9 +42,9 @@ describe("project summary report", () => {
     await assignTag(db, t3.id, wip.id);
 
     const summary = await getProjectSummary(db, projectId);
-    expect(summary.totalTickets).toBe(3);
-    expect(summary.byState.backlog).toBe(2);
-    expect(summary.byState.wip).toBe(1);
+    assert.equal(summary.totalTickets, 3);
+    assert.equal(summary.byState.backlog, 2);
+    assert.equal(summary.byState.wip, 1);
   });
 
   it("returns top-N tickets sorted by priority", async () => {
@@ -52,13 +53,13 @@ describe("project summary report", () => {
     await createTicket(db, { projectId, title: "Med", benefit: 5, penalty: 3, estimate: 3, risk: 2 });
 
     const summary = await getProjectSummary(db, projectId, 2);
-    expect(summary.topByPriority).toHaveLength(2);
-    expect(summary.topByPriority[0].title).toBe("High");
+    assert.equal(summary.topByPriority.length, 2);
+    assert.equal(summary.topByPriority[0].title, "High");
   });
 
   it("counts untagged tickets as 'untagged'", async () => {
     await createTicket(db, { projectId, title: "No tags" });
     const summary = await getProjectSummary(db, projectId);
-    expect(summary.byState.untagged).toBe(1);
+    assert.equal(summary.byState.untagged, 1);
   });
 });

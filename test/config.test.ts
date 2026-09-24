@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -17,19 +18,19 @@ describe("loadConfig", () => {
 
   it("returns empty config when no .rewelo.json exists", () => {
     const config = loadConfig(dir);
-    expect(config).toEqual({});
+    assert.deepEqual(config, {});
   });
 
   it("reads project from .rewelo.json in the given directory", () => {
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: "acme" }));
     const config = loadConfig(dir);
-    expect(config.project).toBe("acme");
+    assert.equal(config.project, "acme");
   });
 
   it("trims whitespace from project name", () => {
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: "  acme  " }));
     const config = loadConfig(dir);
-    expect(config.project).toBe("acme");
+    assert.equal(config.project, "acme");
   });
 
   it("walks up to find .rewelo.json in parent directory", () => {
@@ -38,7 +39,7 @@ describe("loadConfig", () => {
     mkdirSync(nested, { recursive: true });
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: "root-project" }));
     const config = loadConfig(nested);
-    expect(config.project).toBe("root-project");
+    assert.equal(config.project, "root-project");
   });
 
   it("reports invalid JSON instead of skipping to a parent config", () => {
@@ -46,24 +47,24 @@ describe("loadConfig", () => {
     const child = join(dir, "child");
     mkdirSync(child);
     writeFileSync(join(child, ".rewelo.json"), '{"project":"child",}');
-    expect(() => loadConfig(child)).toThrow(`Invalid JSON in ${join(child, ".rewelo.json")}`);
+    assert.throws(() => loadConfig(child), `Invalid JSON in ${join(child, ".rewelo.json")}`);
   });
 
   it("ignores non-object JSON (array)", () => {
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify([1, 2, 3]));
     const config = loadConfig(dir);
-    expect(config).toEqual({});
+    assert.deepEqual(config, {});
   });
 
   it("ignores empty project string", () => {
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: "   " }));
     const config = loadConfig(dir);
-    expect(config.project).toBeUndefined();
+    assert.equal(config.project, undefined);
   });
 
   it("ignores non-string project value", () => {
     writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ project: 42 }));
     const config = loadConfig(dir);
-    expect(config.project).toBeUndefined();
+    assert.equal(config.project, undefined);
   });
 });

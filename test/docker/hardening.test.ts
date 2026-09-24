@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { execSync } from "child_process";
 
 const IMAGE = "rewelo-mcp";
@@ -30,7 +31,7 @@ describeDocker("Docker hardening", () => {
       { timeout: 15000, encoding: "utf-8" }
     );
     const parsed = JSON.parse(result.trim());
-    expect(parsed.result.serverInfo.name).toBe("rewelo");
+    assert.equal(parsed.result.serverInfo.name, "rewelo");
   });
 
   it("runs as non-root user", () => {
@@ -38,8 +39,8 @@ describeDocker("Docker hardening", () => {
       `docker run --rm --cap-drop=ALL --entrypoint id ${IMAGE}`,
       { timeout: 10000, encoding: "utf-8" }
     );
-    expect(result).not.toContain("uid=0");
-    expect(result).toContain("rw");
+    assert.ok(!result.includes("uid=0"));
+    assert.ok(result.includes("rw"));
   });
 
   it("runs with read-only filesystem and writable /data", () => {
@@ -48,7 +49,7 @@ describeDocker("Docker hardening", () => {
       { timeout: 15000, encoding: "utf-8" }
     );
     const parsed = JSON.parse(result.trim());
-    expect(parsed.result.serverInfo.name).toBe("rewelo");
+    assert.equal(parsed.result.serverInfo.name, "rewelo");
   });
 
   it("runs with 256m memory limit", () => {
@@ -57,6 +58,6 @@ describeDocker("Docker hardening", () => {
       { timeout: 15000, encoding: "utf-8" }
     );
     const parsed = JSON.parse(result.trim());
-    expect(parsed.result.serverInfo.name).toBe("rewelo");
+    assert.equal(parsed.result.serverInfo.name, "rewelo");
   });
 });

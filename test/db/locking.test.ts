@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -53,7 +54,7 @@ describe("database locking", () => {
     await holder.exited;
 
     const names = (await listProjects(db)).map((p) => p.name).sort();
-    expect(names).toEqual(["holder", "waiter"]);
+    assert.deepEqual(names, ["holder", "waiter"]);
   });
 
   it("does not deadlock a read-then-write transaction against another writer", async () => {
@@ -70,6 +71,6 @@ describe("database locking", () => {
     await holder.exited;
 
     const names = (await listProjects(db)).map((p) => p.name).sort();
-    expect(names).toEqual(["holder", "in-tx"]);
+    assert.deepEqual(names, ["holder", "in-tx"]);
   });
 });

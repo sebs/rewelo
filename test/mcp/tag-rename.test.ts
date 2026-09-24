@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
 
@@ -44,9 +45,9 @@ describe("MCP tag rename tool", () => {
       name: "tag_rename",
       arguments: { project: "Acme", prefix: "feature", oldValue: "login", newValue: "auth" },
     });
-    expect(renameResult.isError).toBeFalsy();
+    assert.ok(!renameResult.isError);
     const renamed = JSON.parse((renameResult.content as any)[0].text);
-    expect(renamed.value).toBe("auth");
+    assert.equal(renamed.value, "auth");
 
     // Old tag should not exist, ticket should be findable via new tag
     const listResult = await client.callTool({
@@ -54,8 +55,8 @@ describe("MCP tag rename tool", () => {
       arguments: { project: "Acme", tag: "feature:auth" },
     });
     const tickets = JSON.parse((listResult.content as any)[0].text);
-    expect(tickets.items).toHaveLength(1);
-    expect(tickets.items[0].title).toBe("Login page");
+    assert.equal(tickets.items.length, 1);
+    assert.equal(tickets.items[0].title, "Login page");
 
     // Old tag should return no tickets
     const oldResult = await client.callTool({
@@ -63,7 +64,7 @@ describe("MCP tag rename tool", () => {
       arguments: { project: "Acme", tag: "feature:login" },
     });
     const oldTickets = JSON.parse((oldResult.content as any)[0].text);
-    expect(oldTickets.items).toHaveLength(0);
+    assert.equal(oldTickets.items.length, 0);
   });
 
   it("returns error for non-existent tag", async () => {
@@ -71,7 +72,7 @@ describe("MCP tag rename tool", () => {
       name: "tag_rename",
       arguments: { project: "Acme", prefix: "state", oldValue: "nope", newValue: "yes" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("validates new tag value format", async () => {
@@ -83,6 +84,6 @@ describe("MCP tag rename tool", () => {
       name: "tag_rename",
       arguments: { project: "Acme", prefix: "state", oldValue: "open", newValue: "INVALID CHARS!" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 });

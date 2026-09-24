@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
 import { VERSION } from "../../src/version.generated.js";
@@ -25,22 +26,22 @@ describe("MCP version", () => {
 
   it("reports version in server info", async () => {
     const info = client.getServerVersion();
-    expect(info).toBeDefined();
-    expect(info!.version).toBe(VERSION);
-    expect(info!.name).toBe("rewelo");
+    assert.notEqual(info, undefined);
+    assert.equal(info!.version, VERSION);
+    assert.equal(info!.name, "rewelo");
   });
 
   it("exposes server_version tool", async () => {
     const tools = await client.listTools();
     const names = tools.tools.map((t) => t.name);
-    expect(names).toContain("server_version");
+    assert.ok(names.includes("server_version"));
   });
 
   it("returns version via server_version tool", async () => {
     const result = await client.callTool({ name: "server_version", arguments: {} });
-    expect(result.isError).toBeFalsy();
+    assert.ok(!result.isError);
     const text = (result.content as any)[0].text;
     const parsed = JSON.parse(text);
-    expect(parsed.version).toBe(VERSION);
+    assert.equal(parsed.version, VERSION);
   });
 });

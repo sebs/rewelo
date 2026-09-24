@@ -1,25 +1,25 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { isFibonacci, assertFibonacci } from "../../src/db/types.js";
 
 describe("Fibonacci validation", () => {
-  it.each([1, 2, 3, 5, 8, 13, 21])("accepts %d as valid", (n) => {
-    expect(isFibonacci(n)).toBe(true);
-  });
+  for (const n of [1, 2, 3, 5, 8, 13, 21]) {
+    it(`accepts ${n} as valid`, () => {
+      assert.equal(isFibonacci(n), true);
+    });
+  }
 
-  it.each([0, 4, 6, 7, 9, 10, 14, 15, 20, 22, -1])(
-    "rejects %d as invalid",
-    (n) => {
-      expect(isFibonacci(n)).toBe(false);
-    }
-  );
+  for (const n of [0, 4, 6, 7, 9, 10, 14, 15, 20, 22, -1]) {
+    it(`rejects ${n} as invalid`, () => {
+      assert.equal(isFibonacci(n), false);
+    });
+  }
 
   it("assertFibonacci throws for invalid values", () => {
-    expect(() => assertFibonacci(4, "benefit")).toThrow(
-      "benefit must be a Fibonacci value"
-    );
+    assert.throws(() => assertFibonacci(4, "benefit"), /benefit must be a Fibonacci value/);
   });
 
   it("assertFibonacci does not throw for valid values", () => {
-    expect(() => assertFibonacci(8, "estimate")).not.toThrow();
+    assert.doesNotThrow(() => assertFibonacci(8, "estimate"));
   });
 });

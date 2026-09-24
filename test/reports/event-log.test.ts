@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -25,13 +26,13 @@ describe("event log", () => {
 
   it("returns empty log for empty project", async () => {
     const events = await getEventLog(db, projectId);
-    expect(events).toHaveLength(0);
+    assert.equal(events.length, 0);
   });
 
   it("includes ticket_created events", async () => {
     await createTicket(db, { projectId, title: "A", benefit: 5 });
     const events = await getEventLog(db, projectId);
-    expect(events.some((e) => e.type === "ticket_created" && e.ticketTitle === "A")).toBe(true);
+    assert.equal(events.some((e) => e.type === "ticket_created" && e.ticketTitle === "A"), true);
   });
 
   it("includes ticket_updated events after revision + update", async () => {
@@ -40,7 +41,7 @@ describe("event log", () => {
     await updateTicket(db, projectId, t.id, { benefit: 8 });
 
     const events = await getEventLog(db, projectId);
-    expect(events.some((e) => e.type === "ticket_updated")).toBe(true);
+    assert.equal(events.some((e) => e.type === "ticket_updated"), true);
   });
 
   it("includes tag_added and tag_removed events", async () => {
@@ -50,15 +51,15 @@ describe("event log", () => {
     await removeTag(db, t.id, tag.id);
 
     const events = await getEventLog(db, projectId);
-    expect(events.some((e) => e.type === "tag_added")).toBe(true);
-    expect(events.some((e) => e.type === "tag_removed")).toBe(true);
+    assert.equal(events.some((e) => e.type === "tag_added"), true);
+    assert.equal(events.some((e) => e.type === "tag_removed"), true);
   });
 
   it("respects since filter", async () => {
     await createTicket(db, { projectId, title: "Old" });
     const futureDate = "2099-01-01T00:00:00Z";
     const events = await getEventLog(db, projectId, futureDate);
-    expect(events).toHaveLength(0);
+    assert.equal(events.length, 0);
   });
 
   it("respects limit", async () => {
@@ -67,7 +68,7 @@ describe("event log", () => {
     await createTicket(db, { projectId, title: "X3" });
 
     const events = await getEventLog(db, projectId, undefined, 2);
-    expect(events).toHaveLength(2);
+    assert.equal(events.length, 2);
   });
 
   it("returns events in reverse chronological order", async () => {
@@ -76,8 +77,8 @@ describe("event log", () => {
 
     const events = await getEventLog(db, projectId);
     const created = events.filter((e) => e.type === "ticket_created");
-    expect(created[0].ticketTitle).toBe("Second");
-    expect(created[1].ticketTitle).toBe("First");
+    assert.equal(created[0].ticketTitle, "Second");
+    assert.equal(created[1].ticketTitle, "First");
   });
 
   it("shows the scores a ticket was created with, not its current ones", async () => {
@@ -86,11 +87,11 @@ describe("event log", () => {
     await updateTicket(db, projectId, t.id, { risk: 5 });
 
     const created = (await getEventLog(db, projectId)).find((e) => e.type === "ticket_created");
-    expect(created!.detail).toEqual({ benefit: 8, penalty: 1, estimate: 1, risk: 3 });
+    assert.deepEqual(created!.detail, { benefit: 8, penalty: 1, estimate: 1, risk: 3 });
   });
 
   it("returns no events for limit 0", async () => {
     await createTicket(db, { projectId, title: "Z" });
-    expect(await getEventLog(db, projectId, undefined, 0)).toEqual([]);
+    assert.deepEqual(await getEventLog(db, projectId, undefined, 0), []);
   });
 });

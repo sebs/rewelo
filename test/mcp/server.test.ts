@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
 
@@ -27,15 +28,15 @@ describe("MCP server", () => {
   it("discovers all registered tools", async () => {
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name).sort();
-    expect(names).toContain("project_create");
-    expect(names).toContain("ticket_create");
-    expect(names).toContain("tag_create");
-    expect(names).toContain("calc_priority");
-    expect(names).toContain("report_summary");
-    expect(names).toContain("export_csv");
-    expect(names).toContain("import_csv");
-    expect(names).toContain("server_version");
-    expect(names.length).toBeGreaterThanOrEqual(19);
+    assert.ok(names.includes("project_create"));
+    assert.ok(names.includes("ticket_create"));
+    assert.ok(names.includes("tag_create"));
+    assert.ok(names.includes("calc_priority"));
+    assert.ok(names.includes("report_summary"));
+    assert.ok(names.includes("export_csv"));
+    assert.ok(names.includes("import_csv"));
+    assert.ok(names.includes("server_version"));
+    assert.ok(names.length >= 19);
   });
 
   it("creates and lists projects", async () => {
@@ -43,17 +44,17 @@ describe("MCP server", () => {
       name: "project_create",
       arguments: { name: "TestProject" },
     });
-    expect(createResult.isError).toBeFalsy();
+    assert.ok(!createResult.isError);
     const created = JSON.parse((createResult.content as any)[0].text);
-    expect(created.name).toBe("TestProject");
+    assert.equal(created.name, "TestProject");
 
     const listResult = await client.callTool({
       name: "project_list",
       arguments: {},
     });
     const projects = JSON.parse((listResult.content as any)[0].text);
-    expect(projects).toHaveLength(1);
-    expect(projects[0].name).toBe("TestProject");
+    assert.equal(projects.length, 1);
+    assert.equal(projects[0].name, "TestProject");
   });
 
   it("creates ticket and lists with priority", async () => {
@@ -79,9 +80,9 @@ describe("MCP server", () => {
       arguments: { project: "Acme" },
     });
     const ticketResult = JSON.parse((listResult.content as any)[0].text);
-    expect(ticketResult.items).toHaveLength(1);
-    expect(ticketResult.items[0].title).toBe("Login page");
-    expect(ticketResult.items[0].priority).toBeCloseTo(1.57, 1);
+    assert.equal(ticketResult.items.length, 1);
+    assert.equal(ticketResult.items[0].title, "Login page");
+    assert.ok(Math.abs(ticketResult.items[0].priority - (1.57)) < 10 ** -(1) / 2);
   });
 
   it("creates and assigns tags", async () => {
@@ -100,14 +101,14 @@ describe("MCP server", () => {
       arguments: { project: "Acme", ticket: "T1", prefix: "state", value: "backlog" },
     });
     const assigned = JSON.parse((assignResult.content as any)[0].text);
-    expect(assigned[0].status).toBe("assigned");
+    assert.equal(assigned[0].status, "assigned");
 
     const tagList = await client.callTool({
       name: "tag_list",
       arguments: { project: "Acme" },
     });
     const tags = JSON.parse((tagList.content as any)[0].text);
-    expect(tags.some((t: any) => t.prefix === "state" && t.value === "backlog")).toBe(true);
+    assert.equal(tags.some((t: any) => t.prefix === "state" && t.value === "backlog"), true);
   });
 
   it("assigns multiple tags to a single ticket", async () => {
@@ -130,9 +131,9 @@ describe("MCP server", () => {
       },
     });
     const out = JSON.parse((result.content as any)[0].text);
-    expect(out).toHaveLength(2);
-    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", status: "assigned" });
-    expect(out[1]).toEqual({ ticket: "T1", tag: "team:backend", status: "assigned" });
+    assert.equal(out.length, 2);
+    assert.deepEqual(out[0], { ticket: "T1", tag: "state:backlog", status: "assigned" });
+    assert.deepEqual(out[1], { ticket: "T1", tag: "team:backend", status: "assigned" });
   });
 
   it("assigns one tag to multiple tickets", async () => {
@@ -150,9 +151,9 @@ describe("MCP server", () => {
       },
     });
     const out = JSON.parse((result.content as any)[0].text);
-    expect(out).toHaveLength(2);
-    expect(out[0]).toEqual({ ticket: "T1", tag: "state:backlog", status: "assigned" });
-    expect(out[1]).toEqual({ ticket: "T2", tag: "state:backlog", status: "assigned" });
+    assert.equal(out.length, 2);
+    assert.deepEqual(out[0], { ticket: "T1", tag: "state:backlog", status: "assigned" });
+    assert.deepEqual(out[1], { ticket: "T2", tag: "state:backlog", status: "assigned" });
   });
 
   it("assigns multiple tags to multiple tickets", async () => {
@@ -173,7 +174,7 @@ describe("MCP server", () => {
       },
     });
     const out = JSON.parse((result.content as any)[0].text);
-    expect(out).toHaveLength(4);
+    assert.equal(out.length, 4);
   });
 
   it("rejects tag_assign with no ticket specified", async () => {
@@ -182,7 +183,7 @@ describe("MCP server", () => {
       name: "tag_assign",
       arguments: { project: "Acme", prefix: "state", value: "backlog" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("rejects tag_assign with no tag specified", async () => {
@@ -192,7 +193,7 @@ describe("MCP server", () => {
       name: "tag_assign",
       arguments: { project: "Acme", ticket: "T1" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("calculates priorities", async () => {
@@ -211,9 +212,9 @@ describe("MCP server", () => {
       arguments: { project: "Acme" },
     });
     const priorities = JSON.parse((result.content as any)[0].text);
-    expect(priorities).toHaveLength(2);
+    assert.equal(priorities.length, 2);
     // A should rank higher
-    expect(priorities[0].title).toBe("A");
+    assert.equal(priorities[0].title, "A");
   });
 
   it("filters by multiple tags (intersection)", async () => {
@@ -233,8 +234,8 @@ describe("MCP server", () => {
       arguments: { project: "Acme", tags: ["state:backlog", "team:backend"] },
     });
     const data = JSON.parse((result.content as any)[0].text);
-    expect(data.items).toHaveLength(1);
-    expect(data.items[0].title).toBe("T1");
+    assert.equal(data.items.length, 1);
+    assert.equal(data.items[0].title, "T1");
   });
 
   it("excludes tickets by tag", async () => {
@@ -249,8 +250,8 @@ describe("MCP server", () => {
       arguments: { project: "Acme", excludeTags: ["state:done"] },
     });
     const data = JSON.parse((result.content as any)[0].text);
-    expect(data.items).toHaveLength(1);
-    expect(data.items[0].title).toBe("T2");
+    assert.equal(data.items.length, 1);
+    assert.equal(data.items[0].title, "T2");
   });
 
   it("searches tickets by title", async () => {
@@ -264,8 +265,8 @@ describe("MCP server", () => {
       arguments: { project: "Acme", search: "log" },
     });
     const data = JSON.parse((result.content as any)[0].text);
-    expect(data.items).toHaveLength(1);
-    expect(data.items[0].title).toBe("Login page");
+    assert.equal(data.items.length, 1);
+    assert.equal(data.items[0].title, "Login page");
   });
 
   it("paginates with limit and offset", async () => {
@@ -279,8 +280,8 @@ describe("MCP server", () => {
       arguments: { project: "Acme", sort: "priority", limit: 2, offset: 0 },
     });
     const data = JSON.parse((result.content as any)[0].text);
-    expect(data.total).toBe(3);
-    expect(data.items).toHaveLength(2);
+    assert.equal(data.total, 3);
+    assert.equal(data.items.length, 2);
 
     // Page 2
     const page2 = await client.callTool({
@@ -288,8 +289,8 @@ describe("MCP server", () => {
       arguments: { project: "Acme", sort: "priority", limit: 2, offset: 2 },
     });
     const data2 = JSON.parse((page2.content as any)[0].text);
-    expect(data2.total).toBe(3);
-    expect(data2.items).toHaveLength(1);
+    assert.equal(data2.total, 3);
+    assert.equal(data2.items.length, 1);
   });
 
   it("filters by min-priority threshold", async () => {
@@ -302,8 +303,8 @@ describe("MCP server", () => {
       arguments: { project: "Acme", minPriority: 2.0 },
     });
     const data = JSON.parse((result.content as any)[0].text);
-    expect(data.items).toHaveLength(1);
-    expect(data.items[0].title).toBe("High");
+    assert.equal(data.items.length, 1);
+    assert.equal(data.items[0].title, "High");
   });
 
   it("returns error for invalid project name", async () => {
@@ -311,7 +312,7 @@ describe("MCP server", () => {
       name: "project_create",
       arguments: { name: "'; DROP TABLE--" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("returns error for non-existent project", async () => {
@@ -319,7 +320,7 @@ describe("MCP server", () => {
       name: "ticket_list",
       arguments: { project: "NonExistent" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("validates tag prefix format", async () => {
@@ -328,7 +329,7 @@ describe("MCP server", () => {
       name: "tag_create",
       arguments: { project: "Acme", prefix: "INVALID CHARS!", value: "test" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("generates project summary report", async () => {
@@ -338,8 +339,8 @@ describe("MCP server", () => {
       arguments: { project: "Acme" },
     });
     const summary = JSON.parse((result.content as any)[0].text);
-    expect(summary.totalTickets).toBe(0);
-    expect(summary.byState).toEqual({});
+    assert.equal(summary.totalTickets, 0);
+    assert.deepEqual(summary.byState, {});
   });
 
   it("exports and imports via CSV", async () => {
@@ -354,7 +355,7 @@ describe("MCP server", () => {
       arguments: { project: "Source" },
     });
     const csv = (exportResult.content as any)[0].text;
-    expect(csv).toContain("Feature");
+    assert.ok(csv.includes("Feature"));
 
     await client.callTool({ name: "project_create", arguments: { name: "Target" } });
     const importResult = await client.callTool({
@@ -362,7 +363,7 @@ describe("MCP server", () => {
       arguments: { project: "Target", csv },
     });
     const imported = JSON.parse((importResult.content as any)[0].text);
-    expect(imported.imported).toBe(1);
+    assert.equal(imported.imported, 1);
   });
 
   it("tag_assign reports replaced same-prefix tags and rejects two values of one prefix", async () => {
@@ -375,12 +376,12 @@ describe("MCP server", () => {
       client.callTool({ name: "tag_assign", arguments: { project: "Tags", ticket: "A", ...args } });
 
     const both = await assign({ tags: [{ prefix: "state", value: "wip" }, { prefix: "state", value: "done" }] });
-    expect(both.isError).toBe(true);
-    expect((both.content as any)[0].text).toContain('share the prefix "state"');
+    assert.equal(both.isError, true);
+    assert.ok(((both.content as any)[0].text).includes('share the prefix "state"'));
 
     await assign({ prefix: "state", value: "wip" });
     const replace = await assign({ prefix: "state", value: "done" });
-    expect(JSON.parse((replace.content as any)[0].text)).toEqual([
+    assert.deepEqual(JSON.parse((replace.content as any)[0].text), [
       { ticket: "A", tag: "state:done", status: "assigned", replaced: ["state:wip"] },
     ]);
   });
@@ -400,12 +401,12 @@ describe("MCP server", () => {
     };
 
     const missingTag = await assign({ ticket: "A", tags: [{ prefix: "state", value: "wip" }, { prefix: "zzz", value: "x" }] });
-    expect(missingTag.isError).toBe(true);
-    expect(await tagged("state:wip")).toEqual([]);
+    assert.equal(missingTag.isError, true);
+    assert.deepEqual(await tagged("state:wip"), []);
 
     const missingTicket = await assign({ tickets: ["A", "nope"], prefix: "team", value: "core" });
-    expect(missingTicket.isError).toBe(true);
-    expect(await tagged("team:core")).toEqual([]);
+    assert.equal(missingTicket.isError, true);
+    assert.deepEqual(await tagged("team:core"), []);
   });
 
   it("tag_assign processes a ticket named twice only once", async () => {
@@ -417,7 +418,7 @@ describe("MCP server", () => {
       name: "tag_assign",
       arguments: { project: "Twice", ticket: "A", tickets: ["A"], prefix: "state", value: "wip" },
     });
-    expect(JSON.parse((r.content as any)[0].text)).toEqual([{ ticket: "A", tag: "state:wip", status: "assigned" }]);
+    assert.deepEqual(JSON.parse((r.content as any)[0].text), [{ ticket: "A", tag: "state:wip", status: "assigned" }]);
   });
 
   it("rejects non-integer, huge and negative limits with a validation error", async () => {
@@ -425,8 +426,8 @@ describe("MCP server", () => {
     for (const name of ["project_history", "event_log", "ticket_list"]) {
       for (const limit of [1.5, 1e20, -1]) {
         const r = await client.callTool({ name, arguments: { project: "Lim", limit } });
-        expect(r.isError, `${name} limit=${limit}`).toBe(true);
-        expect((r.content as any)[0].text, `${name} limit=${limit}`).toContain("Input validation error");
+        assert.equal(r.isError, true, `${name} limit=${limit}`);
+        assert.ok(((r.content as any)[0].text).includes("Input validation error"), `${name} limit=${limit}`);
       }
     }
   });
@@ -441,8 +442,8 @@ describe("MCP server", () => {
     ];
     for (const [name, args] of cases) {
       const r = await client.callTool({ name, arguments: { project: "Neg", ...args } });
-      expect(r.isError, `${name} ${JSON.stringify(args)}`).toBe(true);
-      expect((r.content as any)[0].text).toContain("Input validation error");
+      assert.equal(r.isError, true, `${name} ${JSON.stringify(args)}`);
+      assert.ok(((r.content as any)[0].text).includes("Input validation error"));
     }
   });
 
@@ -451,18 +452,18 @@ describe("MCP server", () => {
     await client.callTool({ name: "ticket_create", arguments: { project: "Hist", title: "A" } });
 
     const both = await client.callTool({ name: "ticket_history", arguments: { project: "Hist", title: "A", id: 999 } });
-    expect(both.isError).toBe(true);
-    expect((both.content as any)[0].text).toBe("Provide either title or id, not both");
+    assert.equal(both.isError, true);
+    assert.equal((both.content as any)[0].text, "Provide either title or id, not both");
 
     const byId = await client.callTool({ name: "ticket_history", arguments: { project: "Hist", id: 999 } });
-    expect((byId.content as any)[0].text).toBe("Ticket #999 not found");
+    assert.equal((byId.content as any)[0].text, "Ticket #999 not found");
   });
 
   it("ticket_update rejects an empty newTitle", async () => {
     await client.callTool({ name: "project_create", arguments: { name: "Ren" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "Ren", title: "A" } });
     const r = await client.callTool({ name: "ticket_update", arguments: { project: "Ren", title: "A", newTitle: "" } });
-    expect(r.isError).toBe(true);
-    expect((r.content as any)[0].text).toBe("Ticket title must not be empty");
+    assert.equal(r.isError, true);
+    assert.equal((r.content as any)[0].text, "Ticket title must not be empty");
   });
 });

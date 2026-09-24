@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -24,10 +25,10 @@ describe("backlog health report", () => {
 
   it("returns zeroes for empty project", async () => {
     const health = await getBacklogHealth(db, projectId);
-    expect(health.totalTickets).toBe(0);
-    expect(health.doneTickets).toBe(0);
-    expect(health.openTickets).toBe(0);
-    expect(health.totalBacklogCost).toBe(0);
+    assert.equal(health.totalTickets, 0);
+    assert.equal(health.doneTickets, 0);
+    assert.equal(health.openTickets, 0);
+    assert.equal(health.totalBacklogCost, 0);
   });
 
   it("separates done from open tickets", async () => {
@@ -37,11 +38,11 @@ describe("backlog health report", () => {
     await assignTag(db, t1.id, done.id);
 
     const health = await getBacklogHealth(db, projectId);
-    expect(health.totalTickets).toBe(2);
-    expect(health.doneTickets).toBe(1);
-    expect(health.openTickets).toBe(1);
+    assert.equal(health.totalTickets, 2);
+    assert.equal(health.doneTickets, 1);
+    assert.equal(health.openTickets, 1);
     // Only open ticket contributes to backlog cost: 5 + 3 = 8
-    expect(health.totalBacklogCost).toBe(8);
+    assert.equal(health.totalBacklogCost, 8);
   });
 
   it("classifies high vs low priority", async () => {
@@ -51,14 +52,14 @@ describe("backlog health report", () => {
     await createTicket(db, { projectId, title: "Low", benefit: 1, penalty: 1, estimate: 13, risk: 8 });
 
     const health = await getBacklogHealth(db, projectId);
-    expect(health.highPriorityCount).toBe(1);
-    expect(health.lowPriorityCount).toBe(1);
-    expect(health.highToLowRatio).toBe(1);
+    assert.equal(health.highPriorityCount, 1);
+    assert.equal(health.lowPriorityCount, 1);
+    assert.equal(health.highToLowRatio, 1);
   });
 
   it("highToLowRatio is undefined when no low priority tickets", async () => {
     await createTicket(db, { projectId, title: "High", benefit: 13, penalty: 8, estimate: 1, risk: 1 });
     const health = await getBacklogHealth(db, projectId);
-    expect(health.highToLowRatio).toBeNull();
+    assert.equal(health.highToLowRatio, null);
   });
 });

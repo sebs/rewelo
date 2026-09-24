@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -37,17 +38,17 @@ describe("round-trip", () => {
     await importCsv(db, project2.id, csv);
 
     const imported = await listTickets(db, project2.id);
-    expect(imported).toHaveLength(1);
-    expect(imported[0].title).toBe("Login");
-    expect(imported[0].benefit).toBe(8);
-    expect(imported[0].penalty).toBe(3);
-    expect(imported[0].estimate).toBe(5);
-    expect(imported[0].risk).toBe(2);
+    assert.equal(imported.length, 1);
+    assert.equal(imported[0].title, "Login");
+    assert.equal(imported[0].benefit, 8);
+    assert.equal(imported[0].penalty, 3);
+    assert.equal(imported[0].estimate, 5);
+    assert.equal(imported[0].risk, 2);
 
     const importedTags = await getTicketTags(db, imported[0].id);
-    expect(importedTags).toHaveLength(1);
-    expect(importedTags[0].prefix).toBe("state");
-    expect(importedTags[0].value).toBe("backlog");
+    assert.equal(importedTags.length, 1);
+    assert.equal(importedTags[0].prefix, "state");
+    assert.equal(importedTags[0].value, "backlog");
   });
 
   it("JSON round-trip preserves ticket data", async () => {
@@ -62,13 +63,13 @@ describe("round-trip", () => {
     await importJson(db, project2.id, json);
 
     const imported = await listTickets(db, project2.id);
-    expect(imported).toHaveLength(1);
-    expect(imported[0].title).toBe("Signup");
-    expect(imported[0].benefit).toBe(5);
+    assert.equal(imported.length, 1);
+    assert.equal(imported[0].title, "Signup");
+    assert.equal(imported[0].benefit, 5);
 
     const importedTags = await getTicketTags(db, imported[0].id);
-    expect(importedTags).toHaveLength(1);
-    expect(importedTags[0].prefix).toBe("feature");
-    expect(importedTags[0].value).toBe("auth");
+    assert.equal(importedTags.length, 1);
+    assert.equal(importedTags[0].prefix, "feature");
+    assert.equal(importedTags[0].value, "auth");
   });
 });

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -41,31 +42,31 @@ describe("since filters", () => {
 
   it("event log treats an offset timestamp like the same instant in UTC", async () => {
     const expected = await getEventLog(db, projectId, utc);
-    expect(expected).toHaveLength(3);
-    expect(await getEventLog(db, projectId, offset)).toEqual(expected);
+    assert.equal(expected.length, 3);
+    assert.deepEqual(await getEventLog(db, projectId, offset), expected);
   });
 
   it("project history treats an offset timestamp like the same instant in UTC", async () => {
     const expected = await listProjectRevisions(db, projectId, utc);
-    expect(expected).toHaveLength(1);
-    expect(await listProjectRevisions(db, projectId, offset)).toEqual(expected);
+    assert.equal(expected.length, 1);
+    assert.deepEqual(await listProjectRevisions(db, projectId, offset), expected);
   });
 
   it("project diff treats an offset timestamp like the same instant in UTC", async () => {
     const expected = await getProjectDiff(db, projectId, utc);
-    expect(expected.updatedTickets).toHaveLength(1);
-    expect(expected.tagChanges).toHaveLength(1);
+    assert.equal(expected.updatedTickets.length, 1);
+    assert.equal(expected.tagChanges.length, 1);
     const actual = await getProjectDiff(db, projectId, offset);
-    expect({ ...actual, since: utc, now: expected.now }).toEqual(expected);
+    assert.deepEqual({ ...actual, since: utc, now: expected.now }, expected);
   });
 
   it("project history returns no revisions for limit 0", async () => {
-    expect(await listProjectRevisions(db, projectId, undefined, 0)).toEqual([]);
+    assert.deepEqual(await listProjectRevisions(db, projectId, undefined, 0), []);
   });
 
   it("rejects a since value that is not a timestamp", async () => {
-    await expect(getEventLog(db, projectId, "garbage")).rejects.toThrow('Invalid timestamp "garbage"');
-    await expect(listProjectRevisions(db, projectId, "yesterday")).rejects.toThrow("Invalid timestamp");
-    await expect(getProjectDiff(db, projectId, "garbage")).rejects.toThrow(ValidationError);
+    await assert.rejects(getEventLog(db, projectId, "garbage"), /Invalid timestamp "garbage"/);
+    await assert.rejects(listProjectRevisions(db, projectId, "yesterday"), /Invalid timestamp/);
+    await assert.rejects(getProjectDiff(db, projectId, "garbage"), ValidationError);
   });
 });

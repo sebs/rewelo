@@ -1,33 +1,34 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { sanitizeError } from "../../src/validation/errors.js";
 import { AppError, ValidationError } from "../../src/validation/strings.js";
 
 describe("sanitizeError", () => {
   it("passes through ValidationError messages", () => {
     const err = new ValidationError("Project name must not be empty");
-    expect(sanitizeError(err)).toBe("Project name must not be empty");
+    assert.equal(sanitizeError(err), "Project name must not be empty");
   });
 
   it("passes through AppError messages", () => {
-    expect(sanitizeError(new AppError("Ticket not found"))).toBe("Ticket not found");
-    expect(sanitizeError(new AppError("Tag not found"))).toBe("Tag not found");
-    expect(sanitizeError(new AppError("benefit must be a Fibonacci number"))).toContain("Fibonacci");
-    expect(sanitizeError(new AppError("denominator is zero"))).toContain("denominator is zero");
+    assert.equal(sanitizeError(new AppError("Ticket not found")), "Ticket not found");
+    assert.equal(sanitizeError(new AppError("Tag not found")), "Tag not found");
+    assert.ok((sanitizeError(new AppError("benefit must be a Fibonacci number"))).includes("Fibonacci"));
+    assert.ok((sanitizeError(new AppError("denominator is zero"))).includes("denominator is zero"));
   });
 
   it("hides database errors from user", () => {
     const dbErr = new Error("no such table: projects");
-    expect(sanitizeError(dbErr)).toBe("An internal error occurred. Please try again.");
+    assert.equal(sanitizeError(dbErr), "An internal error occurred. Please try again.");
   });
 
   it("hides SQL details from user", () => {
     const sqlErr = new Error("Parser Error: syntax error at or near 'SELECT'");
-    expect(sanitizeError(sqlErr)).toBe("An internal error occurred. Please try again.");
+    assert.equal(sanitizeError(sqlErr), "An internal error occurred. Please try again.");
   });
 
   it("handles non-Error objects", () => {
-    expect(sanitizeError("string error")).toBe("An unexpected error occurred.");
-    expect(sanitizeError(42)).toBe("An unexpected error occurred.");
-    expect(sanitizeError(null)).toBe("An unexpected error occurred.");
+    assert.equal(sanitizeError("string error"), "An unexpected error occurred.");
+    assert.equal(sanitizeError(42), "An unexpected error occurred.");
+    assert.equal(sanitizeError(null), "An unexpected error occurred.");
   });
 });

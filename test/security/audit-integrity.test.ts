@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -29,8 +30,8 @@ describe("audit log integrity", () => {
     await assignTag(db, ticket.id, tag.id);
 
     const log = await getTagChangeLog(db, ticket.id);
-    expect(log).toHaveLength(1);
-    expect(log[0].action).toBe("added");
+    assert.equal(log.length, 1);
+    assert.equal(log[0].action, "added");
   });
 
   it("idempotent tag assign does not create duplicate audit entry", async () => {
@@ -39,10 +40,10 @@ describe("audit log integrity", () => {
 
     await assignTag(db, ticket.id, tag.id);
     const second = await assignTag(db, ticket.id, tag.id);
-    expect(second.assigned).toBe(false);
+    assert.equal(second.assigned, false);
 
     const log = await getTagChangeLog(db, ticket.id);
-    expect(log).toHaveLength(1); // Still just one entry
+    assert.equal(log.length, 1); // Still just one entry
   });
 
   it("remove unassigned tag returns false and creates no audit entry", async () => {
@@ -50,10 +51,10 @@ describe("audit log integrity", () => {
     const tag = await createTag(db, projectId, "state", "backlog");
 
     const removed = await removeTag(db, ticket.id, tag.id);
-    expect(removed).toBe(false);
+    assert.equal(removed, false);
 
     const log = await getTagChangeLog(db, ticket.id);
-    expect(log).toHaveLength(0);
+    assert.equal(log.length, 0);
   });
 
   it("revision timestamps are server-generated", async () => {
@@ -61,10 +62,10 @@ describe("audit log integrity", () => {
     await createRevision(db, ticket);
 
     const revisions = await listRevisions(db, ticket.id);
-    expect(revisions).toHaveLength(1);
+    assert.equal(revisions.length, 1);
     // Timestamp should be a valid ISO-ish string set by the database
-    expect(revisions[0].revised_at).toBeDefined();
-    expect(new Date(revisions[0].revised_at).getTime()).not.toBeNaN();
+    assert.notEqual(revisions[0].revised_at, undefined);
+    assert.ok(!Number.isNaN(new Date(revisions[0].revised_at).getTime()));
   });
 
   it("audit entries have server-generated timestamps", async () => {
@@ -73,8 +74,8 @@ describe("audit log integrity", () => {
     await assignTag(db, ticket.id, tag.id);
 
     const log = await getTagChangeLog(db, ticket.id);
-    expect(log[0].changed_at).toBeDefined();
-    expect(new Date(log[0].changed_at).getTime()).not.toBeNaN();
+    assert.notEqual(log[0].changed_at, undefined);
+    assert.ok(!Number.isNaN(new Date(log[0].changed_at).getTime()));
   });
 
   it("full tag lifecycle creates correct audit trail", async () => {
@@ -86,7 +87,7 @@ describe("audit log integrity", () => {
     await assignTag(db, ticket.id, tag.id);
 
     const log = await getTagChangeLog(db, ticket.id);
-    expect(log).toHaveLength(3);
-    expect(log.map((l) => l.action)).toEqual(["added", "removed", "added"]);
+    assert.equal(log.length, 3);
+    assert.deepEqual(log.map((l) => l.action), ["added", "removed", "added"]);
   });
 });

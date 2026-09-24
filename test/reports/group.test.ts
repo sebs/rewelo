@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -25,7 +26,7 @@ describe("group by tag prefix report", () => {
   it("returns empty for no matching tags", async () => {
     await createTicket(db, { projectId, title: "A" });
     const groups = await groupByTagPrefix(db, projectId, "feature");
-    expect(groups).toHaveLength(0);
+    assert.equal(groups.length, 0);
   });
 
   it("groups tickets by tag value", async () => {
@@ -38,9 +39,9 @@ describe("group by tag prefix report", () => {
     await assignTag(db, t2.id, ui.id);
 
     const groups = await groupByTagPrefix(db, projectId, "feature");
-    expect(groups).toHaveLength(2);
-    expect(groups.find((g) => g.value === "auth")!.ticketCount).toBe(1);
-    expect(groups.find((g) => g.value === "ui")!.ticketCount).toBe(1);
+    assert.equal(groups.length, 2);
+    assert.equal(groups.find((g) => g.value === "auth")!.ticketCount, 1);
+    assert.equal(groups.find((g) => g.value === "ui")!.ticketCount, 1);
   });
 
   it("calculates average priority per group", async () => {
@@ -52,7 +53,7 @@ describe("group by tag prefix report", () => {
     await assignTag(db, t2.id, auth.id);
 
     const groups = await groupByTagPrefix(db, projectId, "feature");
-    expect(groups[0].ticketCount).toBe(2);
-    expect(groups[0].averagePriority).toBeGreaterThan(0);
+    assert.equal(groups[0].ticketCount, 2);
+    assert.ok(groups[0].averagePriority > 0);
   });
 });

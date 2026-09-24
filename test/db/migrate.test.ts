@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { AppError } from "../../src/validation/strings.js";
@@ -17,13 +18,13 @@ describe("migrate", () => {
       "SELECT name AS table_name FROM sqlite_master WHERE type = 'table' ORDER BY name"
     );
     const tables = rows.map((r) => r.table_name);
-    expect(tables).toContain("projects");
-    expect(tables).toContain("tickets");
-    expect(tables).toContain("tags");
-    expect(tables).toContain("ticket_tags");
-    expect(tables).toContain("ticket_tag_changes");
-    expect(tables).toContain("ticket_revisions");
-    expect(tables).toContain("tag_revisions");
+    assert.ok(tables.includes("projects"));
+    assert.ok(tables.includes("tickets"));
+    assert.ok(tables.includes("tags"));
+    assert.ok(tables.includes("ticket_tags"));
+    assert.ok(tables.includes("ticket_tag_changes"));
+    assert.ok(tables.includes("ticket_revisions"));
+    assert.ok(tables.includes("tag_revisions"));
   });
 
   it("is idempotent on second run", async () => {
@@ -33,7 +34,7 @@ describe("migrate", () => {
     const rows = await db.all(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'"
     );
-    expect(rows).toHaveLength(1);
+    assert.equal(rows.length, 1);
   });
 
   async function tables(): Promise<string[]> {
@@ -47,23 +48,23 @@ describe("migrate", () => {
     db = await DB.open(":memory:");
     await migrate(db);
     const [row] = await db.all<{ application_id: number }>("PRAGMA application_id");
-    expect(row.application_id).toBe(0x52574c4f); // "RWLO"
+    assert.equal(row.application_id, 0x52574c4f); // "RWLO"
   });
 
   it("refuses a foreign database without touching it", async () => {
     db = await DB.open(":memory:");
     await db.exec("CREATE TABLE tickets (x); INSERT INTO tickets VALUES (1);");
 
-    await expect(migrate(db)).rejects.toThrow(AppError);
-    await expect(migrate(db)).rejects.toThrow("not a rewelo database");
-    expect(await tables()).toEqual(["tickets"]);
+    await assert.rejects(migrate(db), AppError);
+    await assert.rejects(migrate(db), /not a rewelo database/);
+    assert.deepEqual(await tables(), ["tickets"]);
   });
 
   it("refuses a foreign database with a same-named projects table", async () => {
     db = await DB.open(":memory:");
     await db.exec("CREATE TABLE projects (pid, label)");
 
-    await expect(migrate(db)).rejects.toThrow("not a rewelo database");
+    await assert.rejects(migrate(db), /not a rewelo database/);
   });
 
   // The schema as first released with SQLite, before application_id and
@@ -80,8 +81,8 @@ describe("migrate", () => {
 
     await migrate(db);
     const [row] = await db.all<{ application_id: number }>("PRAGMA application_id");
-    expect(row.application_id).toBe(0x52574c4f);
-    expect(await tables()).toContain("ticket_deletions");
+    assert.equal(row.application_id, 0x52574c4f);
+    assert.ok((await tables()).includes("ticket_deletions"));
   });
 
   it("upgrades a marked version 1 database", async () => {
@@ -89,15 +90,15 @@ describe("migrate", () => {
     await simulateVersion1(true);
 
     await migrate(db);
-    expect(await tables()).toContain("ticket_deletions");
+    assert.ok((await tables()).includes("ticket_deletions"));
     const [row] = await db.all<{ user_version: number }>("PRAGMA user_version");
-    expect(row.user_version).toBe(2);
+    assert.equal(row.user_version, 2);
   });
 
   it("creates new databases at the current schema version", async () => {
     db = await DB.open(":memory:");
     await migrate(db);
     const [row] = await db.all<{ user_version: number }>("PRAGMA user_version");
-    expect(row.user_version).toBe(2);
+    assert.equal(row.user_version, 2);
   });
 });

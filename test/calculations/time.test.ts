@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -25,8 +26,8 @@ describe("lead and cycle time", () => {
   it("returns undefined times when no state tags exist", async () => {
     const ticket = await createTicket(db, { projectId, title: "Story A" });
     const times = await getTicketTimes(db, ticket.id);
-    expect(times.leadTimeDays).toBeUndefined();
-    expect(times.cycleTimeDays).toBeUndefined();
+    assert.equal(times.leadTimeDays, undefined);
+    assert.equal(times.cycleTimeDays, undefined);
   });
 
   it("returns undefined cycle time when ticket goes directly to done", async () => {
@@ -34,8 +35,8 @@ describe("lead and cycle time", () => {
     const done = await createTag(db, projectId, "state", "done");
     await assignTag(db, ticket.id, done.id);
     const times = await getTicketTimes(db, ticket.id);
-    expect(times.leadTimeDays).toBeDefined();
-    expect(times.cycleTimeDays).toBeUndefined();
+    assert.notEqual(times.leadTimeDays, undefined);
+    assert.equal(times.cycleTimeDays, undefined);
   });
 
   it("calculates lead and cycle time from audit log", async () => {
@@ -50,33 +51,33 @@ describe("lead and cycle time", () => {
 
     const times = await getTicketTimes(db, ticket.id);
     // All happen within same test so times are ~0, but the logic works
-    expect(times.leadTimeDays).toBeDefined();
-    expect(times.cycleTimeDays).toBeDefined();
-    expect(typeof times.leadTimeDays).toBe("number");
-    expect(typeof times.cycleTimeDays).toBe("number");
+    assert.notEqual(times.leadTimeDays, undefined);
+    assert.notEqual(times.cycleTimeDays, undefined);
+    assert.equal(typeof times.leadTimeDays, "number");
+    assert.equal(typeof times.cycleTimeDays, "number");
   });
 
   it("averageLeadTime returns undefined for empty list", () => {
-    expect(averageLeadTime([])).toBeUndefined();
+    assert.equal(averageLeadTime([]), undefined);
   });
 
   it("averageLeadTime calculates correctly", () => {
     const times = [
-      { ticketId: 1, leadTimeDays: 10, cycleTimeDays: 5 },
-      { ticketId: 2, leadTimeDays: 15, cycleTimeDays: 8 },
-      { ticketId: 3, leadTimeDays: 7, cycleTimeDays: 3 },
+      { ticketId: 1, ticketTitle: "T1", leadTimeDays: 10, cycleTimeDays: 5 },
+      { ticketId: 2, ticketTitle: "T2", leadTimeDays: 15, cycleTimeDays: 8 },
+      { ticketId: 3, ticketTitle: "T3", leadTimeDays: 7, cycleTimeDays: 3 },
     ];
     // (10 + 15 + 7) / 3 = 10.67 -> rounds to 11
-    expect(averageLeadTime(times)).toBe(11);
+    assert.equal(averageLeadTime(times), 11);
   });
 
   it("averageLeadTime skips tickets without lead time", () => {
     const times = [
-      { ticketId: 1, leadTimeDays: 10, cycleTimeDays: 5 },
-      { ticketId: 2, leadTimeDays: undefined, cycleTimeDays: undefined },
-      { ticketId: 3, leadTimeDays: 20, cycleTimeDays: 10 },
+      { ticketId: 1, ticketTitle: "T1", leadTimeDays: 10, cycleTimeDays: 5 },
+      { ticketId: 2, ticketTitle: "T2", leadTimeDays: undefined, cycleTimeDays: undefined },
+      { ticketId: 3, ticketTitle: "T3", leadTimeDays: 20, cycleTimeDays: 10 },
     ];
-    expect(averageLeadTime(times)).toBe(15);
+    assert.equal(averageLeadTime(times), 15);
   });
 
   it("does not count a reopened ticket as done", async () => {
@@ -86,8 +87,8 @@ describe("lead and cycle time", () => {
     await removeTag(db, ticket.id, done.id);
 
     const times = await getTicketTimes(db, ticket.id);
-    expect(times.leadTimeDays).toBeUndefined();
-    expect(times.cycleTimeDays).toBeUndefined();
+    assert.equal(times.leadTimeDays, undefined);
+    assert.equal(times.cycleTimeDays, undefined);
   });
 
   it("measures to the latest completion when a ticket was done twice", async () => {
@@ -106,6 +107,6 @@ describe("lead and cycle time", () => {
       await db.run(`UPDATE ticket_tag_changes SET changed_at = ? WHERE id = ?`, at[i], changes[i].id);
     }
 
-    expect((await getTicketTimes(db, ticket.id)).leadTimeDays).toBe(10);
+    assert.equal((await getTicketTimes(db, ticket.id)).leadTimeDays, 10);
   });
 });

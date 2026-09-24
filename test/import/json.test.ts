@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject, getProjectByName } from "../../src/projects/repository.js";
@@ -32,10 +33,10 @@ describe("JSON import", () => {
     });
 
     const result = await importJson(db, projectId, json);
-    expect(result.imported).toBe(2);
+    assert.equal(result.imported, 2);
 
     const tickets = await listTickets(db, projectId);
-    expect(tickets).toHaveLength(2);
+    assert.equal(tickets.length, 2);
   });
 
   it("restores tags and assignments", async () => {
@@ -56,23 +57,23 @@ describe("JSON import", () => {
     await importJson(db, projectId, json);
     const tickets = await listTickets(db, projectId);
     const tags = await getTicketTags(db, tickets[0].id);
-    expect(tags).toHaveLength(1);
-    expect(tags[0].value).toBe("backlog");
+    assert.equal(tags.length, 1);
+    assert.equal(tags[0].value, "backlog");
   });
 
   it("rejects invalid JSON", async () => {
-    await expect(importJson(db, projectId, "not json")).rejects.toThrow("Invalid JSON");
+    await assert.rejects(importJson(db, projectId, "not json"), /Invalid JSON/);
   });
 
   it("rejects missing tickets array", async () => {
-    await expect(importJson(db, projectId, '{}')).rejects.toThrow("tickets");
+    await assert.rejects(importJson(db, projectId, '{}'), /tickets/);
   });
 
   it("rejects invalid Fibonacci values", async () => {
     const json = JSON.stringify({
       tickets: [{ title: "Bad", benefit: 4, penalty: 3, estimate: 5, risk: 2 }],
     });
-    await expect(importJson(db, projectId, json)).rejects.toThrow("Ticket 1");
+    await assert.rejects(importJson(db, projectId, json), /Ticket 1/);
   });
 
   it("rejects deeply nested JSON", async () => {
@@ -83,11 +84,11 @@ describe("JSON import", () => {
       current.deep = {};
       current = current.deep;
     }
-    await expect(importJson(db, projectId, JSON.stringify(nested))).rejects.toThrow("nesting depth");
+    await assert.rejects(importJson(db, projectId, JSON.stringify(nested)), /nesting depth/);
   });
 
   it("rejects non-object input", async () => {
-    await expect(importJson(db, projectId, "[]")).rejects.toThrow("must be an object");
+    await assert.rejects(importJson(db, projectId, "[]"), /must be an object/);
   });
 
   it("imports nothing when a ticket clashes with an existing one", async () => {
@@ -100,9 +101,9 @@ describe("JSON import", () => {
       ],
     });
 
-    await expect(importJson(db, projectId, json)).rejects.toThrow("already exists");
+    await assert.rejects(importJson(db, projectId, json), /already exists/);
     const titles = (await listTickets(db, projectId)).map((t) => t.title);
-    expect(titles).toEqual(["Existing"]);
+    assert.deepEqual(titles, ["Existing"]);
   });
 
   it("rejects malformed ticket tags with a validation error", async () => {
@@ -110,22 +111,22 @@ describe("JSON import", () => {
       tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: ["state:done"] }],
     });
 
-    await expect(importJson(db, projectId, json)).rejects.toThrow(ValidationError);
-    await expect(importJson(db, projectId, json)).rejects.toThrow("Ticket 1: tag 1");
-    expect(await listTickets(db, projectId)).toHaveLength(0);
+    await assert.rejects(importJson(db, projectId, json), ValidationError);
+    await assert.rejects(importJson(db, projectId, json), /Ticket 1: tag 1/);
+    assert.equal((await listTickets(db, projectId)).length, 0);
   });
 
   it("rejects malformed project tags with a validation error", async () => {
     const json = JSON.stringify({ tickets: [], tags: [{ prefix: true, value: "x" }] });
 
-    await expect(importJson(db, projectId, json)).rejects.toThrow(ValidationError);
-    await expect(importJson(db, projectId, json)).rejects.toThrow("Tag 1");
+    await assert.rejects(importJson(db, projectId, json), ValidationError);
+    await assert.rejects(importJson(db, projectId, json), /Tag 1/);
   });
 
   it("rejects a non-array tags field", async () => {
     const json = JSON.stringify({ tickets: [], tags: "state:wip" });
 
-    await expect(importJson(db, projectId, json)).rejects.toThrow(ValidationError);
+    await assert.rejects(importJson(db, projectId, json), ValidationError);
   });
 
   it("normalises tags like the CLI does", async () => {
@@ -135,23 +136,17 @@ describe("JSON import", () => {
     });
     await importJson(db, projectId, json);
     const tags = (await listTags(db, projectId)).map((t) => `${t.prefix}:${t.value}`).sort();
-    expect(tags).toEqual(["state:done", "team:core"]);
+    assert.deepEqual(tags, ["state:done", "team:core"]);
   });
 
   it("rejects tags the CLI would reject", async () => {
     const bad = (tags: unknown) =>
       JSON.stringify({ tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags }] });
 
-    await expect(importJson(db, projectId, bad([{ prefix: "Bad Prefix!", value: "x" }]))).rejects.toThrow(
-      /Ticket 1: tag 1: Tag prefix must contain only/
-    );
-    await expect(importJson(db, projectId, bad([{ prefix: "a", value: "" }]))).rejects.toThrow(
-      /Tag value must not be empty/
-    );
-    await expect(
-      importJson(db, projectId, JSON.stringify({ tickets: [], tags: [{ prefix: "a:b", value: "c" }] }))
-    ).rejects.toThrow(/Tag 1: Tag prefix must contain only/);
-    expect(await listTickets(db, projectId)).toHaveLength(0);
+    await assert.rejects(importJson(db, projectId, bad([{ prefix: "Bad Prefix!", value: "x" }])), /Ticket 1: tag 1: Tag prefix must contain only/);
+    await assert.rejects(importJson(db, projectId, bad([{ prefix: "a", value: "" }])), /Tag value must not be empty/);
+    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets: [], tags: [{ prefix: "a:b", value: "c" }] })), /Tag 1: Tag prefix must contain only/);
+    assert.equal((await listTickets(db, projectId)).length, 0);
   });
 
   it("creates the project when importing into a new one", async () => {
@@ -159,20 +154,20 @@ describe("JSON import", () => {
       tickets: [{ title: "T", benefit: 5, penalty: 1, estimate: 1, risk: 1, tags: [{ prefix: "state", value: "wip" }] }],
     });
     const result = await importJsonAsProject(db, "NewProject", json);
-    expect(result).toMatchObject({ imported: 1, projectCreated: true });
+    assert.partialDeepStrictEqual(result, { imported: 1, projectCreated: true });
 
     const project = await getProjectByName(db, "NewProject");
-    expect(project).toBeTruthy();
+    assert.ok(project);
     const tickets = await listTickets(db, project!.id);
-    expect(tickets.map((t) => t.title)).toEqual(["T"]);
-    expect(await listTags(db, project!.id)).toHaveLength(1);
+    assert.deepEqual(tickets.map((t) => t.title), ["T"]);
+    assert.equal((await listTags(db, project!.id)).length, 1);
   });
 
   it("imports into an existing project without creating one", async () => {
     const json = JSON.stringify({ tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1 }] });
     const result = await importJsonAsProject(db, "JsonImport", json);
-    expect(result).toMatchObject({ imported: 1, projectCreated: false });
-    expect(await listTickets(db, projectId)).toHaveLength(1);
+    assert.partialDeepStrictEqual(result, { imported: 1, projectCreated: false });
+    assert.equal((await listTickets(db, projectId)).length, 1);
   });
 
   it("does not leave a new project behind when the import fails", async () => {
@@ -182,8 +177,8 @@ describe("JSON import", () => {
         { title: "Dup", benefit: 1, penalty: 1, estimate: 1, risk: 1 },
       ],
     });
-    await expect(importJsonAsProject(db, "Doomed", json)).rejects.toThrow("already exists");
-    expect(await getProjectByName(db, "Doomed")).toBeFalsy();
+    await assert.rejects(importJsonAsProject(db, "Doomed", json), /already exists/);
+    assert.ok(!(await getProjectByName(db, "Doomed")));
   });
 
   it("rejects two values of one tag prefix on a ticket", async () => {
@@ -191,38 +186,36 @@ describe("JSON import", () => {
       tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1,
         tags: [{ prefix: "state", value: "wip" }, { prefix: "state", value: "done" }] }],
     });
-    await expect(importJson(db, projectId, json)).rejects.toThrow(/Ticket 1: .*share the prefix "state"/);
+    await assert.rejects(importJson(db, projectId, json), /Ticket 1: .*share the prefix "state"/);
   });
 
   it("normalises titles like ticket create does", async () => {
     const json = JSON.stringify({ tickets: [{ title: "  padded  ", benefit: 1, penalty: 1, estimate: 1, risk: 1 }] });
     await importJson(db, projectId, json);
-    expect((await listTickets(db, projectId)).map((t) => t.title)).toEqual(["padded"]);
+    assert.deepEqual((await listTickets(db, projectId)).map((t) => t.title), ["padded"]);
   });
 
   it("defaults missing scores to 1 like CSV import and ticket create", async () => {
     await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "NoScores" }, { title: "Some", benefit: 5 }] }));
     const tickets = await listTickets(db, projectId);
-    expect(tickets.map((t) => [t.title, t.benefit, t.penalty, t.estimate, t.risk])).toEqual([
+    assert.deepEqual(tickets.map((t) => [t.title, t.benefit, t.penalty, t.estimate, t.risk]), [
       ["NoScores", 1, 1, 1, 1],
       ["Some", 5, 1, 1, 1],
     ]);
   });
 
   it("still rejects scores that are present but not numbers", async () => {
-    await expect(
-      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", benefit: "lots" }] }))
-    ).rejects.toThrow("Ticket 1: benefit must be a Fibonacci value");
+    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", benefit: "lots" }] })), /Ticket 1: benefit must be a Fibonacci value/);
   });
 
   it("accepts a UTF-8 byte order mark", async () => {
     const json = "\uFEFF" + JSON.stringify({ tickets: [{ title: "Bom" }] });
-    expect((await importJson(db, projectId, json)).imported).toBe(1);
+    assert.equal((await importJson(db, projectId, json)).imported, 1);
   });
 
   it("rejects control characters in imported titles and descriptions", async () => {
     const bad = (t: Record<string, string>) => JSON.stringify({ tickets: [t] });
-    await expect(importJson(db, projectId, bad({ title: "a\u001b[31m" }))).rejects.toThrow("Ticket 1: Ticket title must not contain control characters");
-    await expect(importJson(db, projectId, bad({ title: "ok", description: "a\u001b[31m" }))).rejects.toThrow("control characters");
+    await assert.rejects(importJson(db, projectId, bad({ title: "a\u001b[31m" })), /Ticket 1: Ticket title must not contain control characters/);
+    await assert.rejects(importJson(db, projectId, bad({ title: "ok", description: "a\u001b[31m" })), /control characters/);
   });
 });

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -36,39 +37,39 @@ describe("tag assignment", () => {
 
   it("assigns a tag to a ticket", async () => {
     const result = await assignTag(db, ticketId, tagId);
-    expect(result).toEqual({ assigned: true, replaced: [] });
+    assert.deepEqual(result, { assigned: true, replaced: [] });
     const tags = await getTicketTags(db, ticketId);
-    expect(tags).toHaveLength(1);
-    expect(tags[0].prefix).toBe("state");
-    expect(tags[0].value).toBe("backlog");
+    assert.equal(tags.length, 1);
+    assert.equal(tags[0].prefix, "state");
+    assert.equal(tags[0].value, "backlog");
   });
 
   it("is idempotent when assigning the same tag twice", async () => {
     await assignTag(db, ticketId, tagId);
     const second = await assignTag(db, ticketId, tagId);
-    expect(second.assigned).toBe(false);
+    assert.equal(second.assigned, false);
     const tags = await getTicketTags(db, ticketId);
-    expect(tags).toHaveLength(1);
+    assert.equal(tags.length, 1);
   });
 
   it("does not create duplicate audit entries on idempotent assign", async () => {
     await assignTag(db, ticketId, tagId);
     await assignTag(db, ticketId, tagId);
     const log = await getTagChangeLog(db, ticketId);
-    expect(log).toHaveLength(1);
+    assert.equal(log.length, 1);
   });
 
   it("removes a tag from a ticket", async () => {
     await assignTag(db, ticketId, tagId);
     const removed = await removeTag(db, ticketId, tagId);
-    expect(removed).toBe(true);
+    assert.equal(removed, true);
     const tags = await getTicketTags(db, ticketId);
-    expect(tags).toHaveLength(0);
+    assert.equal(tags.length, 0);
   });
 
   it("returns false when removing a tag that is not assigned", async () => {
     const removed = await removeTag(db, ticketId, tagId);
-    expect(removed).toBe(false);
+    assert.equal(removed, false);
   });
 
   it("supports multiple tags with different prefixes on one ticket", async () => {
@@ -78,7 +79,7 @@ describe("tag assignment", () => {
     await assignTag(db, ticketId, tag2.id);
     await assignTag(db, ticketId, tag3.id);
     const tags = await getTicketTags(db, ticketId);
-    expect(tags).toHaveLength(3);
+    assert.equal(tags.length, 3);
   });
 
   it("replaces existing tag with same prefix on assign", async () => {
@@ -86,22 +87,21 @@ describe("tag assignment", () => {
     await assignTag(db, ticketId, tagId); // state:backlog
     await assignTag(db, ticketId, wip.id); // state:wip replaces state:backlog
     const tags = await getTicketTags(db, ticketId);
-    expect(tags).toHaveLength(1);
-    expect(tags[0].prefix).toBe("state");
-    expect(tags[0].value).toBe("wip");
+    assert.equal(tags.length, 1);
+    assert.equal(tags[0].prefix, "state");
+    assert.equal(tags[0].value, "wip");
   });
 
   it("reports which same-prefix tag it replaced", async () => {
     const wip = await createTag(db, projectId, "state", "wip");
     await assignTag(db, ticketId, tagId); // state:backlog
-    expect(await assignTag(db, ticketId, wip.id)).toEqual({ assigned: true, replaced: ["state:backlog"] });
+    assert.deepEqual(await assignTag(db, ticketId, wip.id), { assigned: true, replaced: ["state:backlog"] });
   });
 
   it("rejects requests for two values of the same prefix", () => {
-    expect(() =>
-      assertOneValuePerPrefix([{ prefix: "feature", value: "auth" }, { prefix: "team", value: "a" }, { prefix: "feature", value: "login" }])
-    ).toThrow('Tags "feature:auth" and "feature:login" share the prefix "feature"');
-    expect(() => assertOneValuePerPrefix([{ prefix: "a", value: "x" }, { prefix: "b", value: "x" }])).not.toThrow();
+    assert.throws(() =>
+      assertOneValuePerPrefix([{ prefix: "feature", value: "auth" }, { prefix: "team", value: "a" }, { prefix: "feature", value: "login" }]), /Tags "feature:auth" and "feature:login" share the prefix "feature"/);
+    assert.doesNotThrow(() => assertOneValuePerPrefix([{ prefix: "a", value: "x" }, { prefix: "b", value: "x" }]));
   });
 
   it("logs removal of replaced same-prefix tag", async () => {
@@ -109,7 +109,7 @@ describe("tag assignment", () => {
     await assignTag(db, ticketId, tagId); // state:backlog
     await assignTag(db, ticketId, wip.id); // replaces state:backlog
     const log = await getTagChangeLog(db, ticketId);
-    expect(log.map((e) => `${e.action}:${e.prefix}:${e.value}`)).toEqual([
+    assert.deepEqual(log.map((e) => `${e.action}:${e.prefix}:${e.value}`), [
       "added:state:backlog",
       "removed:state:backlog",
       "added:state:wip",
@@ -121,8 +121,8 @@ describe("tag assignment", () => {
     await assignTag(db, ticketId, tagId);
     await assignTag(db, ticket2.id, tagId);
     const ticketIds = await listTicketsByTag(db, projectId, tagId);
-    expect(ticketIds).toContain(ticketId);
-    expect(ticketIds).toContain(ticket2.id);
+    assert.ok(ticketIds.includes(ticketId));
+    assert.ok(ticketIds.includes(ticket2.id));
   });
 });
 
@@ -156,8 +156,8 @@ describe("tag audit log", () => {
     await assignTag(db, ticketId, done.id);
 
     const log = await getTagChangeLog(db, ticketId);
-    expect(log).toHaveLength(5);
-    expect(log.map((e) => `${e.action}:${e.prefix}:${e.value}`)).toEqual([
+    assert.equal(log.length, 5);
+    assert.deepEqual(log.map((e) => `${e.action}:${e.prefix}:${e.value}`), [
       "added:state:backlog",
       "removed:state:backlog",
       "added:state:wip",
@@ -174,11 +174,9 @@ describe("tag audit log", () => {
     await assignTag(db, ticketId, wip.id); // auto-removes backlog
 
     const log = await getTagChangeLog(db, ticketId);
-    expect(log).toHaveLength(3);
+    assert.equal(log.length, 3);
     for (let i = 1; i < log.length; i++) {
-      expect(new Date(log[i - 1].changed_at).getTime()).toBeLessThanOrEqual(
-        new Date(log[i].changed_at).getTime()
-      );
+      assert.ok((new Date(log[i - 1].changed_at).getTime()) <= new Date(log[i].changed_at).getTime());
     }
   });
 });

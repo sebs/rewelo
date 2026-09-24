@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -35,11 +36,11 @@ describe("ticket revisions", () => {
     await updateTicket(db, projectId, ticket.id, { benefit: 8 });
 
     const revisions = await listRevisions(db, ticket.id);
-    expect(revisions).toHaveLength(1);
-    expect(revisions[0].benefit).toBe(3);
-    expect(revisions[0].penalty).toBe(2);
-    expect(revisions[0].estimate).toBe(5);
-    expect(revisions[0].risk).toBe(3);
+    assert.equal(revisions.length, 1);
+    assert.equal(revisions[0].benefit, 3);
+    assert.equal(revisions[0].penalty, 2);
+    assert.equal(revisions[0].estimate, 5);
+    assert.equal(revisions[0].risk, 3);
   });
 
   it("captures tag snapshot in revision", async () => {
@@ -50,7 +51,7 @@ describe("ticket revisions", () => {
     await createRevision(db, ticket);
 
     const revisions = await listRevisions(db, ticket.id);
-    expect(revisions[0].tags).toEqual([{ prefix: "state", value: "backlog" }]);
+    assert.deepEqual(revisions[0].tags, [{ prefix: "state", value: "backlog" }]);
   });
 
   it("creates multiple revisions in order", async () => {
@@ -71,9 +72,9 @@ describe("ticket revisions", () => {
     await updateTicket(db, projectId, ticket.id, { benefit: 8 });
 
     const revisions = await listRevisions(db, ticket.id);
-    expect(revisions).toHaveLength(2);
-    expect(revisions[0].benefit).toBe(3);
-    expect(revisions[1].benefit).toBe(5);
+    assert.equal(revisions.length, 2);
+    assert.equal(revisions[0].benefit, 3);
+    assert.equal(revisions[1].benefit, 5);
   });
 
   it("stores previous title in revision", async () => {
@@ -82,6 +83,6 @@ describe("ticket revisions", () => {
     await updateTicket(db, projectId, ticket.id, { title: "Login page v2" });
 
     const revisions = await listRevisions(db, ticket.id);
-    expect(revisions[0].title).toBe("Login page");
+    assert.equal(revisions[0].title, "Login page");
   });
 });

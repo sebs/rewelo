@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject, listProjects, getProjectByName } from "../../src/projects/repository.js";
@@ -40,7 +41,7 @@ describe("SQL injection prevention", () => {
     }
     // Original project must still exist, tables must be intact
     const projects = await listProjects(db);
-    expect(projects.some((p) => p.name === "TestProject")).toBe(true);
+    assert.equal(projects.some((p) => p.name === "TestProject"), true);
   });
 
   it("ticket title with SQL injection produces no side effects", async () => {
@@ -53,13 +54,13 @@ describe("SQL injection prevention", () => {
     }
     const tickets = await listTickets(db, projectId);
     // No tickets should have caused table drops
-    expect(tickets).toBeDefined();
+    assert.notEqual(tickets, undefined);
   });
 
   it("ticket lookup with SQL injection returns nothing", async () => {
     for (const payload of sqlPayloads) {
       const result = await getTicketByTitle(db, projectId, payload);
-      expect(result).toBeUndefined();
+      assert.equal(result, undefined);
     }
   });
 
@@ -74,20 +75,20 @@ describe("SQL injection prevention", () => {
     }
     // Tables are intact
     const projects = await listProjects(db);
-    expect(projects.length).toBeGreaterThan(0);
+    assert.ok(projects.length > 0);
   });
 
   it("getProjectByName with SQL injection returns nothing", async () => {
     for (const payload of sqlPayloads) {
       const result = await getProjectByName(db, payload);
-      expect(result).toBeUndefined();
+      assert.equal(result, undefined);
     }
   });
 
   it("getTag with SQL injection returns nothing", async () => {
     for (const payload of sqlPayloads) {
       const result = await getTag(db, projectId, payload, payload);
-      expect(result).toBeUndefined();
+      assert.equal(result, undefined);
     }
   });
 });

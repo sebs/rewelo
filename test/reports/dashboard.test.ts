@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -23,11 +24,11 @@ describe("dashboard report", () => {
 
   it("renders a self-contained HTML document for an empty project", async () => {
     const html = await renderDashboard(db, projectId, "DashTest");
-    expect(html).toContain("<!doctype html>");
-    expect(html).toContain("DashTest");
+    assert.ok(html.includes("<!doctype html>"));
+    assert.ok(html.includes("DashTest"));
     // No external assets (fully self-contained).
-    expect(html).not.toMatch(/src=|href=|<script/i);
-    expect(html).toContain("No tickets yet.");
+    assert.doesNotMatch(html, /src=|href=|<script/i);
+    assert.ok(html.includes("No tickets yet."));
   });
 
   it("includes ticket rows sorted by priority and the relationships", async () => {
@@ -36,17 +37,17 @@ describe("dashboard report", () => {
     await createRelation(db, projectId, high.id, low.id, "blocks");
 
     const html = await renderDashboard(db, projectId, "DashTest");
-    expect(html).toContain("Quick win");
-    expect(html).toContain("Low ROI");
+    assert.ok(html.includes("Quick win"));
+    assert.ok(html.includes("Low ROI"));
     // Highest-priority ticket appears before the lower one.
-    expect(html.indexOf("Quick win")).toBeLessThan(html.indexOf("Low ROI"));
-    expect(html).toContain("blocks");
+    assert.ok(html.indexOf("Quick win") < html.indexOf("Low ROI"));
+    assert.ok(html.includes("blocks"));
   });
 
   it("escapes HTML in ticket titles", async () => {
     await createTicket(db, { projectId, title: "<b>xss</b>", benefit: 2, penalty: 1, estimate: 1, risk: 1 });
     const html = await renderDashboard(db, projectId, "DashTest");
-    expect(html).toContain("&lt;b&gt;xss&lt;/b&gt;");
-    expect(html).not.toContain("<b>xss</b>");
+    assert.ok(html.includes("&lt;b&gt;xss&lt;/b&gt;"));
+    assert.ok(!html.includes("<b>xss</b>"));
   });
 });

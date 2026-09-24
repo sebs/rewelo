@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -41,16 +42,16 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketA, ticketB, "blocks");
     const relA = await listRelations(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relA.some((r) => r.relation_type === "blocks" && r.ticket_id === ticketB)).toBe(true);
-    expect(relB.some((r) => r.relation_type === "is-blocked-by" && r.ticket_id === ticketA)).toBe(true);
+    assert.equal(relA.some((r) => r.relation_type === "blocks" && r.ticket_id === ticketB), true);
+    assert.equal(relB.some((r) => r.relation_type === "is-blocked-by" && r.ticket_id === ticketA), true);
   });
 
   it("creates depends-on / is-depended-on-by", async () => {
     await createRelation(db, projectId, ticketB, ticketA, "depends-on");
     const relB = await listRelations(db, projectId, ticketB);
     const relA = await listRelations(db, projectId, ticketA);
-    expect(relB.some((r) => r.relation_type === "depends-on")).toBe(true);
-    expect(relA.some((r) => r.relation_type === "is-depended-on-by")).toBe(true);
+    assert.equal(relB.some((r) => r.relation_type === "depends-on"), true);
+    assert.equal(relA.some((r) => r.relation_type === "is-depended-on-by"), true);
   });
 
   // -- Logical / Semantic --
@@ -59,24 +60,24 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketA, ticketB, "relates-to");
     const relA = await listRelations(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relA.some((r) => r.relation_type === "relates-to" && r.ticket_id === ticketB)).toBe(true);
-    expect(relB.some((r) => r.relation_type === "relates-to" && r.ticket_id === ticketA)).toBe(true);
+    assert.equal(relA.some((r) => r.relation_type === "relates-to" && r.ticket_id === ticketB), true);
+    assert.equal(relB.some((r) => r.relation_type === "relates-to" && r.ticket_id === ticketA), true);
   });
 
   it("creates duplicates / is-duplicated-by", async () => {
     await createRelation(db, projectId, ticketC, ticketB, "duplicates");
     const relC = await listRelations(db, projectId, ticketC);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relC.some((r) => r.relation_type === "duplicates")).toBe(true);
-    expect(relB.some((r) => r.relation_type === "is-duplicated-by")).toBe(true);
+    assert.equal(relC.some((r) => r.relation_type === "duplicates"), true);
+    assert.equal(relB.some((r) => r.relation_type === "is-duplicated-by"), true);
   });
 
   it("creates supersedes / is-superseded-by", async () => {
     await createRelation(db, projectId, ticketC, ticketB, "supersedes");
     const relC = await listRelations(db, projectId, ticketC);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relC.some((r) => r.relation_type === "supersedes")).toBe(true);
-    expect(relB.some((r) => r.relation_type === "is-superseded-by")).toBe(true);
+    assert.equal(relC.some((r) => r.relation_type === "supersedes"), true);
+    assert.equal(relB.some((r) => r.relation_type === "is-superseded-by"), true);
   });
 
   // -- Temporal --
@@ -85,8 +86,8 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketA, ticketB, "precedes");
     const relA = await listRelations(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relA.some((r) => r.relation_type === "precedes")).toBe(true);
-    expect(relB.some((r) => r.relation_type === "follows")).toBe(true);
+    assert.equal(relA.some((r) => r.relation_type === "precedes"), true);
+    assert.equal(relB.some((r) => r.relation_type === "follows"), true);
   });
 
   // -- Scope / Verification --
@@ -95,20 +96,20 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketC, ticketA, "tests");
     const relC = await listRelations(db, projectId, ticketC);
     const relA = await listRelations(db, projectId, ticketA);
-    expect(relC.some((r) => r.relation_type === "tests")).toBe(true);
-    expect(relA.some((r) => r.relation_type === "is-tested-by")).toBe(true);
+    assert.equal(relC.some((r) => r.relation_type === "tests"), true);
+    assert.equal(relA.some((r) => r.relation_type === "is-tested-by"), true);
   });
 
   it("creates implements / is-implemented-by", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "implements");
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relB.some((r) => r.relation_type === "is-implemented-by")).toBe(true);
+    assert.equal(relB.some((r) => r.relation_type === "is-implemented-by"), true);
   });
 
   it("creates addresses / is-addressed-by", async () => {
     await createRelation(db, projectId, ticketB, ticketA, "addresses");
     const relA = await listRelations(db, projectId, ticketA);
-    expect(relA.some((r) => r.relation_type === "is-addressed-by")).toBe(true);
+    assert.equal(relA.some((r) => r.relation_type === "is-addressed-by"), true);
   });
 
   // -- Effort / Scope --
@@ -117,8 +118,8 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketA, ticketB, "splits-into");
     const relA = await listRelations(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relA.some((r) => r.relation_type === "splits-into")).toBe(true);
-    expect(relB.some((r) => r.relation_type === "is-split-from")).toBe(true);
+    assert.equal(relA.some((r) => r.relation_type === "splits-into"), true);
+    assert.equal(relB.some((r) => r.relation_type === "is-split-from"), true);
   });
 
   // -- Knowledge / Reference --
@@ -127,37 +128,31 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketA, ticketB, "informs");
     const relA = await listRelations(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relA.some((r) => r.relation_type === "informs")).toBe(true);
-    expect(relB.some((r) => r.relation_type === "is-informed-by")).toBe(true);
+    assert.equal(relA.some((r) => r.relation_type === "informs"), true);
+    assert.equal(relB.some((r) => r.relation_type === "is-informed-by"), true);
   });
 
   it("creates see-also (symmetric)", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "see-also");
     const relA = await listRelations(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relA.some((r) => r.relation_type === "see-also" && r.ticket_id === ticketB)).toBe(true);
-    expect(relB.some((r) => r.relation_type === "see-also" && r.ticket_id === ticketA)).toBe(true);
+    assert.equal(relA.some((r) => r.relation_type === "see-also" && r.ticket_id === ticketB), true);
+    assert.equal(relB.some((r) => r.relation_type === "see-also" && r.ticket_id === ticketA), true);
   });
 
   // -- Guard rails --
 
   it("rejects self-relation", async () => {
-    await expect(createRelation(db, projectId, ticketA, ticketA, "blocks")).rejects.toThrow(
-      "cannot relate to itself"
-    );
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketA, "blocks"), /cannot relate to itself/);
   });
 
   it("rejects duplicate relation", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "blocks");
-    await expect(createRelation(db, projectId, ticketA, ticketB, "blocks")).rejects.toThrow(
-      "already exists"
-    );
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "blocks"), /already exists/);
   });
 
   it("rejects unknown relation type", async () => {
-    await expect(createRelation(db, projectId, ticketA, ticketB, "banana")).rejects.toThrow(
-      "Unknown relation type"
-    );
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "banana"), /Unknown relation type/);
   });
 
   it("deleting a ticket removes all its relations", async () => {
@@ -166,8 +161,8 @@ describe("relations repository", () => {
     await deleteTicket(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
     const relC = await listRelations(db, projectId, ticketC);
-    expect(relB).toHaveLength(0);
-    expect(relC).toHaveLength(0);
+    assert.equal(relB.length, 0);
+    assert.equal(relC.length, 0);
   });
 
   it("removes a relation and its inverse", async () => {
@@ -175,8 +170,8 @@ describe("relations repository", () => {
     await removeRelation(db, projectId, ticketA, ticketB, "blocks");
     const relA = await listRelations(db, projectId, ticketA);
     const relB = await listRelations(db, projectId, ticketB);
-    expect(relA).toHaveLength(0);
-    expect(relB).toHaveLength(0);
+    assert.equal(relA.length, 0);
+    assert.equal(relB.length, 0);
   });
 
   it("lists correct count of relations", async () => {
@@ -186,35 +181,33 @@ describe("relations repository", () => {
     // outgoing: blocks ticketB, precedes ticketC = 2 outgoing
     // But we also stored inverse rows that reference ticketA, so those show as incoming
     // For ticketA: outgoing blocks, outgoing precedes = 2
-    expect(relA.filter((r) => r.direction === "outgoing")).toHaveLength(2);
+    assert.equal((relA.filter((r) => r.direction === "outgoing")).length, 2);
   });
 
   // -- Symmetric dedup --
 
   it("symmetric relation (A,B) and (B,A) are the same", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "relates-to");
-    await expect(createRelation(db, projectId, ticketB, ticketA, "relates-to")).rejects.toThrow(
-      "already exists"
-    );
+    await assert.rejects(createRelation(db, projectId, ticketB, ticketA, "relates-to"), /already exists/);
   });
 
   it("lists each asymmetric relation once project-wide", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "blocks");
     const all = await listProjectRelations(db, projectId);
-    expect(all.map((r) => [r.source_id, r.relation_type, r.target_id])).toEqual([[ticketA, "blocks", ticketB]]);
+    assert.deepEqual(all.map((r) => [r.source_id, r.relation_type, r.target_id]), [[ticketA, "blocks", ticketB]]);
   });
 
   it("accepts the inverse name it lists when removing", async () => {
     await createRelation(db, projectId, ticketA, ticketB, "blocks");
     await removeRelation(db, projectId, ticketB, ticketA, "is-blocked-by");
-    expect(await listRelations(db, projectId, ticketA)).toHaveLength(0);
-    expect(await listRelations(db, projectId, ticketB)).toHaveLength(0);
+    assert.equal((await listRelations(db, projectId, ticketA)).length, 0);
+    assert.equal((await listRelations(db, projectId, ticketB)).length, 0);
   });
 
   it("accepts inverse names when creating, as the forward relation", async () => {
     await createRelation(db, projectId, ticketB, ticketA, "is-blocked-by");
     const all = await listProjectRelations(db, projectId);
-    expect(all.map((r) => [r.source_id, r.relation_type, r.target_id])).toEqual([[ticketA, "blocks", ticketB]]);
-    await expect(createRelation(db, projectId, ticketA, ticketB, "blocks")).rejects.toThrow("already exists");
+    assert.deepEqual(all.map((r) => [r.source_id, r.relation_type, r.target_id]), [[ticketA, "blocks", ticketB]]);
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "blocks"), /already exists/);
   });
 });

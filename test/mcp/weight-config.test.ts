@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
 
@@ -30,10 +31,10 @@ describe("MCP weight configuration tools", () => {
       arguments: { project: "Acme" },
     });
     const config = JSON.parse((result.content as any)[0].text);
-    expect(config.w1).toBe(1.5);
-    expect(config.w2).toBe(1.5);
-    expect(config.w3).toBe(1.5);
-    expect(config.w4).toBe(1.5);
+    assert.equal(config.w1, 1.5);
+    assert.equal(config.w2, 1.5);
+    assert.equal(config.w3, 1.5);
+    assert.equal(config.w4, 1.5);
   });
 
   it("weight_set persists custom weights", async () => {
@@ -46,10 +47,10 @@ describe("MCP weight configuration tools", () => {
       arguments: { project: "Acme" },
     });
     const config = JSON.parse((result.content as any)[0].text);
-    expect(config.w1).toBe(3.0);
-    expect(config.w2).toBe(1.0);
-    expect(config.w3).toBe(1.5);
-    expect(config.w4).toBe(2.0);
+    assert.equal(config.w1, 3.0);
+    assert.equal(config.w2, 1.0);
+    assert.equal(config.w3, 1.5);
+    assert.equal(config.w4, 2.0);
   });
 
   it("weight_set only changes provided weights", async () => {
@@ -62,8 +63,8 @@ describe("MCP weight configuration tools", () => {
       arguments: { project: "Acme" },
     });
     const config = JSON.parse((result.content as any)[0].text);
-    expect(config.w1).toBe(3.0);
-    expect(config.w2).toBe(1.5);
+    assert.equal(config.w1, 3.0);
+    assert.equal(config.w2, 1.5);
   });
 
   it("weight_set rejects negative weights", async () => {
@@ -71,7 +72,7 @@ describe("MCP weight configuration tools", () => {
       name: "weight_set",
       arguments: { project: "Acme", w1: -1.0 },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("weight_set allows zero weight", async () => {
@@ -79,13 +80,13 @@ describe("MCP weight configuration tools", () => {
       name: "weight_set",
       arguments: { project: "Acme", w2: 0 },
     });
-    expect(result.isError).toBeFalsy();
+    assert.ok(!result.isError);
     const get = await client.callTool({
       name: "weight_get",
       arguments: { project: "Acme" },
     });
     const config = JSON.parse((get.content as any)[0].text);
-    expect(config.w2).toBe(0);
+    assert.equal(config.w2, 0);
   });
 
   it("weight_reset restores defaults", async () => {
@@ -102,10 +103,10 @@ describe("MCP weight configuration tools", () => {
       arguments: { project: "Acme" },
     });
     const config = JSON.parse((result.content as any)[0].text);
-    expect(config.w1).toBe(1.5);
-    expect(config.w2).toBe(1.5);
-    expect(config.w3).toBe(1.5);
-    expect(config.w4).toBe(1.5);
+    assert.equal(config.w1, 1.5);
+    assert.equal(config.w2, 1.5);
+    assert.equal(config.w3, 1.5);
+    assert.equal(config.w4, 1.5);
   });
 
   it("weights are scoped per project", async () => {
@@ -119,7 +120,7 @@ describe("MCP weight configuration tools", () => {
       arguments: { project: "Globex" },
     });
     const config = JSON.parse((result.content as any)[0].text);
-    expect(config.w1).toBe(1.5);
+    assert.equal(config.w1, 1.5);
   });
 
   it("weight_get returns error for non-existent project", async () => {
@@ -127,7 +128,7 @@ describe("MCP weight configuration tools", () => {
       name: "weight_get",
       arguments: { project: "NoSuchProject" },
     });
-    expect(result.isError).toBe(true);
+    assert.equal(result.isError, true);
   });
 
   it("calc_priority validates inline weights like weight_set", async () => {
@@ -136,13 +137,13 @@ describe("MCP weight configuration tools", () => {
       client.callTool({ name: "calc_priority", arguments: { project: "Acme", ...args } });
 
     const negative = await call({ w1: -5 });
-    expect(negative.isError).toBe(true);
-    expect((negative.content as any)[0].text).toContain("Weight w1 must be a non-negative number");
+    assert.equal(negative.isError, true);
+    assert.ok(((negative.content as any)[0].text).includes("Weight w1 must be a non-negative number"));
 
     const huge = await call({ w1: 1e308 });
-    expect(huge.isError).toBe(true);
-    expect((huge.content as any)[0].text).toContain("must not exceed 100");
+    assert.equal(huge.isError, true);
+    assert.ok(((huge.content as any)[0].text).includes("must not exceed 100"));
 
-    expect((await call({ w1: 3 })).isError).toBeFalsy();
+    assert.ok(!((await call({ w1: 3 })).isError));
   });
 });

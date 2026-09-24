@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -25,8 +26,8 @@ describe("CSV export", () => {
   it("exports empty project as headers only", async () => {
     const csv = await exportCsv(db, projectId);
     const lines = csv.trim().split("\n");
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain("title");
+    assert.equal(lines.length, 1);
+    assert.ok(lines[0].includes("title"));
   });
 
   it("exports tickets with tags", async () => {
@@ -36,9 +37,9 @@ describe("CSV export", () => {
 
     const csv = await exportCsv(db, projectId);
     const lines = csv.trim().split("\n");
-    expect(lines).toHaveLength(2);
-    expect(lines[1]).toContain("Login");
-    expect(lines[1]).toContain("state:backlog");
+    assert.equal(lines.length, 2);
+    assert.ok(lines[1].includes("Login"));
+    assert.ok(lines[1].includes("state:backlog"));
   });
 
   it("includes calculation columns with --with-calculations", async () => {
@@ -46,18 +47,18 @@ describe("CSV export", () => {
 
     const csv = await exportCsv(db, projectId, { withCalculations: true });
     const lines = csv.trim().split("\n");
-    expect(lines[0]).toContain("value");
-    expect(lines[0]).toContain("cost");
-    expect(lines[0]).toContain("priority");
+    assert.ok(lines[0].includes("value"));
+    assert.ok(lines[0].includes("cost"));
+    assert.ok(lines[0].includes("priority"));
     // value = 8+3=11, cost = 5+2=7, priority = 11/7 ≈ 1.57
-    expect(lines[1]).toContain("11");
-    expect(lines[1]).toContain("7");
-    expect(lines[1]).toContain("1.57");
+    assert.ok(lines[1].includes("11"));
+    assert.ok(lines[1].includes("7"));
+    assert.ok(lines[1].includes("1.57"));
   });
 
   it("escapes CSV fields with commas", async () => {
     await createTicket(db, { projectId, title: "Login, Signup" });
     const csv = await exportCsv(db, projectId);
-    expect(csv).toContain('"Login, Signup"');
+    assert.ok(csv.includes('"Login, Signup"'));
   });
 });

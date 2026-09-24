@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,44 +22,42 @@ describe("global output flags (CLI)", () => {
   });
 
   it("--csv turns every table into CSV", () => {
-    expect(rw("--csv", "project", "list").stdout.split("\n")[0]).toBe("Name,UUID,Created");
+    assert.equal(rw("--csv", "project", "list").stdout.split("\n")[0], "Name,UUID,Created");
     rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "A, with comma");
-    expect(rw("--csv", "tag", "list", "--project", "P").stdout).toBe("prefix,value\nstate,wip\n");
-    expect(rw("--csv", "tag", "log", "--project", "P", "--ticket", "A, with comma").stdout).not.toContain(" | ");
+    assert.equal(rw("--csv", "tag", "list", "--project", "P").stdout, "prefix,value\nstate,wip\n");
+    assert.ok(!rw("--csv", "tag", "log", "--project", "P", "--ticket", "A, with comma").stdout.includes(" | "));
     const priority = rw("--csv", "calc", "priority", "--project", "P").stdout;
-    expect(priority).toContain('"A, with comma",');
-    expect(priority).not.toContain(" | ");
+    assert.ok(priority.includes('"A, with comma",'));
+    assert.ok(!priority.includes(" | "));
   });
 
   it("--json is honoured by delete and assign commands", () => {
     rw("ticket", "create", "--project", "P", "--title", "B");
-    expect(JSON.parse(rw("--json", "tag", "assign", "state:wip", "--project", "P", "--ticket", "B").stdout)).toEqual([
+    assert.deepEqual(JSON.parse(rw("--json", "tag", "assign", "state:wip", "--project", "P", "--ticket", "B").stdout), [
       { ticket: "B", tag: "state:wip", status: "assigned" },
     ]);
-    expect(JSON.parse(rw("--json", "ticket", "delete", "--project", "P", "--title", "B").stdout)).toEqual({
+    assert.deepEqual(JSON.parse(rw("--json", "ticket", "delete", "--project", "P", "--title", "B").stdout), {
       deleted: true,
       title: "B",
     });
-    expect(JSON.parse(rw("--json", "project", "delete", "P", "--force").stdout)).toEqual({ deleted: true, name: "P" });
+    assert.deepEqual(JSON.parse(rw("--json", "project", "delete", "P", "--force").stdout), { deleted: true, name: "P" });
   });
 
   it("--quiet is honoured by ticket upsert and config weights", () => {
-    expect(rw("--quiet", "ticket", "upsert", "--project", "P", "--title", "U").stdout.trim()).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-    );
-    expect(rw("--quiet", "config", "weights", "--project", "P", "--set", "--w1", "2").stdout).toBe("");
-    expect(rw("--quiet", "config", "weights", "--project", "P", "--reset").stdout).toBe("");
+    assert.match(rw("--quiet", "ticket", "upsert", "--project", "P", "--title", "U").stdout.trim(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.equal(rw("--quiet", "config", "weights", "--project", "P", "--set", "--w1", "2").stdout, "");
+    assert.equal(rw("--quiet", "config", "weights", "--project", "P", "--reset").stdout, "");
   });
 
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
-    expect(missing.code).toBe(1);
-    expect(missing.stderr).toContain('Project "Nope" not found');
+    assert.equal(missing.code, 1);
+    assert.ok(missing.stderr.includes('Project "Nope" not found'));
 
     const noTty = rw("project", "delete", "P");
-    expect(noTty.code).toBe(1);
-    expect(noTty.stderr).toContain("pass --force");
-    expect(rw("project", "list").stdout).toContain("P");
+    assert.equal(noTty.code, 1);
+    assert.ok(noTty.stderr.includes("pass --force"));
+    assert.ok(rw("project", "list").stdout.includes("P"));
   });
 
   it("aligns table columns by display width and right-aligns numbers", () => {
@@ -75,15 +74,15 @@ describe("global output flags (CLI)", () => {
       }
       return cols.join(",");
     };
-    expect(new Set(lines.map(pipes)).size).toBe(1);
+    assert.equal(new Set(lines.map(pipes)).size, 1);
     // Numeric columns are right-aligned: " 1 |" rather than "1  |" under "B "
     const row = lines.find((l) => l.startsWith("A, with comma"))!;
-    expect(row).toMatch(/\|  1 \|/);
+    assert.match(row, /\|  1 \|/);
   });
 
   it("treats an empty RW_DB_PATH as unset", () => {
     const r = runCli(["project", "create", "Default"], { cwd: dir, env: { RW_DB_PATH: "" } });
-    expect(r.code, r.stderr).toBe(0);
-    expect(existsSync(join(dir, "relative-weight.db"))).toBe(true);
+    assert.equal(r.code, 0, r.stderr);
+    assert.equal(existsSync(join(dir, "relative-weight.db")), true);
   });
 });

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -25,8 +26,8 @@ describe("JSON export", () => {
 
   it("exports empty project", async () => {
     const data = await exportJson(db, projectId);
-    expect(data.tickets).toHaveLength(0);
-    expect(data.tags).toHaveLength(0);
+    assert.equal(data.tickets.length, 0);
+    assert.equal(data.tags.length, 0);
   });
 
   it("exports tickets and tags", async () => {
@@ -35,10 +36,10 @@ describe("JSON export", () => {
     await assignTag(db, ticket.id, tag.id);
 
     const data = await exportJson(db, projectId);
-    expect(data.tickets).toHaveLength(1);
-    expect(data.tickets[0].title).toBe("Feature X");
-    expect(data.tickets[0].tags).toEqual([{ prefix: "feature", value: "auth" }]);
-    expect(data.tags).toEqual([{ prefix: "feature", value: "auth" }]);
+    assert.equal(data.tickets.length, 1);
+    assert.equal(data.tickets[0].title, "Feature X");
+    assert.deepEqual(data.tickets[0].tags, [{ prefix: "feature", value: "auth" }]);
+    assert.deepEqual(data.tags, [{ prefix: "feature", value: "auth" }]);
   });
 
   it("includes history when requested", async () => {
@@ -46,8 +47,8 @@ describe("JSON export", () => {
     await updateTicket(db, projectId, ticket.id, { benefit: 8 });
 
     const data = await exportJson(db, projectId, { withHistory: true });
-    expect(data.tickets[0].revisions).toBeDefined();
-    expect(data.tickets[0].revisions!.length).toBe(1);
+    assert.notEqual(data.tickets[0].revisions, undefined);
+    assert.equal(data.tickets[0].revisions!.length, 1);
   });
 
   it("does not include history by default", async () => {
@@ -55,7 +56,7 @@ describe("JSON export", () => {
     await createRevision(db, ticket);
 
     const data = await exportJson(db, projectId);
-    expect(data.tickets[0].revisions).toBeUndefined();
+    assert.equal(data.tickets[0].revisions, undefined);
   });
 
   it("is project-scoped", async () => {
@@ -64,7 +65,7 @@ describe("JSON export", () => {
     await createTicket(db, { projectId: project2.id, title: "B" });
 
     const data = await exportJson(db, projectId);
-    expect(data.tickets).toHaveLength(1);
-    expect(data.tickets[0].title).toBe("A");
+    assert.equal(data.tickets.length, 1);
+    assert.equal(data.tickets[0].title, "A");
   });
 });

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -31,12 +32,12 @@ describe("tickets repository", () => {
       projectId,
       title: "Login page",
     });
-    expect(ticket.title).toBe("Login page");
-    expect(ticket.benefit).toBe(1);
-    expect(ticket.penalty).toBe(1);
-    expect(ticket.estimate).toBe(1);
-    expect(ticket.risk).toBe(1);
-    expect(ticket.ticket_uuid).toBeDefined();
+    assert.equal(ticket.title, "Login page");
+    assert.equal(ticket.benefit, 1);
+    assert.equal(ticket.penalty, 1);
+    assert.equal(ticket.estimate, 1);
+    assert.equal(ticket.risk, 1);
+    assert.notEqual(ticket.ticket_uuid, undefined);
   });
 
   it("creates a ticket with explicit scores", async () => {
@@ -48,41 +49,39 @@ describe("tickets repository", () => {
       estimate: 3,
       risk: 2,
     });
-    expect(ticket.benefit).toBe(8);
-    expect(ticket.penalty).toBe(5);
-    expect(ticket.estimate).toBe(3);
-    expect(ticket.risk).toBe(2);
+    assert.equal(ticket.benefit, 8);
+    assert.equal(ticket.penalty, 5);
+    assert.equal(ticket.estimate, 3);
+    assert.equal(ticket.risk, 2);
   });
 
   it("rejects invalid Fibonacci values", async () => {
-    await expect(
-      createTicket(db, { projectId, title: "Bad", benefit: 4 })
-    ).rejects.toThrow("benefit must be a Fibonacci value");
+    await assert.rejects(createTicket(db, { projectId, title: "Bad", benefit: 4 }), /benefit must be a Fibonacci value/);
   });
 
-  it.each([0, 4, 6, 10, 15])("rejects benefit=%d", async (value) => {
-    await expect(
-      createTicket(db, { projectId, title: "Bad", benefit: value })
-    ).rejects.toThrow("benefit must be a Fibonacci value");
-  });
+  for (const value of [0, 4, 6, 10, 15]) {
+    it(`rejects benefit=${value}`, async () => {
+      await assert.rejects(createTicket(db, { projectId, title: "Bad", benefit: value }), /benefit must be a Fibonacci value/);
+    });
+  }
 
   it("lists tickets in a project", async () => {
     await createTicket(db, { projectId, title: "Story A" });
     await createTicket(db, { projectId, title: "Story B" });
     const tickets = await listTickets(db, projectId);
-    expect(tickets).toHaveLength(2);
+    assert.equal(tickets.length, 2);
   });
 
   it("gets a ticket by title", async () => {
     await createTicket(db, { projectId, title: "Login page" });
     const ticket = await getTicketByTitle(db, projectId, "Login page");
-    expect(ticket).toBeDefined();
-    expect(ticket!.title).toBe("Login page");
+    assert.notEqual(ticket, undefined);
+    assert.equal(ticket!.title, "Login page");
   });
 
   it("returns undefined for non-existent ticket", async () => {
     const ticket = await getTicketByTitle(db, projectId, "No such ticket");
-    expect(ticket).toBeUndefined();
+    assert.equal(ticket, undefined);
   });
 
   it("updates a ticket's scores", async () => {
@@ -100,10 +99,10 @@ describe("tickets repository", () => {
       estimate: 3,
       risk: 2,
     });
-    expect(updated.benefit).toBe(8);
-    expect(updated.penalty).toBe(5);
-    expect(updated.estimate).toBe(3);
-    expect(updated.risk).toBe(2);
+    assert.equal(updated.benefit, 8);
+    assert.equal(updated.penalty, 5);
+    assert.equal(updated.estimate, 3);
+    assert.equal(updated.risk, 2);
   });
 
   it("updates only specified fields", async () => {
@@ -118,30 +117,28 @@ describe("tickets repository", () => {
     const updated = await updateTicket(db, projectId, created.id, {
       benefit: 13,
     });
-    expect(updated.benefit).toBe(13);
-    expect(updated.penalty).toBe(2);
-    expect(updated.estimate).toBe(5);
-    expect(updated.risk).toBe(3);
+    assert.equal(updated.benefit, 13);
+    assert.equal(updated.penalty, 2);
+    assert.equal(updated.estimate, 5);
+    assert.equal(updated.risk, 3);
   });
 
   it("rejects invalid Fibonacci on update", async () => {
     const created = await createTicket(db, { projectId, title: "Login page" });
-    await expect(
-      updateTicket(db, projectId, created.id, { benefit: 4 })
-    ).rejects.toThrow("benefit must be a Fibonacci value");
+    await assert.rejects(updateTicket(db, projectId, created.id, { benefit: 4 }), /benefit must be a Fibonacci value/);
   });
 
   it("deletes a ticket", async () => {
     const created = await createTicket(db, { projectId, title: "Login page" });
     const deleted = await deleteTicket(db, projectId, created.id);
-    expect(deleted).toBe(true);
+    assert.equal(deleted, true);
     const tickets = await listTickets(db, projectId);
-    expect(tickets).toHaveLength(0);
+    assert.equal(tickets.length, 0);
   });
 
   it("returns false when deleting non-existent ticket", async () => {
     const deleted = await deleteTicket(db, projectId, 9999);
-    expect(deleted).toBe(false);
+    assert.equal(deleted, false);
   });
 
   // =========================================================================
@@ -155,9 +152,9 @@ describe("tickets repository", () => {
       estimate: 3,
       risk: 2,
     });
-    expect(result.action).toBe("created");
-    expect(result.ticket.title).toBe("New Feature");
-    expect(result.ticket.benefit).toBe(8);
+    assert.equal(result.action, "created");
+    assert.equal(result.ticket.title, "New Feature");
+    assert.equal(result.ticket.benefit, 8);
   });
 
   it("upsert updates an existing ticket when title matches", async () => {
@@ -167,46 +164,46 @@ describe("tickets repository", () => {
       benefit: 13,
       penalty: 8,
     });
-    expect(result.action).toBe("updated");
-    expect(result.ticket.benefit).toBe(13);
-    expect(result.ticket.penalty).toBe(8);
+    assert.equal(result.action, "updated");
+    assert.equal(result.ticket.benefit, 13);
+    assert.equal(result.ticket.penalty, 8);
     // Unchanged fields preserved
-    expect(result.ticket.estimate).toBe(1);
-    expect(result.ticket.risk).toBe(1);
+    assert.equal(result.ticket.estimate, 1);
+    assert.equal(result.ticket.risk, 1);
   });
 
   it("upsert is idempotent — repeated calls with same data produce same result", async () => {
     const r1 = await upsertTicket(db, projectId, "Idempotent", { benefit: 5 });
-    expect(r1.action).toBe("created");
+    assert.equal(r1.action, "created");
 
     const r2 = await upsertTicket(db, projectId, "Idempotent", { benefit: 5 });
-    expect(r2.action).toBe("updated");
-    expect(r2.ticket.id).toBe(r1.ticket.id);
-    expect(r2.ticket.benefit).toBe(5);
+    assert.equal(r2.action, "updated");
+    assert.equal(r2.ticket.id, r1.ticket.id);
+    assert.equal(r2.ticket.benefit, 5);
 
     const tickets = await listTickets(db, projectId);
     const matches = tickets.filter((t) => t.title === "Idempotent");
-    expect(matches).toHaveLength(1);
+    assert.equal(matches.length, 1);
   });
 
   it("upsert with no scores creates ticket with defaults", async () => {
     const result = await upsertTicket(db, projectId, "Bare ticket", {});
-    expect(result.action).toBe("created");
-    expect(result.ticket.benefit).toBe(1);
-    expect(result.ticket.penalty).toBe(1);
-    expect(result.ticket.estimate).toBe(1);
-    expect(result.ticket.risk).toBe(1);
+    assert.equal(result.action, "created");
+    assert.equal(result.ticket.benefit, 1);
+    assert.equal(result.ticket.penalty, 1);
+    assert.equal(result.ticket.estimate, 1);
+    assert.equal(result.ticket.risk, 1);
   });
 
   it("upsert only updates provided fields on existing ticket", async () => {
     await createTicket(db, { projectId, title: "Partial", benefit: 13, penalty: 8, estimate: 5, risk: 3 });
 
     const result = await upsertTicket(db, projectId, "Partial", { risk: 13 });
-    expect(result.action).toBe("updated");
-    expect(result.ticket.benefit).toBe(13);
-    expect(result.ticket.penalty).toBe(8);
-    expect(result.ticket.estimate).toBe(5);
-    expect(result.ticket.risk).toBe(13);
+    assert.equal(result.action, "updated");
+    assert.equal(result.ticket.benefit, 13);
+    assert.equal(result.ticket.penalty, 8);
+    assert.equal(result.ticket.estimate, 5);
+    assert.equal(result.ticket.risk, 13);
   });
 
   it("cascades delete when project is deleted", async () => {
@@ -214,7 +211,7 @@ describe("tickets repository", () => {
     const { deleteProject } = await import("../../src/projects/repository.js");
     await deleteProject(db, "Acme");
     const tickets = await listTickets(db, projectId);
-    expect(tickets).toHaveLength(0);
+    assert.equal(tickets.length, 0);
   });
 
   it("searches titles case-insensitively beyond ASCII", async () => {
@@ -224,8 +221,8 @@ describe("tickets repository", () => {
 
     const titles = async (search: string) =>
       (await listTickets(db, projectId, { search })).map((t) => t.title);
-    expect(await titles("äpfel")).toEqual(["Äpfel kaufen"]);
-    expect(await titles("ÜBER")).toEqual(["Über uns"]);
-    expect(await titles("straße")).toEqual(["Straße"]);
+    assert.deepEqual(await titles("äpfel"), ["Äpfel kaufen"]);
+    assert.deepEqual(await titles("ÜBER"), ["Über uns"]);
+    assert.deepEqual(await titles("straße"), ["Straße"]);
   });
 });

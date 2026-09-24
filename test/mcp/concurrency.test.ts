@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -59,7 +60,7 @@ describe("MCP concurrency", () => {
     });
     await waitFor(names.map((_, i) => i + 1));
     for (let i = 1; i <= names.length; i++) {
-      expect(responses.get(i)!.result!.isError, responses.get(i)!.result!.content[0].text).toBeFalsy();
+      assert.ok(!(responses.get(i)!.result!.isError), responses.get(i)!.result!.content[0].text);
     }
 
     await clientTransport.send({
@@ -67,7 +68,7 @@ describe("MCP concurrency", () => {
     });
     await waitFor([99]);
     const projects = JSON.parse(responses.get(99)!.result!.content[0].text);
-    expect(projects.map((p: { name: string }) => p.name).sort()).toEqual(names);
+    assert.deepEqual(projects.map((p: { name: string }) => p.name).sort(), names);
   });
 
   it("keeps a concurrent call's write when a failing import rolls back", async () => {
@@ -110,12 +111,12 @@ describe("MCP concurrency", () => {
     void call(2, "import_csv", { project: "p", csv: "title\nA\nB\nA\n" });
     void call(3, "ticket_create", { project: "p", title: "Other" });
     await waitFor([2, 3]);
-    expect(responses.get(2)!.result!.isError).toBe(true);
-    expect(responses.get(3)!.result!.isError).toBeFalsy();
+    assert.equal(responses.get(2)!.result!.isError, true);
+    assert.ok(!(responses.get(3)!.result!.isError));
 
     await call(4, "ticket_list", { project: "p" });
     await waitFor([4]);
     const list = JSON.parse(responses.get(4)!.result!.content[0].text);
-    expect(list.items.map((t: { title: string }) => t.title)).toEqual(["Other"]);
+    assert.deepEqual(list.items.map((t: { title: string }) => t.title), ["Other"]);
   });
 });

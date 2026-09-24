@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
@@ -22,9 +23,9 @@ describe("distribution report", () => {
 
   it("returns all-zero counts for empty project", async () => {
     const dist = await getDistribution(db, projectId);
-    expect(dist).toHaveLength(4);
+    assert.equal(dist.length, 4);
     for (const d of dist) {
-      expect(Object.values(d.counts).every((c) => c === 0)).toBe(true);
+      assert.equal(Object.values(d.counts).every((c) => c === 0), true);
     }
   });
 
@@ -34,10 +35,10 @@ describe("distribution report", () => {
 
     const dist = await getDistribution(db, projectId);
     const benefit = dist.find((d) => d.dimension === "benefit")!;
-    expect(benefit.counts[5]).toBe(2);
-    expect(benefit.counts[1]).toBe(0);
+    assert.equal(benefit.counts[5], 2);
+    assert.equal(benefit.counts[1], 0);
 
     const risk = dist.find((d) => d.dimension === "risk")!;
-    expect(risk.counts[1]).toBe(2);
+    assert.equal(risk.counts[1], 2);
   });
 });

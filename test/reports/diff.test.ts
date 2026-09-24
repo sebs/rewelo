@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject, deleteProject } from "../../src/projects/repository.js";
@@ -25,9 +26,9 @@ describe("project diff", () => {
 
   it("returns empty diff when nothing changed", async () => {
     const diff = await getProjectDiff(db, projectId, "2099-01-01T00:00:00Z");
-    expect(diff.newTickets).toHaveLength(0);
-    expect(diff.updatedTickets).toHaveLength(0);
-    expect(diff.tagChanges).toHaveLength(0);
+    assert.equal(diff.newTickets.length, 0);
+    assert.equal(diff.updatedTickets.length, 0);
+    assert.equal(diff.tagChanges.length, 0);
   });
 
   it("detects new tickets since timestamp", async () => {
@@ -35,9 +36,9 @@ describe("project diff", () => {
     await createTicket(db, { projectId, title: "Fresh", benefit: 8, penalty: 5, estimate: 2, risk: 1 });
 
     const diff = await getProjectDiff(db, projectId, before);
-    expect(diff.newTickets).toHaveLength(1);
-    expect(diff.newTickets[0].title).toBe("Fresh");
-    expect(diff.newTickets[0].priority).toBeGreaterThan(0);
+    assert.equal(diff.newTickets.length, 1);
+    assert.equal(diff.newTickets[0].title, "Fresh");
+    assert.ok(diff.newTickets[0].priority > 0);
   });
 
   it("detects score changes via revisions", async () => {
@@ -47,12 +48,12 @@ describe("project diff", () => {
     await updateTicket(db, projectId, t.id, { benefit: 13 });
 
     const diff = await getProjectDiff(db, projectId, before);
-    expect(diff.updatedTickets).toHaveLength(1);
-    expect(diff.updatedTickets[0].title).toBe("Scored");
+    assert.equal(diff.updatedTickets.length, 1);
+    assert.equal(diff.updatedTickets[0].title, "Scored");
     const benefitChange = diff.updatedTickets[0].changes.find((c) => c.field === "benefit");
-    expect(benefitChange).toBeDefined();
-    expect(benefitChange!.from).toBe(3);
-    expect(benefitChange!.to).toBe(13);
+    assert.notEqual(benefitChange, undefined);
+    assert.equal(benefitChange!.from, 3);
+    assert.equal(benefitChange!.to, 13);
   });
 
   it("detects tag additions and removals", async () => {
@@ -63,9 +64,9 @@ describe("project diff", () => {
     await removeTag(db, t.id, tag.id);
 
     const diff = await getProjectDiff(db, projectId, before);
-    expect(diff.tagChanges).toHaveLength(1);
-    expect(diff.tagChanges[0].added).toContain("state:wip");
-    expect(diff.tagChanges[0].removed).toContain("state:wip");
+    assert.equal(diff.tagChanges.length, 1);
+    assert.ok(diff.tagChanges[0].added.includes("state:wip"));
+    assert.ok(diff.tagChanges[0].removed.includes("state:wip"));
   });
 
   it("ignores changes before the since timestamp", async () => {
@@ -74,8 +75,8 @@ describe("project diff", () => {
     await updateTicket(db, projectId, t.id, { benefit: 8 });
 
     const diff = await getProjectDiff(db, projectId, "2099-01-01T00:00:00Z");
-    expect(diff.newTickets).toHaveLength(0);
-    expect(diff.updatedTickets).toHaveLength(0);
+    assert.equal(diff.newTickets.length, 0);
+    assert.equal(diff.updatedTickets.length, 0);
   });
 
   it("collapses multiple revisions into one diff per ticket", async () => {
@@ -88,11 +89,11 @@ describe("project diff", () => {
     await updateTicket(db, projectId, t.id, { benefit: 13 });
 
     const diff = await getProjectDiff(db, projectId, before);
-    expect(diff.updatedTickets).toHaveLength(1);
+    assert.equal(diff.updatedTickets.length, 1);
     // Should diff from original (1) to current (13)
     const benefitChange = diff.updatedTickets[0].changes.find((c) => c.field === "benefit");
-    expect(benefitChange!.from).toBe(1);
-    expect(benefitChange!.to).toBe(13);
+    assert.equal(benefitChange!.from, 1);
+    assert.equal(benefitChange!.to, 13);
   });
 
   it("reports description changes", async () => {
@@ -101,7 +102,7 @@ describe("project diff", () => {
     await updateTicket(db, projectId, t.id, { description: "new" });
 
     const diff = await getProjectDiff(db, projectId, since);
-    expect(diff.updatedTickets).toEqual([
+    assert.deepEqual(diff.updatedTickets, [
       { ticketId: t.id, title: "D", changes: [{ field: "description", from: "old", to: "new" }] },
     ]);
   });
@@ -113,17 +114,17 @@ describe("project diff", () => {
     await deleteTicket(db, projectId, gone.id);
 
     const diff = await getProjectDiff(db, projectId, since);
-    expect(diff.deletedTickets).toEqual([{ id: gone.id, title: "Gone" }]);
-    expect(kept).toBeTruthy();
+    assert.deepEqual(diff.deletedTickets.map((r) => ({ ...r })), [{ id: gone.id, title: "Gone" }]);
+    assert.ok(kept);
 
     const later = await getProjectDiff(db, projectId, "2099-01-01T00:00:00Z");
-    expect(later.deletedTickets).toEqual([]);
+    assert.deepEqual(later.deletedTickets, []);
   });
 
   it("forgets deletion records when the project is deleted", async () => {
     const t = await createTicket(db, { projectId, title: "X" });
     await deleteTicket(db, projectId, t.id);
-    expect(await deleteProject(db, "Diff")).toBe(true);
-    expect(await db.all("SELECT * FROM ticket_deletions")).toEqual([]);
+    assert.equal(await deleteProject(db, "Diff"), true);
+    assert.deepEqual(await db.all("SELECT * FROM ticket_deletions"), []);
   });
 });

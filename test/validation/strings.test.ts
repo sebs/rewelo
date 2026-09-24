@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   validateProjectName,
   validateTicketTitle,
@@ -10,143 +11,143 @@ import {
 
 describe("validateProjectName", () => {
   it("accepts valid names", () => {
-    expect(validateProjectName("Acme")).toBe("Acme");
-    expect(validateProjectName("my-project")).toBe("my-project");
-    expect(validateProjectName("project_123")).toBe("project_123");
-    expect(validateProjectName("My Project")).toBe("My Project");
+    assert.equal(validateProjectName("Acme"), "Acme");
+    assert.equal(validateProjectName("my-project"), "my-project");
+    assert.equal(validateProjectName("project_123"), "project_123");
+    assert.equal(validateProjectName("My Project"), "My Project");
   });
 
   it("trims whitespace", () => {
-    expect(validateProjectName("  Acme  ")).toBe("Acme");
+    assert.equal(validateProjectName("  Acme  "), "Acme");
   });
 
   it("rejects empty names", () => {
-    expect(() => validateProjectName("")).toThrow(ValidationError);
-    expect(() => validateProjectName("  ")).toThrow(ValidationError);
+    assert.throws(() => validateProjectName(""), ValidationError);
+    assert.throws(() => validateProjectName("  "), ValidationError);
   });
 
   it("rejects null bytes", () => {
-    expect(() => validateProjectName("Acme\0Corp")).toThrow("null bytes");
+    assert.throws(() => validateProjectName("Acme\0Corp"), /null bytes/);
   });
 
   it("rejects names exceeding max length", () => {
-    expect(() => validateProjectName("a".repeat(101))).toThrow("exceed");
+    assert.throws(() => validateProjectName("a".repeat(101)), /exceed/);
   });
 
   it("rejects special characters", () => {
-    expect(() => validateProjectName("Acme; DROP TABLE")).toThrow(ValidationError);
-    expect(() => validateProjectName("project<script>")).toThrow(ValidationError);
-    expect(() => validateProjectName("../etc/passwd")).toThrow(ValidationError);
+    assert.throws(() => validateProjectName("Acme; DROP TABLE"), ValidationError);
+    assert.throws(() => validateProjectName("project<script>"), ValidationError);
+    assert.throws(() => validateProjectName("../etc/passwd"), ValidationError);
   });
 
   it("NFC normalises unicode", () => {
     // é as combining e + acute vs precomposed é - test on ticket title since project names restrict to ASCII
     const combining = "e\u0301";
     const precomposed = "\u00e9";
-    expect(validateTicketTitle(combining)).toBe(validateTicketTitle(precomposed));
+    assert.equal(validateTicketTitle(combining), validateTicketTitle(precomposed));
   });
 });
 
 describe("validateTicketTitle", () => {
   it("accepts valid titles", () => {
-    expect(validateTicketTitle("Login page")).toBe("Login page");
-    expect(validateTicketTitle("Fix bug #123")).toBe("Fix bug #123");
+    assert.equal(validateTicketTitle("Login page"), "Login page");
+    assert.equal(validateTicketTitle("Fix bug #123"), "Fix bug #123");
   });
 
   it("rejects empty titles", () => {
-    expect(() => validateTicketTitle("")).toThrow(ValidationError);
+    assert.throws(() => validateTicketTitle(""), ValidationError);
   });
 
   it("rejects null bytes", () => {
-    expect(() => validateTicketTitle("title\0bad")).toThrow("null bytes");
+    assert.throws(() => validateTicketTitle("title\0bad"), /null bytes/);
   });
 
   it("rejects titles exceeding max length", () => {
-    expect(() => validateTicketTitle("a".repeat(501))).toThrow("exceed");
+    assert.throws(() => validateTicketTitle("a".repeat(501)), /exceed/);
   });
 });
 
 describe("validateTicketDescription", () => {
   it("passes through undefined", () => {
-    expect(validateTicketDescription(undefined)).toBeUndefined();
+    assert.equal(validateTicketDescription(undefined), undefined);
   });
 
   it("accepts valid descriptions", () => {
-    expect(validateTicketDescription("Some description")).toBe("Some description");
+    assert.equal(validateTicketDescription("Some description"), "Some description");
   });
 
   it("rejects null bytes", () => {
-    expect(() => validateTicketDescription("desc\0bad")).toThrow("null bytes");
+    assert.throws(() => validateTicketDescription("desc\0bad"), /null bytes/);
   });
 
   it("rejects descriptions exceeding max length", () => {
-    expect(() => validateTicketDescription("a".repeat(10_001))).toThrow("exceed");
+    assert.throws(() => validateTicketDescription("a".repeat(10_001)), /exceed/);
   });
 });
 
 describe("validateTagPrefix", () => {
   it("accepts valid prefixes", () => {
-    expect(validateTagPrefix("state")).toBe("state");
-    expect(validateTagPrefix("feature")).toBe("feature");
-    expect(validateTagPrefix("my-prefix")).toBe("my-prefix");
+    assert.equal(validateTagPrefix("state"), "state");
+    assert.equal(validateTagPrefix("feature"), "feature");
+    assert.equal(validateTagPrefix("my-prefix"), "my-prefix");
   });
 
   it("lowercases input", () => {
-    expect(validateTagPrefix("STATE")).toBe("state");
+    assert.equal(validateTagPrefix("STATE"), "state");
   });
 
   it("rejects empty prefixes", () => {
-    expect(() => validateTagPrefix("")).toThrow(ValidationError);
+    assert.throws(() => validateTagPrefix(""), ValidationError);
   });
 
   it("rejects null bytes", () => {
-    expect(() => validateTagPrefix("state\0")).toThrow("null bytes");
+    assert.throws(() => validateTagPrefix("state\0"), /null bytes/);
   });
 
   it("rejects special characters", () => {
-    expect(() => validateTagPrefix("state:value")).toThrow(ValidationError);
-    expect(() => validateTagPrefix("my prefix")).toThrow(ValidationError);
-    expect(() => validateTagPrefix("my_prefix")).toThrow(ValidationError);
+    assert.throws(() => validateTagPrefix("state:value"), ValidationError);
+    assert.throws(() => validateTagPrefix("my prefix"), ValidationError);
+    assert.throws(() => validateTagPrefix("my_prefix"), ValidationError);
   });
 
   it("rejects prefixes exceeding max length", () => {
-    expect(() => validateTagPrefix("a".repeat(51))).toThrow("exceed");
+    assert.throws(() => validateTagPrefix("a".repeat(51)), /exceed/);
   });
 
   it("rejects SQL injection payloads", () => {
-    expect(() => validateTagPrefix("'; DROP TABLE--")).toThrow(ValidationError);
+    assert.throws(() => validateTagPrefix("'; DROP TABLE--"), ValidationError);
   });
 });
 
 describe("validateTagValue", () => {
   it("accepts valid values", () => {
-    expect(validateTagValue("backlog")).toBe("backlog");
-    expect(validateTagValue("in-progress")).toBe("in-progress");
+    assert.equal(validateTagValue("backlog"), "backlog");
+    assert.equal(validateTagValue("in-progress"), "in-progress");
   });
 
   it("lowercases input", () => {
-    expect(validateTagValue("WIP")).toBe("wip");
+    assert.equal(validateTagValue("WIP"), "wip");
   });
 
   it("rejects empty values", () => {
-    expect(() => validateTagValue("")).toThrow(ValidationError);
+    assert.throws(() => validateTagValue(""), ValidationError);
   });
 
   it("rejects values exceeding max length", () => {
-    expect(() => validateTagValue("a".repeat(101))).toThrow("exceed");
+    assert.throws(() => validateTagValue("a".repeat(101)), /exceed/);
   });
 });
 
 describe("control characters", () => {
   it("are rejected in ticket titles", () => {
-    expect(() => validateTicketTitle("esc\u001b[31mRED")).toThrow("must not contain control characters");
-    expect(() => validateTicketTitle("tab\there")).toThrow("must not contain control characters");
-    expect(() => validateTicketTitle("c1\u009bx")).toThrow("must not contain control characters");
+    assert.throws(() => validateTicketTitle("esc\u001b[31mRED"), /must not contain control characters/);
+    assert.throws(() => validateTicketTitle("tab\there"), /must not contain control characters/);
+    assert.throws(() => validateTicketTitle("c1\u009bx"), /must not contain control characters/);
   });
 
   it("are rejected in descriptions except line breaks and tabs", () => {
-    expect(validateTicketDescription("line1\nline2\r\n\tindented")).toBe("line1\nline2\r\n\tindented");
-    expect(() => validateTicketDescription("esc\u001b[31mRED")).toThrow("must not contain control characters");
+    assert.equal(validateTicketDescription("line1\nline2\r\n\tindented"), "line1\nline2\r\n\tindented");
+    assert.throws(() => validateTicketDescription("esc\u001b[31mRED"), /must not contain control characters/);
   });
 });
 
