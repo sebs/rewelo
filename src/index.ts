@@ -91,13 +91,14 @@ async function withDb<T>(
   }
 }
 
-async function withProject<T>(
-  opts: { db?: string },
-  projectName: string | undefined,
-  fn: (db: DB, project: Project) => Promise<T>
-): Promise<T> {
-  // Fall back to the "project" field of the nearest .rewelo.json when --project
-  // is omitted, matching the MCP server's behaviour.
+// Fall back to the "project" field of the nearest .rewelo.json when --project
+// is omitted, matching the MCP server's behaviour.
+function resolveProjectName(projectName: string | undefined): string {
+  // An explicit but blank --project is a mistake, not a request for the default
+  if (projectName !== undefined && projectName.trim() === "") {
+    console.error("--project must not be empty");
+    process.exit(1);
+  }
   const name = projectName ?? loadConfig().project;
   if (!name) {
     console.error(
@@ -105,6 +106,15 @@ async function withProject<T>(
     );
     process.exit(1);
   }
+  return name;
+}
+
+async function withProject<T>(
+  opts: { db?: string },
+  projectName: string | undefined,
+  fn: (db: DB, project: Project) => Promise<T>
+): Promise<T> {
+  const name = resolveProjectName(projectName);
   return withDb(opts, async (db) => {
     const project = await getProjectByName(db, name);
     if (!project) {
@@ -1144,11 +1154,7 @@ importCmd
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    const name = cmdOpts.project ?? loadConfig().project;
-    if (!name) {
-      console.error('No project specified. Pass --project or add a .rewelo.json with a "project" field.');
-      process.exit(1);
-    }
+    const name = resolveProjectName(cmdOpts.project);
     await withDb(opts, async (db) => {
       const json = readFileSync(validateImportPath(file, [".json"]), "utf-8");
       const result = await importJsonAsProject(db, name, json);

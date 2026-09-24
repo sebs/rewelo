@@ -518,4 +518,10 @@ describe("MCP server", () => {
     assert.equal(r.isError, true);
     assert.match((r.content as any)[0].text, /Invalid sort field ""/);
   });
+
+  it("rejects a blank project instead of claiming none was given", async () => {
+    const r = await client.callTool({ name: "ticket_list", arguments: { project: "" } });
+    assert.equal(r.isError, true);
+    assert.match((r.content as any)[0].text, /project must not be empty/);
+  });
 });

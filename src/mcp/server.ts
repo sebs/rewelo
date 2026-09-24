@@ -191,6 +191,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   }
 
   function resolveProject(project: string | undefined): string {
+    if (project !== undefined && project.trim() === "") throw new AppError("project must not be empty");
     if (project === undefined && configError) throw configError;
     const name = project ?? config.project;
     if (!name) throw new AppError("No project specified and no .rewelo.json config found");

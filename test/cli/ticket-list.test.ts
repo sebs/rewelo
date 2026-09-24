@@ -111,4 +111,12 @@ describe("rw ticket list (CLI)", () => {
     const summary = JSON.parse(rw("--json", "report", "summary", "--project", "P").stdout);
     assert.deepEqual(summary.topByPriority.map((r: any) => r.title), ["High", "Low"]);
   });
+
+  it("rejects a blank --project instead of claiming none was given", () => {
+    for (const project of ["", "  "]) {
+      const r = rw("ticket", "list", "--project", project);
+      assert.equal(r.code, 1);
+      assert.equal(r.stderr.trim(), "--project must not be empty");
+    }
+  });
 });
