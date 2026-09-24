@@ -209,7 +209,7 @@ Result:
 
 All tool inputs pass through the same validation layer as the CLI:
 
-- Project names: alphanumeric, hyphens, underscores, spaces (max 100 chars)
+- Project names: alphanumeric, hyphens, underscores, single spaces (max 100 chars)
 - Ticket titles: max 500 chars, no null bytes
 - Tag prefix/value: lowercase alphanumeric with hyphens only
 - Fibonacci scores enforced on all ticket score fields

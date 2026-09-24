@@ -162,3 +162,10 @@ describe("invisible and text-direction characters", () => {
     assert.equal(validateTicketTitle("Family \u{1F468}\u200D\u{1F469}\u200D\u{1F467}"), "Family \u{1F468}\u200D\u{1F469}\u200D\u{1F467}");
   });
 });
+
+describe("project name spacing", () => {
+  it("rejects consecutive spaces, which look like a single one in listings", () => {
+    assert.throws(() => validateProjectName("a  b"), /consecutive spaces/);
+    assert.equal(validateProjectName("a b"), "a b");
+  });
+});

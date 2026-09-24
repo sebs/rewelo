@@ -54,6 +54,10 @@ export function validateProjectName(name: string): string {
       "Project name must contain only alphanumeric characters, hyphens, underscores, and spaces"
     );
   }
+  // "a  b" and "a b" are indistinguishable in listings
+  if (normalized.includes("  ")) {
+    throw new ValidationError("Project name must not contain consecutive spaces");
+  }
   return normalized;
 }
 
