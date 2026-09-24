@@ -30,9 +30,11 @@ The CLI is available as `rw` (via `npm link`) or directly with `node dist/index.
 rw project create <name>
 rw project list
 rw project delete <name> [--force]
+rw project history --project <name> [--since <timestamp>] [--limit <n>]
+rw project diff --project <name> --since <timestamp>
 ```
 
-`delete` prompts for confirmation unless `--force` is passed.
+`delete` prompts for confirmation unless `--force` is passed. `history` lists the revisions of all tickets, newest first. `diff` compares the project now with its state at `--since`: new, updated and deleted tickets and net tag changes. Timestamps are ISO dates or date-times; without an offset they are read as UTC.
 
 ### ticket
 
@@ -52,7 +54,12 @@ rw ticket update --project <name> --title <title> [--new-title <title>] \
 rw ticket delete --project <name> --title <title>
 
 rw ticket history --project <name> --title <title>
+
+rw ticket upsert --project <name> --title <title> [--description <text>] \
+  [--benefit <n>] [--penalty <n>] [--estimate <n>] [--risk <n>]
 ```
+
+`upsert` creates the ticket if no ticket has that title, and updates it otherwise.
 
 Scores use the Fibonacci scale: 1, 2, 3, 5, 8, 13, 21.
 
@@ -164,6 +171,7 @@ rw import json <file> --project <name>
 rw relation create --project <name> --source <title> --type <type> --target <title>
 rw relation remove --project <name> --source <title> --type <type> --target <title>
 rw relation list --project <name> --ticket <title>
+rw relation list-all --project <name>
 ```
 
 Relation types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
@@ -177,6 +185,7 @@ rw report distribution --project <name>
 rw report health --project <name> [--threshold <n>]
 rw report times --project <name>
 rw report dashboard --project <name> --output <path>
+rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] [--limit <n>]
 ```
 
 | Report         | Description |
@@ -187,6 +196,7 @@ rw report dashboard --project <name> --output <path>
 | `health`       | High/low priority ratio, total backlog cost, done vs open counts |
 | `times`        | Lead time (created → done) and cycle time (wip → done) per ticket |
 | `dashboard`    | Self-contained static HTML dashboard: tickets by priority, score distribution, backlog health and a table of relations |
+| `event-log`    | Ticket creations, updates, deletions and tag changes: the newest first (default 50), or after `--since`/`--after`, oldest first. `--after` takes an event's `sequence` (in `--json`) and polls without missing events |
 
 `times` requires `state:wip` and `state:done` tags to be assigned to tickets.
 

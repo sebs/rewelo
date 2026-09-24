@@ -75,18 +75,20 @@ projects
 ## CLI Commands
 
 ```
-rw project create|list|delete       Manage projects
-rw ticket  create|list|update|delete|history
+rw project create|list|delete|history|diff
+                                    Manage projects, view history and changes
+rw ticket  create|list|update|upsert|delete|history
                                     Manage tickets and view revision history
 rw tag     create|assign|remove|list|rename|log
                                     Manage tags and view audit log
-rw relation create|remove|list      Ticket relations (blocks, depends-on, relates-to)
+rw relation create|remove|list|list-all
+                                    Ticket relations (blocks, depends-on, relates-to)
 rw config  weights                  View/set/reset per-project B/P/E/R weights
 rw calc    weights|priority         Relative weights and weighted priority calculations
 rw export  csv|json                 Export project data
 rw import  csv|json                 Import project data
-rw report  summary|group|distribution|health|times|dashboard
-                                    Reporting and HTML dashboard generation
+rw report  summary|group|distribution|health|times|dashboard|event-log
+                                    Reporting, HTML dashboard and event stream
 rw serve                            Start MCP server (stdio transport)
 ```
 
