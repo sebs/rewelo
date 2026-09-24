@@ -73,16 +73,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
+      # Only the newest stable version becomes "latest": a prerelease
+      # (v0.7.0-rc.1) or a backport (v0.5.2 after v0.6.1) must not move it.
+      - name: Decide the release channel
+        id: channel
+        run: |
+          newest_stable="$(git tag -l 'v*' | grep -v -- '-' | sort -V | tail -n 1)"
+          case "$GITHUB_REF_NAME" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+          if [ "$GITHUB_REF_NAME" = "$newest_stable" ]; then
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build and push to GHCR
+        env:
+          LATEST: ${{ steps.channel.outputs.latest }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           IMAGE="ghcr.io/${{ github.repository }}"
+          tags=(-t "$IMAGE:$VERSION")
+          if [ "$LATEST" = "true" ]; then tags+=(-t "$IMAGE:latest"); fi
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --build-arg APP_VERSION="$VERSION" \
             --cache-to type=inline \
-            -t "$IMAGE:$VERSION" \
-            -t "$IMAGE:latest" \
+            "${tags[@]}" \
             --push \
             .
 
@@ -111,9 +130,13 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
+          LATEST: ${{ steps.channel.outputs.latest }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
+            --prerelease="$PRERELEASE" \
+            --latest="$LATEST" \
             --title "$GITHUB_REF_NAME" \
             --notes-file release-notes.md \
             rewelo-*.tgz \
