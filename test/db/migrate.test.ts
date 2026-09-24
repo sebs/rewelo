@@ -208,6 +208,18 @@ describe("migrate", () => {
     assert.equal(trimmed.title, "b");
   });
 
+  it("doesn't cut an emoji in half when shortening a title", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec(`
+      INSERT INTO projects (id, name) VALUES (1, 'P');
+      INSERT INTO tickets (project_id, title) VALUES (1, '${"a".repeat(499)}😀z');
+      PRAGMA user_version = 7;`);
+    await migrate(db);
+    const [row] = await db.all<{ title: string }>("SELECT title FROM tickets");
+    assert.equal(row.title, "a".repeat(499));
+  });
+
   it("turns empty descriptions into null", async () => {
     db = await DB.open(":memory:");
     await migrate(db);

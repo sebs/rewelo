@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { DB } from "./connection.js";
-import { AppError, MAX_TICKET_TITLE, collapseSpaces } from "../validation/strings.js";
+import { AppError, MAX_TICKET_TITLE, collapseSpaces, truncate } from "../validation/strings.js";
 
 // Stored in the SQLite header by create.sql ("RWLO"), so we never mistake
 // another application's database for ours.
@@ -228,8 +228,9 @@ async function retitleTickets(db: DB, rewrite: (title: string) => string): Promi
     "SELECT id, project_id, title FROM tickets ORDER BY project_id, id"
   );
   const taken = new Set(tickets.map((t) => `${t.project_id}/${t.title}`));
-  // Titles are stored trimmed, so a cut just after a space drops it
-  const fit = (base: string, suffix: string) => base.slice(0, MAX_TICKET_TITLE - suffix.length).trimEnd() + suffix;
+  // Titles are stored trimmed, so a cut just after a space drops it; a cut
+  // inside an emoji drops its first half
+  const fit = (base: string, suffix: string) => truncate(base, MAX_TICKET_TITLE - suffix.length).trimEnd() + suffix;
   for (const t of tickets) {
     const base = rewrite(t.title);
     if (base === t.title && t.title.length <= MAX_TICKET_TITLE) continue;
