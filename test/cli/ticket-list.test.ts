@@ -97,4 +97,18 @@ describe("rw ticket list (CLI)", () => {
     assert.equal(bad.code, 1);
     assert.ok(bad.stderr.includes("Tag prefix must contain only"));
   });
+
+  it("sorts and filters on the exact priority, not the rounded one", () => {
+    // 2/26 = 0.077 and 2/24 = 0.083 both display as 0.08
+    rw("ticket", "create", "--project", "P", "--title", "Low", "--estimate", "21", "--risk", "5");
+    rw("ticket", "create", "--project", "P", "--title", "High", "--estimate", "21", "--risk", "3");
+    const list = (...args: string[]) => rw("--quiet", "ticket", "list", "--project", "P", ...args).stdout.trim().split("\n");
+
+    assert.deepEqual(list("--sort", "priority"), ["High", "Low"]);
+    assert.deepEqual(list("--min-priority", "0.08"), ["High"]);
+    const calc = JSON.parse(rw("--json", "calc", "priority", "--project", "P").stdout);
+    assert.deepEqual(calc.map((r: any) => r.title), ["High", "Low"]);
+    const summary = JSON.parse(rw("--json", "report", "summary", "--project", "P").stdout);
+    assert.deepEqual(summary.topByPriority.map((r: any) => r.title), ["High", "Low"]);
+  });
 });

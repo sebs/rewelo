@@ -28,12 +28,12 @@ import {
   removeTag,
 } from "../tags/assignment.js";
 import { listRevisions, listProjectRevisions } from "../revisions/repository.js";
-import { priority } from "../calculations/priority.js";
+import { byPriority, exactPriority, priority } from "../calculations/priority.js";
 import {
   calculateRelativeWeights,
   Scoreable,
 } from "../calculations/relative-weights.js";
-import { weightedPriority } from "../calculations/weighted-priority.js";
+import { exactWeightedPriority, weightedPriority } from "../calculations/weighted-priority.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
 import { getTicketTimes, averageLeadTime } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
@@ -313,7 +313,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
         // Score threshold filters
         let filtered = enriched;
-        if (minPriority != null) filtered = filtered.filter((t) => t.priority >= minPriority);
+        if (minPriority != null) filtered = filtered.filter((t) => exactPriority(t.benefit, t.penalty, t.estimate, t.risk) >= minPriority);
         if (minValue != null) filtered = filtered.filter((t) => t.value >= minValue);
         if (maxCost != null) filtered = filtered.filter((t) => t.cost <= maxCost);
 
@@ -323,7 +323,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
             throw new AppError(`Invalid sort field "${sort}". Valid fields: ${validSortFields.join(", ")}`);
           }
           const key = sort as keyof (typeof filtered)[0];
-          filtered.sort((a, b) => (b[key] as number) - (a[key] as number));
+          filtered.sort(key === "priority" ? byPriority : (a, b) => (b[key] as number) - (a[key] as number));
         }
 
         // Pagination
@@ -619,13 +619,15 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const w4 = uw4 ?? config.w4;
         validateWeights(w1, w2, w3, w4);
 
-        return tickets
+        // Sort on the unrounded weighted priority; return the rounded one
+        const exact = (t: Ticket) => exactWeightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4);
+        return [...tickets]
+          .sort((a, b) => exact(b) - exact(a))
           .map((t) => ({
             title: t.title,
             priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
             weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
-          }))
-          .sort((a, b) => b.weighted - a.weighted);
+          }));
       })
     )
   );

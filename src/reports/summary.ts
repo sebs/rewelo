@@ -1,7 +1,7 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
-import { priority } from "../calculations/priority.js";
+import { byPriority, priority } from "../calculations/priority.js";
 
 export interface ProjectSummary {
   totalTickets: number;
@@ -27,12 +27,12 @@ export async function getProjectSummary(
     else withoutState++;
   }
 
-  const sorted = tickets
+  const sorted = [...tickets]
+    .sort(byPriority)
     .map((t) => ({
       title: t.title,
       priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-    }))
-    .sort((a, b) => b.priority - a.priority);
+    }));
 
   return {
     totalTickets: tickets.length,

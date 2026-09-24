@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { priority } from "../calculations/priority.js";
+import { exactPriority } from "../calculations/priority.js";
 
 export interface BacklogHealth {
   totalTickets: number;
@@ -36,7 +36,7 @@ export async function getBacklogHealth(
   for (const t of tickets) {
     if (doneIds.has(t.id)) continue;
 
-    const prio = priority(t.benefit, t.penalty, t.estimate, t.risk);
+    const prio = exactPriority(t.benefit, t.penalty, t.estimate, t.risk);
     if (prio >= highThreshold) {
       highCount++;
     } else {

@@ -1,6 +1,7 @@
 import { AppError } from "../validation/strings.js";
 
-export function weightedPriority(
+/** Weighted value / weighted cost, unrounded: use it to sort */
+export function exactWeightedPriority(
   benefit: number,
   penalty: number,
   estimate: number,
@@ -17,5 +18,19 @@ export function weightedPriority(
     throw new AppError("Weighted priority denominator is zero: w3*estimate + w4*risk = 0");
   }
 
-  return Math.round((numerator / denominator) * 100) / 100;
+  return numerator / denominator;
+}
+
+/** Weighted priority rounded to two decimals, for display */
+export function weightedPriority(
+  benefit: number,
+  penalty: number,
+  estimate: number,
+  risk: number,
+  w1: number,
+  w2: number,
+  w3: number,
+  w4: number
+): number {
+  return Math.round(exactWeightedPriority(benefit, penalty, estimate, risk, w1, w2, w3, w4) * 100) / 100;
 }

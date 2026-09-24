@@ -25,12 +25,12 @@ import {
 import { assertOneValuePerPrefix, assignTag, removeTag, listTicketsByTag } from "./tags/assignment.js";
 import { getTagChangeLog } from "./tags/audit.js";
 import { listRevisions, listProjectRevisions } from "./revisions/repository.js";
-import { priority } from "./calculations/priority.js";
+import { byPriority, exactPriority, priority } from "./calculations/priority.js";
 import {
   calculateRelativeWeights,
   Scoreable,
 } from "./calculations/relative-weights.js";
-import { weightedPriority } from "./calculations/weighted-priority.js";
+import { exactWeightedPriority, weightedPriority } from "./calculations/weighted-priority.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "./weights/repository.js";
 import { getTicketTimes, averageLeadTime } from "./calculations/time.js";
 import {
@@ -436,7 +436,7 @@ ticketCmd
 
       // Score threshold filters
       let filtered = enriched;
-      if (cmdOpts.minPriority != null) filtered = filtered.filter((t) => t.priority >= cmdOpts.minPriority);
+      if (cmdOpts.minPriority != null) filtered = filtered.filter((t) => exactPriority(t.benefit, t.penalty, t.estimate, t.risk) >= cmdOpts.minPriority);
       if (cmdOpts.minValue != null) filtered = filtered.filter((t) => t.value >= cmdOpts.minValue);
       if (cmdOpts.maxCost != null) filtered = filtered.filter((t) => t.cost <= cmdOpts.maxCost);
 
@@ -448,7 +448,7 @@ ticketCmd
           );
         }
         const key = cmdOpts.sort as keyof (typeof filtered)[0];
-        filtered.sort((a, b) => (b[key] as number) - (a[key] as number));
+        filtered.sort(key === "priority" ? byPriority : (a, b) => (b[key] as number) - (a[key] as number));
       }
 
       // Pagination
@@ -1037,12 +1037,13 @@ calcCmd
       const w4 = cmdOpts.w4 ?? config.w4;
       validateWeights(w1, w2, w3, w4);
 
-      const results = tickets.map((t) => ({
+      // Sort on the unrounded weighted priority; display the rounded one
+      const exact = (t: (typeof tickets)[0]) => exactWeightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4);
+      const results = [...tickets].sort((a, b) => exact(b) - exact(a)).map((t) => ({
         title: t.title,
         priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
         weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
       }));
-      results.sort((a, b) => b.weighted - a.weighted);
 
       if (opts.json) {
         console.log(JSON.stringify(results));

@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { priority } from "../calculations/priority.js";
+import { byPriority, priority } from "../calculations/priority.js";
 import { getDistribution } from "./distribution.js";
 import { getBacklogHealth } from "./health.js";
 import { listProjectRelations } from "../relations/repository.js";
@@ -38,7 +38,8 @@ export async function renderDashboard(
   options: DashboardOptions = {}
 ): Promise<string> {
   const tickets = await listTickets(db, projectId);
-  const rows = tickets
+  const rows = [...tickets]
+    .sort(byPriority)
     .map((t) => ({
       title: t.title,
       benefit: t.benefit,
@@ -48,8 +49,7 @@ export async function renderDashboard(
       value: t.benefit + t.penalty,
       cost: t.estimate + t.risk,
       priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-    }))
-    .sort((a, b) => b.priority - a.priority);
+    }));
 
   const distribution = await getDistribution(db, projectId);
   const health = await getBacklogHealth(db, projectId);
