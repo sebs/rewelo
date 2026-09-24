@@ -1,4 +1,5 @@
 import { DB } from "../db/connection.js";
+import { STATE_TAG_IDS } from "../calculations/time.js";
 import { listTickets } from "../tickets/repository.js";
 import { exactPriority, round2 } from "../calculations/priority.js";
 
@@ -24,8 +25,8 @@ export async function getBacklogHealth(
     `SELECT DISTINCT tt.ticket_id
      FROM ticket_tags tt
      JOIN tags tg ON tg.id = tt.tag_id
-     WHERE tg.project_id = ? AND tg.prefix = 'state' AND tg.value = 'done'`,
-    projectId
+     WHERE tg.project_id = ? AND tt.tag_id IN ${STATE_TAG_IDS}`,
+    projectId, "done", "done"
   );
   const doneIds = new Set(doneRows.map((r) => r.ticket_id));
 

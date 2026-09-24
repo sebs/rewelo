@@ -134,4 +134,21 @@ describe("lead and cycle time", () => {
 
     assert.equal((await getTicketTimes(db, t.id)).cycleTimeDays, 0);
   });
+
+  it("treats a renamed state tag as the same state for every ticket", async () => {
+    const x = await createTicket(db, { projectId, title: "Before rename" });
+    const y = await createTicket(db, { projectId, title: "After rename" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, x.id, wip.id);
+    await renameTag(db, projectId, wip.id, "state", "doing");
+    await assignTag(db, y.id, wip.id);
+    const done = await createTag(db, projectId, "state", "done");
+    for (const t of [x, y]) await assignTag(db, t.id, done.id);
+    await renameTag(db, projectId, done.id, "state", "closed");
+
+    for (const t of [x, y]) {
+      const times = await getTicketTimes(db, t.id);
+      assert.deepEqual([times.leadTimeDays, times.cycleTimeDays], [0, 0], t.title);
+    }
+  });
 });

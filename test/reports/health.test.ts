@@ -4,7 +4,7 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
-import { createTag } from "../../src/tags/repository.js";
+import { createTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
 import { getBacklogHealth } from "../../src/reports/health.js";
 
@@ -67,5 +67,13 @@ describe("backlog health report", () => {
     for (let i = 0; i < 41; i++) await createTicket(db, { projectId, title: `h${i}`, benefit: 21, penalty: 21 });
     for (let i = 0; i < 40; i++) await createTicket(db, { projectId, title: `l${i}`, estimate: 21, risk: 21 });
     assert.equal((await getBacklogHealth(db, projectId)).highToLowRatio, 1.03); // 41/40 = 1.025
+  });
+
+  it("still counts tickets as done after state:done is renamed", async () => {
+    const t = await createTicket(db, { projectId, title: "Finished" });
+    const done = await createTag(db, projectId, "state", "done");
+    await assignTag(db, t.id, done.id);
+    await renameTag(db, projectId, done.id, "state", "closed");
+    assert.equal((await getBacklogHealth(db, projectId)).doneTickets, 1);
   });
 });

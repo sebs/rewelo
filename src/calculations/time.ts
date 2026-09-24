@@ -12,6 +12,15 @@ function exactDaysBetween(a: string, b: string): number {
   return (new Date(b).getTime() - new Date(a).getTime()) / msPerDay;
 }
 
+/**
+ * The tags that are, or ever were, called state:<value> (bind the value
+ * twice). A rename relabels the same state, so tickets keep their lead and
+ * cycle times when state:wip becomes state:doing, and tickets tagged doing
+ * afterwards get them too.
+ */
+export const STATE_TAG_IDS = `(SELECT id FROM tags WHERE prefix = 'state' AND value = ?
+  UNION SELECT tag_id FROM tag_revisions WHERE prefix = 'state' AND value = ?)`;
+
 // Unrounded lead times, so the average is taken before rounding: averaging
 // per-ticket whole days turned 0.5 d and 0.4 d (mean 0.45) into 1.
 const exactLeadTimes = new WeakMap<TimeResult, number>();
@@ -34,22 +43,22 @@ export async function getTicketTimes(
   // and renaming another tag to wip must not invent them.
   const wipRows = await db.all<{ changed_at: string }>(
     `SELECT c.changed_at FROM ticket_tag_changes c
-     WHERE c.ticket_id = ? AND c.action = 'added' AND c.prefix = 'state' AND c.value = 'wip'
+     WHERE c.ticket_id = ? AND c.action = 'added'
+       AND (c.tag_id IN ${STATE_TAG_IDS} OR (c.prefix = 'state' AND c.value = ?))
      ORDER BY c.changed_at
      LIMIT 1`,
-    ticketId
+    ticketId, "wip", "wip", "wip"
   );
 
   // Done means *currently* tagged state:done (as in report health); a
   // reopened ticket is not done. Completion is the latest time it was added.
   const doneRows = await db.all<{ changed_at: string }>(
     `SELECT c.changed_at FROM ticket_tag_changes c
-     JOIN tags t ON t.id = c.tag_id
-     WHERE c.ticket_id = ? AND c.action = 'added' AND t.prefix = 'state' AND t.value = 'done'
+     WHERE c.ticket_id = ? AND c.action = 'added' AND c.tag_id IN ${STATE_TAG_IDS}
        AND EXISTS (SELECT 1 FROM ticket_tags tt WHERE tt.ticket_id = c.ticket_id AND tt.tag_id = c.tag_id)
      ORDER BY c.changed_at DESC, c.id DESC
      LIMIT 1`,
-    ticketId
+    ticketId, "done", "done"
   );
 
   const doneAt = doneRows.length > 0 ? doneRows[0].changed_at : undefined;
