@@ -671,4 +671,19 @@ describe("MCP server", () => {
     assert.equal(r.isError, true);
     assert.match((r.content as any)[0].text, /benefit: must be a Fibonacci value \(1, 2, 3, 5, 8, 13, 21\), got 4/);
   });
+
+  it("rejects unknown parameters and weight_set without a weight", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Strict" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "Strict", title: "T1" } });
+    const typo = await client.callTool({ name: "ticket_update", arguments: { project: "Strict", title: "T1", benfit: 5 } });
+    assert.equal(typo.isError, true);
+    assert.match((typo.content as any)[0].text, /benfit/);
+
+    const empty = await client.callTool({ name: "weight_set", arguments: { project: "Strict" } });
+    assert.equal(empty.isError, true);
+    assert.match((empty.content as any)[0].text, /Provide at least one of w1, w2, w3, w4/);
+
+    const { tools } = await client.listTools();
+    assert.ok(tools.every((t) => (t.inputSchema as { additionalProperties?: boolean }).additionalProperties === false));
+  });
 });

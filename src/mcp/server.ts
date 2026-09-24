@@ -221,7 +221,9 @@ export function createMcpServer(
   function tool(name: string, description: string, shape: z.ZodRawShape, handler: (args: any) => any) {
     // The payload limit applies to every tool, not only the imports: others
     // took 20 MB titles and echoed them back in their errors
-    server.registerTool(name, { description, inputSchema: z.object(shape) }, (args: any) => {
+    // Strict: a misspelt parameter (benfit, exclude_tags) used to be dropped
+    // silently, and the call succeeded without doing what was asked
+    server.registerTool(name, { description, inputSchema: z.strictObject(shape) }, (args: any) => {
       try {
         checkPayloadSize(args);
       } catch (err) {
@@ -701,12 +703,14 @@ export function createMcpServer(
       w3: z.number().optional().describe("Estimate weight"),
       w4: z.number().optional().describe("Risk weight"),
     },
-    safe(({ project, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) =>
-      withProject(resolveProject(project), async (db, proj) => {
+    safe(({ project, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) => {
+      // As rw config weights --set: nothing to set is a mistake, not a no-op
+      if ([uw1, uw2, uw3, uw4].every((w) => w === undefined)) throw new AppError("Provide at least one of w1, w2, w3, w4");
+      return withProject(resolveProject(project), async (db, proj) => {
         const current = await getWeights(db, proj.id);
         return setWeights(db, proj.id, uw1 ?? current.w1, uw2 ?? current.w2, uw3 ?? current.w3, uw4 ?? current.w4);
-      })
-    )
+      });
+    })
   );
 
   tool(

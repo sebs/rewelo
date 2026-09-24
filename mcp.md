@@ -252,6 +252,7 @@ All tool inputs pass through the same validation layer as the CLI:
 - Ticket titles: max 500 chars, no null bytes
 - Tag prefix/value: lowercase alphanumeric with hyphens only
 - Fibonacci scores enforced on all ticket score fields
+- Unknown parameters are rejected (a misspelt `benfit` is an error, not ignored)
 - SQL injection payloads are harmless (all queries use parameterised statements)
 - Error messages never expose SQL, file paths, or stack traces
 - Container runs as non-root with a named volume for data isolation
