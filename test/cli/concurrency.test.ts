@@ -84,4 +84,11 @@ describe("concurrent CLI writes", () => {
     await conn.close();
     assert.equal(revisions.length, 1);
   });
+
+  it("stores only one direction of a relation created both ways at once", async () => {
+    for (const t of ["A", "B"]) runCli(["--db", db, "ticket", "create", "--project", "C", "--title", t]);
+    await inParallel(6, (i) => ["--db", db, "relation", "create", "--project", "C", "--source", i % 2 ? "A" : "B", "--type", "blocks", "--target", i % 2 ? "B" : "A"]);
+    const relations = JSON.parse(runCli(["--db", db, "--json", "relation", "list-all", "--project", "C"]).stdout);
+    assert.equal(relations.length, 1);
+  });
 });

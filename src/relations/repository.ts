@@ -27,88 +27,92 @@ export async function createRelation(
   target: number,
   type: string
 ): Promise<Relation> {
-  const { sourceId, targetId, type: relationType } = canonicalRelation(source, target, type);
-  if (sourceId === targetId) {
-    throw new ValidationError("A ticket cannot relate to itself");
-  }
+  // One write transaction: in parallel processes the duplicate and reverse
+  // checks raced the inserts (both A blocks B and B blocks A got stored)
+  return db.transaction(async () => {
+    const { sourceId, targetId, type: relationType } = canonicalRelation(source, target, type);
+    if (sourceId === targetId) {
+      throw new ValidationError("A ticket cannot relate to itself");
+    }
 
-  // Validate the relation type exists
-  const rt = getRelationType(relationType);
+    // Validate the relation type exists
+    const rt = getRelationType(relationType);
 
-  // For symmetric relations, normalise order so (A,B) and (B,A) are the same
-  let normSource = sourceId;
-  let normTarget = targetId;
-  if (rt.symmetric && sourceId > targetId) {
-    normSource = targetId;
-    normTarget = sourceId;
-  }
+    // For symmetric relations, normalise order so (A,B) and (B,A) are the same
+    let normSource = sourceId;
+    let normTarget = targetId;
+    if (rt.symmetric && sourceId > targetId) {
+      normSource = targetId;
+      normTarget = sourceId;
+    }
 
-  // Check for duplicate
-  const existing = await db.all<Relation>(
-    `SELECT * FROM ticket_relations
-     WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
-    projectId,
-    normSource,
-    normTarget,
-    relationType
-  );
-  if (existing.length > 0) {
-    throw new ValidationError("Relation already exists");
-  }
-
-  // An asymmetric relation in both directions contradicts itself
-  // (A blocks B and B blocks A)
-  if (!rt.symmetric) {
-    const reverse = await db.all<Relation>(
+    // Check for duplicate
+    const existing = await db.all<Relation>(
       `SELECT * FROM ticket_relations
        WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
       projectId,
-      targetId,
-      sourceId,
+      normSource,
+      normTarget,
       relationType
     );
-    if (reverse.length > 0) {
-      throw new ValidationError(`The reverse relation already exists: the target ${relationType} the source`);
+    if (existing.length > 0) {
+      throw new ValidationError("Relation already exists");
     }
-  }
 
-  // Insert the forward relation
-  const rows = await db.all<Relation>(
-    `INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type)
-     VALUES (?, ?, ?, ?)
-     RETURNING *`,
-    projectId,
-    normSource,
-    normTarget,
-    relationType
-  );
+    // An asymmetric relation in both directions contradicts itself
+    // (A blocks B and B blocks A)
+    if (!rt.symmetric) {
+      const reverse = await db.all<Relation>(
+        `SELECT * FROM ticket_relations
+         WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
+        projectId,
+        targetId,
+        sourceId,
+        relationType
+      );
+      if (reverse.length > 0) {
+        throw new ValidationError(`The reverse relation already exists: the target ${relationType} the source`);
+      }
+    }
 
-  // For asymmetric relations, also insert the inverse
-  if (!rt.symmetric) {
-    const inverseType = getInverse(relationType);
-
-    // Check inverse doesn't already exist
-    const existingInverse = await db.all<Relation>(
-      `SELECT * FROM ticket_relations
-       WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
+    // Insert the forward relation
+    const rows = await db.all<Relation>(
+      `INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type)
+       VALUES (?, ?, ?, ?)
+       RETURNING *`,
       projectId,
-      targetId,
-      sourceId,
-      inverseType
+      normSource,
+      normTarget,
+      relationType
     );
-    if (existingInverse.length === 0) {
-      await db.run(
-        `INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type)
-         VALUES (?, ?, ?, ?)`,
+
+    // For asymmetric relations, also insert the inverse
+    if (!rt.symmetric) {
+      const inverseType = getInverse(relationType);
+
+      // Check inverse doesn't already exist
+      const existingInverse = await db.all<Relation>(
+        `SELECT * FROM ticket_relations
+         WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
         projectId,
         targetId,
         sourceId,
         inverseType
       );
+      if (existingInverse.length === 0) {
+        await db.run(
+          `INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type)
+           VALUES (?, ?, ?, ?)`,
+          projectId,
+          targetId,
+          sourceId,
+          inverseType
+        );
+      }
     }
-  }
 
-  return rows[0];
+    return rows[0];
+  });
 }
 
 export async function removeRelation(
@@ -118,54 +122,56 @@ export async function removeRelation(
   target: number,
   type: string
 ): Promise<boolean> {
-  const { sourceId, targetId, type: relationType } = canonicalRelation(source, target, type);
-  const rt = getRelationType(relationType);
+  return db.transaction(async () => {
+    const { sourceId, targetId, type: relationType } = canonicalRelation(source, target, type);
+    const rt = getRelationType(relationType);
 
-  // For symmetric relations, normalise order
-  let normSource = sourceId;
-  let normTarget = targetId;
-  if (rt.symmetric && sourceId > targetId) {
-    normSource = targetId;
-    normTarget = sourceId;
-  }
+    // For symmetric relations, normalise order
+    let normSource = sourceId;
+    let normTarget = targetId;
+    if (rt.symmetric && sourceId > targetId) {
+      normSource = targetId;
+      normTarget = sourceId;
+    }
 
-  // Check if the relation exists
-  const existing = await db.all<Relation>(
-    `SELECT * FROM ticket_relations
-     WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
-    projectId,
-    normSource,
-    normTarget,
-    relationType
-  );
-  if (existing.length === 0) {
-    throw new ValidationError("Relation not found");
-  }
+    // Check if the relation exists
+    const existing = await db.all<Relation>(
+      `SELECT * FROM ticket_relations
+       WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
+      projectId,
+      normSource,
+      normTarget,
+      relationType
+    );
+    if (existing.length === 0) {
+      throw new ValidationError("Relation not found");
+    }
 
-  // Delete forward
-  await db.run(
-    `DELETE FROM ticket_relations
-     WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
-    projectId,
-    normSource,
-    normTarget,
-    relationType
-  );
-
-  // Delete inverse for asymmetric
-  if (!rt.symmetric) {
-    const inverseType = getInverse(relationType);
+    // Delete forward
     await db.run(
       `DELETE FROM ticket_relations
        WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
       projectId,
-      targetId,
-      sourceId,
-      inverseType
+      normSource,
+      normTarget,
+      relationType
     );
-  }
 
-  return true;
+    // Delete inverse for asymmetric
+    if (!rt.symmetric) {
+      const inverseType = getInverse(relationType);
+      await db.run(
+        `DELETE FROM ticket_relations
+         WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
+        projectId,
+        targetId,
+        sourceId,
+        inverseType
+      );
+    }
+
+    return true;
+  });
 }
 
 export async function listRelations(
