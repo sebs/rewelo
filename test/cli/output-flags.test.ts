@@ -70,6 +70,27 @@ describe("global output flags (CLI)", () => {
     assert.equal(quiet("project", "delete", "P", "--force"), "");
   });
 
+  it("--csv and --json never fall back to prose for empty results", () => {
+    const empty = (...args: string[]) => runCli(["--db", join(dir, "empty.db"), ...args]).stdout;
+    assert.equal(empty("--csv", "project", "list"), "Name,UUID,Created\n");
+    const t = "A, with comma";
+    const csv = (...args: string[]) => rw("--csv", ...args).stdout;
+    assert.equal(csv("relation", "list-all", "--project", "P"), "Source,Type,Target\n");
+    assert.equal(csv("relation", "list", "--project", "P", "--ticket", t), "Type,Direction,Ticket\n");
+    assert.equal(csv("tag", "log", "--project", "P", "--ticket", t), "Action,Tag,Changed At\n");
+    assert.equal(csv("ticket", "history", "--project", "P", "--title", t), "#,Title,B,P,E,R,Tags,Revised At\n");
+    assert.equal(csv("report", "times", "--project", "P"), "Title,Lead Time,Cycle Time\n");
+    assert.equal(csv("config", "weights", "--project", "P"), "w1,w2,w3,w4\n1.5,1.5,1.5,1.5\n");
+    assert.equal(csv("report", "event-log", "--project", "P").split("\n")[0], "Timestamp,Type,Ticket,Detail");
+
+    rw("tag", "create", "--project", "P", "a:b");
+    assert.deepEqual(JSON.parse(rw("--json", "tag", "remove", "a:b", "--project", "P", "--ticket", t).stdout), {
+      ticket: t,
+      tag: "a:b",
+      status: "was_not_assigned",
+    });
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);

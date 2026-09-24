@@ -243,7 +243,7 @@ projectCmd
         console.log(JSON.stringify(projects));
       } else if (opts.quiet) {
         projects.forEach((p) => console.log(p.name));
-      } else if (projects.length === 0) {
+      } else if (projects.length === 0 && !opts.csv) {
         console.log("No projects found.");
       } else {
         console.log(
@@ -310,7 +310,7 @@ projectCmd
         console.log(JSON.stringify(revisions));
       } else if (opts.quiet) {
         revisions.forEach((r) => console.log(`${r.revised_at}\t${r.ticket_title}`));
-      } else if (revisions.length === 0) {
+      } else if (revisions.length === 0 && !opts.csv) {
         console.log("No revisions found.");
       } else {
         console.log(
@@ -582,7 +582,7 @@ ticketCmd
         console.log(JSON.stringify(revisions));
       } else if (opts.quiet) {
         revisions.forEach((r) => console.log(r.revised_at));
-      } else if (revisions.length === 0) {
+      } else if (revisions.length === 0 && !opts.csv) {
         console.log("No revisions found.");
       } else {
         console.log(
@@ -717,7 +717,8 @@ tagCmd
       const tag = await getTag(db, project.id, prefix, value);
       if (!tag) { console.error(`Tag "${tagStr}" not found`); process.exit(1); }
       const removed = await removeTag(db, ticket.id, tag.id);
-      if (!opts.quiet) console.log(removed ? `Removed "${tagStr}" from "${cmdOpts.ticket}"` : `Tag "${tagStr}" was not assigned`);
+      if (opts.json) console.log(JSON.stringify({ ticket: ticket.title, tag: `${prefix}:${value}`, status: removed ? "removed" : "was_not_assigned" }));
+      else if (!opts.quiet) console.log(removed ? `Removed "${tagStr}" from "${cmdOpts.ticket}"` : `Tag "${tagStr}" was not assigned`);
     });
   });
 
@@ -796,7 +797,7 @@ tagCmd
         console.log(JSON.stringify(log));
       } else if (opts.quiet) {
         log.forEach((e) => console.log(`${e.action}\t${e.prefix}:${e.value}`));
-      } else if (log.length === 0) {
+      } else if (log.length === 0 && !opts.csv) {
         console.log("No tag changes recorded.");
       } else {
         console.log(
@@ -876,7 +877,7 @@ relationCmd
         console.log(JSON.stringify(relations));
       } else if (opts.quiet) {
         relations.forEach((r) => console.log(`${r.relation_type}\t${r.ticket_title}`));
-      } else if (relations.length === 0) {
+      } else if (relations.length === 0 && !opts.csv) {
         console.log("No relations found.");
       } else {
         console.log(
@@ -901,7 +902,7 @@ relationCmd
         console.log(JSON.stringify(relations));
       } else if (opts.quiet) {
         relations.forEach((r) => console.log(`${r.source_title}\t${r.relation_type}\t${r.target_title}`));
-      } else if (relations.length === 0) {
+      } else if (relations.length === 0 && !opts.csv) {
         console.log("No relations found.");
       } else {
         console.log(
@@ -969,6 +970,8 @@ configCmd
       const config = await getWeights(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(config));
+      } else if (opts.csv) {
+        console.log(formatTable(["w1", "w2", "w3", "w4"], [[config.w1, config.w2, config.w3, config.w4]]));
       } else {
         console.log(`Weights for "${project.name}": w1=${config.w1} w2=${config.w2} w3=${config.w3} w4=${config.w4}`);
       }
@@ -1010,7 +1013,7 @@ calcCmd
 
       if (opts.json) {
         console.log(JSON.stringify(results));
-      } else if (results.length === 0) {
+      } else if (results.length === 0 && !opts.csv) {
         console.log("No tickets found.");
       } else {
         console.log(
@@ -1054,7 +1057,7 @@ calcCmd
 
       if (opts.json) {
         console.log(JSON.stringify(results));
-      } else if (results.length === 0) {
+      } else if (results.length === 0 && !opts.csv) {
         console.log("No tickets found.");
       } else {
         console.log(`Weights: w1=${w1} w2=${w2} w3=${w3} w4=${w4}\n`);
@@ -1210,7 +1213,7 @@ reportCmd
       const groups = await groupByTagPrefix(db, project.id, validateTagPrefix(cmdOpts.prefix));
       if (opts.json) {
         console.log(JSON.stringify(groups));
-      } else if (groups.length === 0) {
+      } else if (groups.length === 0 && !opts.csv) {
         console.log(`No tickets with "${cmdOpts.prefix}:" tags found.`);
       } else {
         console.log(
@@ -1233,7 +1236,7 @@ reportCmd
       const dist = await getDistribution(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(dist));
-      } else if (dist.every((d) => Object.values(d.counts).every((c) => c === 0))) {
+      } else if (dist.every((d) => Object.values(d.counts).every((c) => c === 0)) && !opts.csv) {
         console.log("No tickets found.");
       } else {
         const fibs = [1, 2, 3, 5, 8, 13, 21];
@@ -1287,7 +1290,7 @@ reportCmd
       const avg = averageLeadTime(times);
       if (opts.json) {
         console.log(JSON.stringify({ tickets: times, averageLeadTimeDays: avg }));
-      } else if (withDone.length === 0) {
+      } else if (withDone.length === 0 && !opts.csv) {
         console.log("No completed tickets found.");
       } else {
         const rows = withDone.map((t) => {
@@ -1299,7 +1302,7 @@ reportCmd
           ];
         });
         console.log(formatTable(["Title", "Lead Time", "Cycle Time"], rows));
-        if (avg !== undefined) console.log(`\nAverage lead time: ${avg}d`);
+        if (avg !== undefined && !opts.csv) console.log(`\nAverage lead time: ${avg}d`);
       }
     });
   });
@@ -1316,12 +1319,14 @@ reportCmd
       const events = await getEventLog(db, project.id, cmdOpts.since, cmdOpts.limit);
       if (opts.json) {
         console.log(JSON.stringify(events));
-      } else if (events.length === 0) {
+      } else if (events.length === 0 && !opts.csv) {
         console.log("No events found.");
       } else {
-        for (const e of events) {
-          const detail = typeof e.detail === "object" ? JSON.stringify(e.detail) : String(e.detail);
-          console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${e.ticketTitle}  ${detail}`);
+        const detail = (e: (typeof events)[0]) => (typeof e.detail === "object" ? JSON.stringify(e.detail) : String(e.detail));
+        if (opts.csv) {
+          console.log(formatTable(["Timestamp", "Type", "Ticket", "Detail"], events.map((e) => [e.timestamp, e.type, e.ticketTitle, detail(e)])));
+        } else {
+          for (const e of events) console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${e.ticketTitle}  ${detail(e)}`);
         }
       }
     });
