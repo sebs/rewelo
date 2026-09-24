@@ -160,4 +160,17 @@ describe("round-trip", () => {
     assert.deepEqual((await listTags(db, target.id)).map((tag) => tag.value), ["done", "wip"]);
     assert.deepEqual((await getTagChangeLog(db, copy.id)).map((c) => `${c.action} ${c.value}`), ["added wip", "removed wip", "added complete"]);
   });
+
+  it("JSON import skips symmetric relations that already exist, in either order", async () => {
+    const b = await createTicket(db, { projectId, title: "B" });
+    const a = await createTicket(db, { projectId, title: "A" });
+    await createRelation(db, projectId, a.id, b.id, "relates-to");
+
+    const relations = [
+      { source: "A", type: "relates-to", target: "B" },
+      { source: "B", type: "relates-to", target: "A" },
+    ];
+    await importJson(db, projectId, JSON.stringify({ tickets: [], relations }));
+    assert.equal((await listProjectRelations(db, projectId)).length, 1);
+  });
 });
