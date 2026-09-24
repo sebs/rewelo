@@ -19,8 +19,10 @@ export async function getEventLog(
   if (since !== undefined) since = normalizeSince(since);
   const params: unknown[] = [projectId];
   let sinceClause = "";
+  // Strictly after, so polling with the newest timestamp seen so far does
+  // not return that event again
   if (since !== undefined) {
-    sinceClause = " AND ts >= ?";
+    sinceClause = " AND ts > ?";
     params.push(since);
   }
 

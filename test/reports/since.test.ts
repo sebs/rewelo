@@ -85,6 +85,13 @@ describe("since filters", () => {
     await assert.rejects(getProjectDiff(db, projectId, ""), /Invalid timestamp ""/);
   });
 
+  it("event log and project history return only what happened strictly after since", async () => {
+    const [newest] = await getEventLog(db, projectId);
+    assert.deepEqual(await getEventLog(db, projectId, newest.timestamp), []);
+    const [revision] = await listProjectRevisions(db, projectId);
+    assert.deepEqual(await listProjectRevisions(db, projectId, revision.revised_at), []);
+  });
+
   it("reports the normalised since in the diff", async () => {
     assert.equal((await getProjectDiff(db, projectId, "2026-03-10T09:00:00+02:00")).since, "2026-03-10T07:00:00.000Z");
   });
