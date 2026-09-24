@@ -119,7 +119,9 @@ class RateLimiter {
   ) {}
 
   async acquire(): Promise<void> {
-    const now = Date.now();
+    // Monotonic: with Date.now() setting the clock back an hour locked every
+    // tool out for that hour
+    const now = performance.now();
     while (this.slots.length > 0 && this.slots[0] <= now - this.windowMs) this.slots.shift();
     const start =
       this.slots.length < this.maxRequests

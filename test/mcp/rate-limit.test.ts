@@ -67,6 +67,29 @@ describe("MCP rate limiting and payload size", () => {
     }
   });
 
+  it("isn't thrown off by the system clock being set back", async () => {
+    const mcpServer = createMcpServer(":memory:", { maxRequestsPerSecond: 2, maxRateLimitWaitMs: 0 });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: "test-client", version: "1.0.0" });
+    await mcpServer.connect(serverTransport);
+    await client.connect(clientTransport);
+    const realNow = Date.now;
+    cleanup = async () => {
+      Date.now = realNow;
+      await client.close();
+      await mcpServer.close();
+    };
+
+    await client.callTool({ name: "project_list", arguments: {} });
+    await client.callTool({ name: "project_list", arguments: {} });
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const hourAgo = realNow() - 3_600_000;
+    Date.now = () => hourAgo;
+    const result = await client.callTool({ name: "project_list", arguments: {} });
+    Date.now = realNow;
+    assert.equal(result.isError, undefined);
+  });
+
   it("rejects requests when rate limit is exceeded", async () => {
     // Very low limit for testing: 5 requests per second, no waiting
     const mcpServer = createMcpServer(":memory:", { maxRequestsPerSecond: 5, maxRateLimitWaitMs: 0 });
