@@ -53,7 +53,7 @@ describe("rw ticket list (CLI)", () => {
   it("project diff lists description changes and deleted tickets", () => {
     rw("ticket", "create", "--project", "P", "--title", "A", "--description", "old");
     rw("ticket", "create", "--project", "P", "--title", "B");
-    const since = new Date(Date.now() - 1000).toISOString();
+    const since = new Date().toISOString();
     rw("ticket", "update", "--project", "P", "--title", "A", "--description", "new");
     rw("ticket", "delete", "--project", "P", "--title", "B");
 

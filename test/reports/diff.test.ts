@@ -9,6 +9,13 @@ import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
 import { getProjectDiff } from "../../src/reports/diff.js";
 
+// A timestamp strictly after everything written so far: creation and since
+// in the same millisecond would count the ticket as new.
+async function now(): Promise<string> {
+  await new Promise((r) => setTimeout(r, 2));
+  return new Date().toISOString();
+}
+
 describe("project diff", () => {
   let db: DB;
   let projectId: number;
@@ -43,7 +50,7 @@ describe("project diff", () => {
 
   it("detects score changes via revisions", async () => {
     const t = await createTicket(db, { projectId, title: "Scored", benefit: 3, penalty: 2, estimate: 1, risk: 1 });
-    const before = new Date().toISOString();
+    const before = await now();
     await createRevision(db, t);
     await updateTicket(db, projectId, t.id, { benefit: 13 });
 
@@ -62,8 +69,7 @@ describe("project diff", () => {
     const done = await createTag(db, projectId, "state", "done");
     const team = await createTag(db, projectId, "team", "x");
     await assignTag(db, t.id, team.id);
-    await new Promise((r) => setTimeout(r, 5));
-    const before = new Date().toISOString();
+    const before = await now();
     await assignTag(db, t.id, wip.id);
     await assignTag(db, t.id, done.id); // replaces wip
     await removeTag(db, t.id, team.id);
@@ -72,10 +78,20 @@ describe("project diff", () => {
     assert.deepEqual(diff.tagChanges, [{ ticketId: t.id, ticketTitle: "Tagged", added: ["state:done"], removed: ["team:x"] }]);
   });
 
+  it("lists a ticket created and then updated since only as new", async () => {
+    const before = await now();
+    const t = await createTicket(db, { projectId, title: "Fresh", benefit: 3 });
+    await updateTicket(db, projectId, t.id, { benefit: 8 });
+
+    const diff = await getProjectDiff(db, projectId, before);
+    assert.deepEqual(diff.newTickets.map((n) => n.title), ["Fresh"]);
+    assert.deepEqual(diff.updatedTickets, []);
+  });
+
   it("leaves out tags that were assigned and removed again", async () => {
     const t = await createTicket(db, { projectId, title: "Tagged" });
     const tag = await createTag(db, projectId, "state", "wip");
-    const before = new Date().toISOString();
+    const before = await now();
     await assignTag(db, t.id, tag.id);
     await removeTag(db, t.id, tag.id);
 
@@ -94,7 +110,7 @@ describe("project diff", () => {
 
   it("collapses multiple revisions into one diff per ticket", async () => {
     const t = await createTicket(db, { projectId, title: "Multi", benefit: 1, penalty: 1 });
-    const before = new Date().toISOString();
+    const before = await now();
 
     await createRevision(db, t);
     const t2 = await updateTicket(db, projectId, t.id, { benefit: 5 });
@@ -111,7 +127,7 @@ describe("project diff", () => {
 
   it("reports description changes", async () => {
     const t = await createTicket(db, { projectId, title: "D", description: "old" });
-    const since = new Date(Date.now() - 1000).toISOString();
+    const since = await now();
     await updateTicket(db, projectId, t.id, { description: "new" });
 
     const diff = await getProjectDiff(db, projectId, since);

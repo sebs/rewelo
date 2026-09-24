@@ -85,7 +85,8 @@ export async function getProjectDiff(
   const updatedTickets: TicketDiff[] = [];
   for (const [ticketId, before] of earliestRevision) {
     const current = ticketMap.get(ticketId);
-    if (!current) continue;
+    // Deleted since, or created since (then it is only a new ticket)
+    if (!current || new Date(current.created_at).getTime() >= sinceMs) continue;
 
     const changes: FieldChange[] = [];
     const fields: Array<{ field: string; key: keyof Ticket }> = [

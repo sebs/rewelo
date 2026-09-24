@@ -54,7 +54,7 @@ describe("since filters", () => {
 
   it("project diff treats an offset timestamp like the same instant in UTC", async () => {
     const expected = await getProjectDiff(db, projectId, utc);
-    assert.equal(expected.updatedTickets.length, 1);
+    assert.equal(expected.newTickets.length, 1);
     assert.equal(expected.tagChanges.length, 1);
     const actual = await getProjectDiff(db, projectId, offset);
     assert.deepEqual({ ...actual, since: utc, now: expected.now }, expected);
