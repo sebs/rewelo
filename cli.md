@@ -19,7 +19,7 @@ The CLI is available as `rw` (via `npm link`) or directly with `node dist/index.
 | `--json`     | Output as JSON               |
 | `--csv`      | Output as CSV (where supported) |
 | `--quiet`    | Minimal output: commands that change data print nothing (create prints the new UUID), lists print one item per line |
-| `--no-color` | Disable colour output        |
+| `--no-color` | Accepted for compatibility; `rw` never prints colour |
 | `--version`  | Show version                 |
 
 The database uses SQLite's write-ahead log, so commands can read while another `rw` process writes; `<name>.db-wal` and `<name>.db-shm` files appear next to the database while it is in use. Back up with `rw export json`, or copy the `.db` file while no `rw` process runs.

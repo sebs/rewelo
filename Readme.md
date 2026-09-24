@@ -92,7 +92,7 @@ rw report  summary|group|distribution|health|times|dashboard|event-log
 rw serve                            Start MCP server (stdio transport)
 ```
 
-Global options: `--db <path>`, `--json`, `--csv`, `--quiet`, `--no-color`
+Global options: `--db <path>`, `--json`, `--csv`, `--quiet` (and `--no-color`, accepted for compatibility: `rw` never prints colour)
 
 ## Multi-Project Support
 

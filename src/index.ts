@@ -239,7 +239,8 @@ program
   .option("--json", "output as JSON")
   .option("--csv", "output as CSV")
   .option("--quiet", "minimal output")
-  .option("--no-color", "disable colour output");
+  // rw prints no colour; the flag is still accepted so existing scripts work
+  .option("--no-color", "accepted for compatibility (rw never prints colour)");
 
 // =============================================================================
 //  PROJECT COMMANDS
