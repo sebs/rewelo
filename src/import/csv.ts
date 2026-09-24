@@ -66,8 +66,10 @@ function parseCsv(csv: string): string[][] {
       current = "";
     } else if (ch === "\n") {
       endRecord();
-    } else if (ch === "\r" && csv[i + 1] === "\n") {
-      // CRLF line ending: the \n ends the record
+    } else if (ch === "\r") {
+      // CRLF: the \n ends the record. A lone CR (classic Mac line ending)
+      // ends it itself; appending it made the whole file one header row.
+      if (csv[i + 1] !== "\n") endRecord();
     } else {
       current += ch;
     }

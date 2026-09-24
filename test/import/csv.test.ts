@@ -196,4 +196,9 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
     const target = await createProject(db, "Calc target");
     assert.deepEqual(await importCsv(db, target.id, csv), { imported: 1 });
   });
+
+  it("accepts CR-only line endings", async () => {
+    assert.deepEqual(await importCsv(db, projectId, "title,description\rB,x\rC,y\r"), { imported: 2 });
+    assert.deepEqual((await listTickets(db, projectId)).map((t) => [t.title, t.description]), [["B", "x"], ["C", "y"]]);
+  });
 });
