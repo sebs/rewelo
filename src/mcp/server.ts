@@ -809,7 +809,11 @@ export function createMcpServer(
     },
     safe(({ project, limit }) =>
       withProject(resolveProject(project), (db, proj) =>
-        renderDashboard(db, proj.id, proj.name, { generatedAt: new Date().toISOString(), limit })
+        renderDashboard(db, proj.id, proj.name, {
+          generatedAt: new Date().toISOString(),
+          limit,
+          limitHint: "a higher <code>limit</code> for <code>report_dashboard</code>",
+        })
       )
     )
   );

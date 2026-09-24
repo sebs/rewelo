@@ -27,6 +27,8 @@ export interface DashboardOptions {
   generatedAt?: string;
   /** Rows shown in the ticket and relation tables (default 500). */
   limit?: number;
+  /** How the reader raises the limit, in HTML (default: the CLI's --limit). */
+  limitHint?: string;
 }
 
 /** A page stays usable in a browser: 30,000 rows made an 8 MB document */
@@ -121,7 +123,7 @@ export async function renderDashboard(
   // Says what a capped table leaves out
   const more = (shown: number, total: number, what: string) =>
     total > shown
-      ? `<p class="meta">Showing ${shown} of ${plural(total, what)}; <code>rw report dashboard --limit</code> shows more.</p>`
+      ? `<p class="meta">Showing ${shown} of ${plural(total, what)}; ${options.limitHint ?? "<code>rw report dashboard --limit</code>"} shows more.</p>`
       : "";
 
   const generated = options.generatedAt

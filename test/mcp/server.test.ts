@@ -630,4 +630,13 @@ describe("MCP server", () => {
     assert.match(text, /… \(truncated\)$/);
     assert.doesNotMatch(text, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
   });
+
+  it("tells MCP clients to raise the dashboard's limit parameter, not the CLI option", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Dash" } });
+    for (const title of ["A", "B"]) await client.callTool({ name: "ticket_create", arguments: { project: "Dash", title } });
+    const result = await client.callTool({ name: "report_dashboard", arguments: { project: "Dash", limit: 1 } });
+    const html = (result.content as any)[0].text as string;
+    assert.match(html, /Showing 1 of 2 open tickets; a higher <code>limit<\/code> for <code>report_dashboard<\/code> shows more/);
+    assert.doesNotMatch(html, /rw report dashboard/);
+  });
 });
