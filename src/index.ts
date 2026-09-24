@@ -46,8 +46,9 @@ import { validateDbPath, validateExportPath, validateImportPath } from "./valida
 import { describeFsError, sanitizeError } from "./validation/errors.js";
 import { csvRow, exportCsv } from "./export/csv.js";
 import { exportJson } from "./export/json.js";
-import { importCsv } from "./import/csv.js";
+import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "./import/csv.js";
 import { importJsonAsProject } from "./import/json.js";
+import { MAX_JSON_SIZE_BYTES } from "./serialization/parse.js";
 import { createRelation, removeRelation, listRelations, listProjectRelations } from "./relations/repository.js";
 import { getRelationType } from "./relations/types.js";
 import { getProjectSummary } from "./reports/summary.js";
@@ -58,7 +59,7 @@ import { getEventLog } from "./reports/event-log.js";
 import { renderDashboard } from "./reports/dashboard.js";
 import { getProjectDiff } from "./reports/diff.js";
 import { upsertTicket } from "./tickets/repository.js";
-import { existsSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
+import { existsSync, statSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
 import { loadConfig } from "./config.js";
 import { VERSION } from "./version.generated.js";
 import { displayWidth } from "./display-width.js";
@@ -156,6 +157,21 @@ function readFileSync(path: string, encoding: "utf-8"): string {
   } catch (err) {
     throw describeFsError(err, "read", path);
   }
+}
+
+// Check an import file's size before reading it: reading first took about
+// 7 GB of memory for a 3 GB file before the 50 MB limit was even checked
+function readImportFile(path: string, maxBytes: number): string {
+  let size: number;
+  try {
+    size = statSync(path).size;
+  } catch (err) {
+    throw describeFsError(err, "read", path);
+  }
+  if (size > maxBytes) {
+    throw new ValidationError(`${path} is ${(size / 1024 / 1024).toFixed(1)} MB; imports take at most ${maxBytes / 1024 / 1024} MB`);
+  }
+  return readFileSync(path, "utf-8");
 }
 
 // Confirmation for a command that wrote a file: JSON with the path under
@@ -1243,7 +1259,7 @@ importCmd
   .action(async (file: string, cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const csv = readFileSync(validateImportPath(file, [".csv"]), "utf-8");
+      const csv = readImportFile(validateImportPath(file, [".csv"]), MAX_CSV_BYTES);
       const result = await importCsv(db, project.id, csv);
       if (opts.json) {
         console.log(JSON.stringify(result));
@@ -1261,7 +1277,7 @@ importCmd
     const opts = cmd.optsWithGlobals();
     const name = resolveProjectName(cmdOpts.project);
     await withDb(opts, async (db) => {
-      const json = readFileSync(validateImportPath(file, [".json"]), "utf-8");
+      const json = readImportFile(validateImportPath(file, [".json"]), MAX_JSON_SIZE_BYTES);
       const result = await importJsonAsProject(db, name, json);
       if (opts.json) {
         console.log(JSON.stringify(result));

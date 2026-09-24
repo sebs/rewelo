@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -25,6 +25,15 @@ describe("rw import (CLI)", () => {
     writeFileSync(join(dir, "ok.csv"), "title\nA\n");
     const r = importCsv(join(dir, "ok.csv"));
     assert.ok(r.stdout.includes("Imported 1 ticket\n"));
+  });
+
+  it("refuses a file over 50 MB before reading it", () => {
+    const huge = join(dir, "huge.csv");
+    writeFileSync(huge, "");
+    truncateSync(huge, 3 * 1024 * 1024 * 1024); // sparse: 3 GB without using disk
+    const r = importCsv(huge);
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /huge\.csv is 3072\.0 MB; imports take at most 50 MB/);
   });
 
   it("rejects a file with the wrong extension", () => {
@@ -87,4 +96,5 @@ describe("rw import json into a new project (CLI)", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
 });

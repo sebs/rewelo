@@ -11,7 +11,7 @@ const MAX_ROWS = 100_000;
 // Columns written by `rw export csv`; value, cost and priority
 // (--with-calculations) are derived from the scores and ignored.
 const KNOWN_COLUMNS = ["title", "description", "benefit", "penalty", "estimate", "risk", "tags", "value", "cost", "priority"];
-const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+export const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 interface CsvRow {
   /** Row number in the file (blank lines counted) */
