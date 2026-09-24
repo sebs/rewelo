@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCli } from "./run.js";
+import { spawn } from "node:child_process";
+import { BIN, runCli } from "./run.js";
 
 describe("rw export (CLI)", () => {
   let dir: string;
@@ -56,5 +57,19 @@ describe("rw export (CLI)", () => {
     // the path is shown resolved (on macOS /var is /private/var)
     assert.match(rw("import", "json", unreadable, "--project", "P").stderr, /^Cannot read \S*noread\.json: permission denied$/m);
     chmodSync(locked, 0o755);
+  });
+
+  it("stops quietly when the reader closes the pipe early", async () => {
+    const csv = join(dir, "many.csv");
+    writeFileSync(csv, "title,description\n" + Array.from({ length: 2000 }, (_, i) => `T${i},${"x".repeat(200)}`).join("\n"));
+    rw("import", "csv", csv, "--project", "P");
+
+    const child = spawn(process.execPath, [BIN, "--db", db, "export", "csv", "--project", "P"], { stdio: ["ignore", "pipe", "pipe"] });
+    let stderr = "";
+    child.stderr!.on("data", (d) => (stderr += d));
+    child.stdout!.once("data", () => child.stdout!.destroy());
+    const code = await new Promise((resolve) => child.once("exit", resolve));
+    assert.equal(stderr, "");
+    assert.equal(code, 0);
   });
 });

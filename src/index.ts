@@ -219,6 +219,13 @@ function parseFloatOption(value: string): number {
   return n;
 }
 
+// Output piped into e.g. `head` may be closed early: stop quietly, as other
+// command-line tools do, instead of crashing with an unhandled EPIPE
+process.stdout.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EPIPE") process.exit(0);
+  throw err;
+});
+
 const program = new Command();
 
 program
