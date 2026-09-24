@@ -5,6 +5,22 @@
 
 import { AppError } from "./strings.js";
 
+const FS_ERRORS: Record<string, string> = {
+  EACCES: "Permission denied",
+  EPERM: "Operation not permitted",
+  ENOENT: "No such file or directory",
+  EISDIR: "Is a directory",
+  ENOTDIR: "Not a directory",
+  EROFS: "Read-only file system",
+  ENOSPC: "No space left on device",
+};
+
+/** A file system error as a message naming the path, for paths the user gave */
+export function describeFsError(err: unknown, action: "read" | "write", path: string): Error {
+  const problem = FS_ERRORS[(err as NodeJS.ErrnoException)?.code ?? ""];
+  return problem ? new AppError(`Cannot ${action} ${path}: ${problem.toLowerCase()}`) : (err as Error);
+}
+
 export function sanitizeError(err: unknown): string {
   // AppError (and its subclass ValidationError) carry user-safe messages
   if (err instanceof AppError) {
@@ -12,6 +28,11 @@ export function sanitizeError(err: unknown): string {
   }
 
   if (err instanceof Error) {
+    // File system errors: say what went wrong (without the path), since
+    // "please try again" never helps with e.g. a permission problem
+    const fsProblem = FS_ERRORS[(err as NodeJS.ErrnoException).code ?? ""];
+    if (fsProblem) return fsProblem;
+
     // Constraint violations from the database — provide helpful message
     if (err.message.includes("UNIQUE constraint failed")) {
       return "A record with the same unique key already exists";

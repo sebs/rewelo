@@ -43,7 +43,7 @@ import {
   ValidationError,
 } from "./validation/strings.js";
 import { validateDbPath, validateExportPath, validateImportPath } from "./validation/paths.js";
-import { sanitizeError } from "./validation/errors.js";
+import { describeFsError, sanitizeError } from "./validation/errors.js";
 import { csvRow, exportCsv } from "./export/csv.js";
 import { exportJson } from "./export/json.js";
 import { importCsv } from "./import/csv.js";
@@ -58,7 +58,7 @@ import { getEventLog } from "./reports/event-log.js";
 import { renderDashboard } from "./reports/dashboard.js";
 import { getProjectDiff } from "./reports/diff.js";
 import { upsertTicket } from "./tickets/repository.js";
-import { writeFileSync, readFileSync } from "fs";
+import { writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
 import { loadConfig } from "./config.js";
 import { VERSION } from "./version.generated.js";
 import { displayWidth } from "./display-width.js";
@@ -122,6 +122,23 @@ async function withProject<T>(
     }
     return fn(db, project);
   });
+}
+
+// File access on paths the user gave: errors name the path and the problem
+function writeFileSync(path: string, data: string, encoding: "utf-8"): void {
+  try {
+    fsWriteFileSync(path, data, encoding);
+  } catch (err) {
+    throw describeFsError(err, "write", path);
+  }
+}
+
+function readFileSync(path: string, encoding: "utf-8"): string {
+  try {
+    return fsReadFileSync(path, encoding);
+  } catch (err) {
+    throw describeFsError(err, "read", path);
+  }
 }
 
 // Confirmation for a command that wrote a file: JSON with the path under

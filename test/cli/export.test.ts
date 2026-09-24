@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -39,5 +39,22 @@ describe("rw export (CLI)", () => {
     assert.ok((rw("export", "csv", "--project", "P", "--output", out("x.json")).stderr).includes("extensions: .csv"));
     assert.ok((rw("export", "json", "--project", "P", "--output", out("x.csv")).stderr).includes("extensions: .json"));
     assert.equal(rw("report", "dashboard", "--project", "P", "--output", out("d.html")).code, 0);
+  });
+
+  it("names the path and the problem when a file cannot be written or read", { skip: process.getuid?.() === 0 }, () => {
+    const locked = join(dir, "locked");
+    mkdirSync(locked);
+    chmodSync(locked, 0o555);
+    const out = join(locked, "x.json");
+    const r = rw("export", "json", "--project", "P", "--output", out);
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /^Cannot write \S*locked\/x\.json: permission denied$/m);
+
+    const unreadable = join(dir, "noread.json");
+    writeFileSync(unreadable, "{}");
+    chmodSync(unreadable, 0o000);
+    // the path is shown resolved (on macOS /var is /private/var)
+    assert.match(rw("import", "json", unreadable, "--project", "P").stderr, /^Cannot read \S*noread\.json: permission denied$/m);
+    chmodSync(locked, 0o755);
   });
 });
