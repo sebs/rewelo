@@ -28,6 +28,7 @@ src/
   tickets/      Ticket CRUD
   tags/         Tag management and audit log
   relations/    Ticket relations
+  revisions/    Ticket revision history
   calculations/ Priority, relative weights, time calculations
   weights/      Weight configuration
   validation/   Input validation and error sanitisation

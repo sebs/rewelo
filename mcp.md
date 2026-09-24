@@ -2,15 +2,20 @@
 
 Rewelo exposes all functionality as an MCP (Model Context Protocol) server over stdio transport. This lets AI assistants like Claude create projects, manage tickets, assign tags, and calculate priorities directly.
 
-The MCP server runs inside a Docker container. Running it as a bare Node process is not recommended.
+Run it from the published Docker image, as configured below (recommended: it runs with dropped capabilities, a read-only filesystem and a memory limit), or with `rw serve` from the npm package (see [Without Docker](#without-docker)).
 
 ## Prerequisites
 
-Build the image once:
+Pull the image once (each release publishes `ghcr.io/sebs/rewelo:<version>` and, for the newest release, `:latest`):
 
 ```bash
-VERSION=$(node -p "require('./package.json').version")
-docker build --build-arg APP_VERSION=$VERSION -t rewelo-mcp:$VERSION -t rewelo-mcp:latest .
+docker pull ghcr.io/sebs/rewelo:latest
+```
+
+To run a local build instead, build it from a checkout and use `rewelo-mcp` in place of `ghcr.io/sebs/rewelo` below:
+
+```bash
+docker build --build-arg APP_VERSION="$(node -p "require('./package.json').version")" -t rewelo-mcp .
 ```
 
 The database is stored inside the container volume at `/data/relative-weight.db` and persists across restarts via the `rw-data` named volume.
@@ -28,7 +33,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "rewelo": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "--init", "--cap-drop=ALL", "--read-only", "--tmpfs", "/tmp", "--memory=256m", "-v", "rw-data:/data", "rewelo-mcp", "serve"]
+      "args": ["run", "--rm", "-i", "--init", "--cap-drop=ALL", "--read-only", "--tmpfs", "/tmp", "--memory=256m", "-v", "rw-data:/data", "ghcr.io/sebs/rewelo", "serve"]
     }
   }
 }
@@ -36,14 +41,14 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### Claude Code
 
-Add to `.mcp.json` in your project root or `~/.claude/mcp.json` globally:
+Add to `.mcp.json` in your project root, or register it for all your projects with `claude mcp add --scope user rewelo -- docker run --rm -i --init --cap-drop=ALL --read-only --tmpfs /tmp --memory=256m -v rw-data:/data ghcr.io/sebs/rewelo serve`. The project file looks like this:
 
 ```json
 {
   "mcpServers": {
     "rewelo": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "--init", "--cap-drop=ALL", "--read-only", "--tmpfs", "/tmp", "--memory=256m", "-v", "rw-data:/data", "rewelo-mcp", "serve"]
+      "args": ["run", "--rm", "-i", "--init", "--cap-drop=ALL", "--read-only", "--tmpfs", "/tmp", "--memory=256m", "-v", "rw-data:/data", "ghcr.io/sebs/rewelo", "serve"]
     }
   }
 }
@@ -61,12 +66,28 @@ Add to `.mcp.json` in your project root or `~/.claude/mcp.json` globally:
 - `--tmpfs /tmp` provides a writable temp directory in memory
 - `--memory=256m` limits container memory to 256 MB
 
+### Without Docker
+
+With the npm package installed (`npm install -g rewelo`), a client can start `rw serve` directly. Set `RW_DB_PATH` to keep the database in a fixed place; otherwise it is `relative-weight.db` in the client's working directory:
+
+```json
+{
+  "mcpServers": {
+    "rewelo": {
+      "command": "rw",
+      "args": ["serve"],
+      "env": { "RW_DB_PATH": "/Users/you/rewelo/backlog.db" }
+    }
+  }
+}
+```
+
 ## Verifying the Server
 
 Use the MCP inspector to browse tools and test them interactively:
 
 ```bash
-npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data rewelo-mcp serve
+npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data ghcr.io/sebs/rewelo serve
 ```
 
 ## Available Tools
