@@ -38,4 +38,13 @@ describe("site Markdown renderer", () => {
     assert.match(render("## Foo ##"), /<h2 id="foo"><a class="anchor" href="#foo">Foo<\/a><\/h2>/);
     assert.match(render("## Café & Co."), / id="café--co"/);
   });
+
+  it("renders ~~~ fences, longer fences and fences inside list items", () => {
+    assert.equal(render("~~~\n# not a heading\n~~~"), "<pre><code># not a heading</code></pre>");
+    assert.equal(render("````md\n```\ninner\n```\n````"), '<pre data-lang="md"><code>```\ninner\n```</code></pre>');
+    assert.equal(
+      render("1. step\n   ```bash\n   rw x\n   ```\n2. next"),
+      '<ol><li><p>step</p>\n<pre data-lang="bash"><code>rw x</code></pre></li><li>next</li></ol>'
+    );
+  });
 });
