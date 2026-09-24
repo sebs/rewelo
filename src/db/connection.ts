@@ -1,5 +1,5 @@
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import { AppError } from "../validation/strings.js";
+import { AppError, collapseSpaces } from "../validation/strings.js";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Row {
@@ -51,6 +51,10 @@ export class DB {
       // the same Unicode lowercasing that JavaScript applies to the term.
       db.function("unicode_lower", { deterministic: true }, (s) =>
         typeof s === "string" ? s.toLowerCase() : s
+      );
+      // Titles stored before spaces were collapsed may still hold "a  b"
+      db.function("collapse_spaces", { deterministic: true }, (s) =>
+        typeof s === "string" ? collapseSpaces(s) : s
       );
       return new DB(db);
     });

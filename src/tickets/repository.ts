@@ -126,10 +126,10 @@ export async function listTickets(
   // pattern (a bare "%" previously matched every ticket).
   // Titles are stored trimmed and NFC-normalised, so match the query in the same form
   if (options?.search) {
-    const escaped = normalizeName(options.search)
+    const escaped = collapseSpaces(normalizeName(options.search))
       .toLowerCase()
       .replace(/[\\%_]/g, (c) => `\\${c}`);
-    sql += ` AND unicode_lower(t.title) LIKE ? ESCAPE '\\'`;
+    sql += ` AND unicode_lower(collapse_spaces(t.title)) LIKE ? ESCAPE '\\'`;
     params.push(`%${escaped}%`);
   }
 

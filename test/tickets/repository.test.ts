@@ -242,4 +242,13 @@ describe("tickets repository", () => {
       assert.equal((await getTicketByTitle(db, projectId, lookalike))?.title, "a b");
     }
   });
+
+  it("searches with spaces collapsed, like titles are stored", async () => {
+    await createTicket(db, { projectId, title: validateTicketTitle("Login  page") });
+    await db.run("INSERT INTO tickets (project_id, title) VALUES (?, 'Old  spaced')", projectId);
+    const titles = async (search: string) => (await listTickets(db, projectId, { search })).map((t) => t.title);
+    assert.deepEqual(await titles("Login  page"), ["Login page"]);
+    assert.deepEqual(await titles("login\u00A0page"), ["Login page"]);
+    assert.deepEqual(await titles("old spaced"), ["Old  spaced"]);
+  });
 });
