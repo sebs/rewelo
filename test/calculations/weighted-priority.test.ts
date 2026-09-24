@@ -27,4 +27,11 @@ describe("weighted priority", () => {
     assert.throws(() => weightedPriority(8, 5, 3, 2, 0, 0, 0, 0), AppError);
     assert.throws(() => weightedPriority(8, 5, 3, 2, 0, 0, 0, 0), /denominator is zero/);
   });
+
+  it("rounds halves up despite float error", () => {
+    // (2.5*3 + 13) / (0.5*1 + 1.5*13) = 20.5 / 20 = 1.025
+    assert.equal(weightedPriority(3, 13, 1, 13, 2.5, 1, 0.5, 1.5), 1.03);
+    // (1.1*1 + 1.3*5) / (0.7*2 + 0.9*2) = 7.6 / 3.2 = 2.375
+    assert.equal(weightedPriority(1, 5, 2, 2, 1.1, 1.3, 0.7, 0.9), 2.38);
+  });
 });

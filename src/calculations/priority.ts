@@ -6,6 +6,14 @@ export function cost(estimate: number, risk: number): number {
   return estimate + risk;
 }
 
+/**
+ * Round to two decimals, half up. The float error has to go first: 20.5/20
+ * is stored as 1.0249999999999999, which Math.round would take to 1.02.
+ */
+export function round2(x: number): number {
+  return Math.round(Number((x * 100).toPrecision(12))) / 100;
+}
+
 /** value / cost, unrounded: use it to sort and filter */
 export function exactPriority(
   benefit: number,
@@ -23,7 +31,7 @@ export function priority(
   estimate: number,
   risk: number
 ): number {
-  return Math.round(exactPriority(benefit, penalty, estimate, risk) * 100) / 100;
+  return round2(exactPriority(benefit, penalty, estimate, risk));
 }
 
 interface Scores {

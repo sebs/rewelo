@@ -1,3 +1,4 @@
+import { round2 } from "./priority.js";
 import { AppError } from "../validation/strings.js";
 
 /** Weighted value / weighted cost, unrounded: use it to sort */
@@ -32,5 +33,5 @@ export function weightedPriority(
   w3: number,
   w4: number
 ): number {
-  return Math.round(exactWeightedPriority(benefit, penalty, estimate, risk, w1, w2, w3, w4) * 100) / 100;
+  return round2(exactWeightedPriority(benefit, penalty, estimate, risk, w1, w2, w3, w4));
 }
