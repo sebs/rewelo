@@ -524,4 +524,14 @@ describe("MCP server", () => {
     assert.equal(r.isError, true);
     assert.match((r.content as any)[0].text, /project must not be empty/);
   });
+
+  it("tag_assign handles a large tickets array within the payload limit", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "L" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "L", title: "A" } });
+    const r = await client.callTool({
+      name: "tag_assign",
+      arguments: { project: "L", tickets: Array(130_000).fill("A"), prefix: "a", value: "b" },
+    });
+    assert.match((r.content as any)[0].text, /Tag "a:b" not found/);
+  });
 });

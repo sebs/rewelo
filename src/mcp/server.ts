@@ -460,14 +460,13 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       tags: z.array(z.object({ prefix: z.string(), value: z.string() })).optional().describe("Multiple tags to assign"),
     },
     safe(async ({ project, ticket: ticketTitle, tickets: ticketTitles, prefix, value, tags: tagList }) => {
-      const allTickets: string[] = [];
-      if (ticketTitle) allTickets.push(ticketTitle);
-      if (ticketTitles) allTickets.push(...ticketTitles);
+      // concat, not push(...): spreading a large array overflows the stack
+      const allTickets: string[] = (ticketTitle ? [ticketTitle] : []).concat(ticketTitles ?? []);
       if (allTickets.length === 0) throw new AppError("Provide ticket or tickets");
 
       const allTags: { prefix: string; value: string }[] = [];
       if (prefix && value) allTags.push({ prefix, value });
-      if (tagList) allTags.push(...tagList);
+      if (tagList) for (const t of tagList) allTags.push(t);
       if (allTags.length === 0) throw new AppError("Provide prefix+value or tags");
 
       const validatedTags = allTags.map(t => ({
