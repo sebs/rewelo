@@ -141,7 +141,7 @@ describe("project diff", () => {
   it("reports tickets deleted since the timestamp", async () => {
     const kept = await createTicket(db, { projectId, title: "Kept" });
     const gone = await createTicket(db, { projectId, title: "Gone" });
-    const since = new Date(Date.now() - 1000).toISOString();
+    const since = await now();
     await deleteTicket(db, projectId, gone.id);
 
     const diff = await getProjectDiff(db, projectId, since);
@@ -167,5 +167,13 @@ describe("project diff", () => {
     await renameTag(db, projectId, old.id, "team", "new");
 
     assert.deepEqual((await getProjectDiff(db, projectId, before)).tagChanges[0].added, ["team:new"]);
+  });
+
+  it("does not report a ticket created and deleted since as deleted", async () => {
+    const before = await now();
+    const t = await createTicket(db, { projectId, title: "Temp" });
+    await deleteTicket(db, projectId, t.id);
+
+    assert.deepEqual((await getProjectDiff(db, projectId, before)).deletedTickets, []);
   });
 });

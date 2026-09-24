@@ -165,8 +165,11 @@ export async function getProjectDiff(
   const deletedTickets = await db.all<{ id: number; title: string }>(
     `SELECT ticket_id AS id, title FROM ticket_deletions
      WHERE project_id = ? AND deleted_at > ?
+       -- a ticket created after since did not exist then: no net change
+       AND (created_at IS NULL OR created_at <= ?)
      ORDER BY deleted_at, id`,
     projectId,
+    sinceUtc,
     sinceUtc
   );
 

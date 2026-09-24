@@ -116,6 +116,7 @@ Table ticket_deletions {
   ticket_id bigint [not null, note: 'Id of the deleted ticket (no FK: the ticket is gone)']
   title text [not null]
   deleted_at text [not null, note: 'ISO-8601 UTC']
+  created_at text [note: 'When the deleted ticket was created; NULL before schema 5']
 
   Note: 'Record of deleted tickets so project diff can report deletions.'
 }

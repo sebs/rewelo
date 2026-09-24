@@ -117,6 +117,7 @@ describe("migrate", () => {
       INSERT INTO projects (id, name) VALUES (1, 'P');
       INSERT INTO tickets (id, project_id, title, created_at) VALUES (1, 1, 'A', '2026-01-02T00:00:00.000Z');
       INSERT INTO ticket_deletions (project_id, ticket_id, title, deleted_at) VALUES (1, 9, 'Gone', '2026-01-01T00:00:00.000Z');
+      ALTER TABLE ticket_deletions DROP COLUMN created_at;
       PRAGMA user_version = 3;`);
     await dropEventOrder();
 
@@ -125,6 +126,16 @@ describe("migrate", () => {
     assert.deepEqual(rows.map((r) => r.source), ["deletion", "ticket"]);
     await db.run("INSERT INTO tickets (project_id, title) VALUES (1, 'B')");
     assert.equal((await db.all("SELECT 1 FROM event_order")).length, 3);
+  });
+
+  it("adds the creation time to deletion records", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec("ALTER TABLE ticket_deletions DROP COLUMN created_at; PRAGMA user_version = 4;");
+
+    await migrate(db);
+    const columns = await db.all<{ name: string }>("PRAGMA table_info(ticket_deletions)");
+    assert.ok(columns.some((c) => c.name === "created_at"));
   });
 
   it("refuses a database from a newer schema version", async () => {
@@ -151,6 +162,7 @@ describe("migrate", () => {
       INSERT INTO ticket_tag_changes (ticket_id, tag_id, action, changed_at) VALUES
         (1, 1, 'added', '2026-01-01T00:00:00.000Z'),
         (1, 1, 'removed', '2026-01-03T00:00:00.000Z');
+      ALTER TABLE ticket_deletions DROP COLUMN created_at;
       PRAGMA user_version = 2;`);
 
     await migrate(db);

@@ -95,6 +95,12 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       UNION ALL SELECT 'deletion', id, deleted_at, 2 FROM ticket_deletions
     ) ORDER BY ts, rank, row_id;`,
   },
+  {
+    // Project diff must not report a ticket created and deleted after since
+    // as deleted: remember when a deleted ticket was created
+    version: 5,
+    sql: `ALTER TABLE ticket_deletions ADD COLUMN created_at TEXT`,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

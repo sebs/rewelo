@@ -294,10 +294,11 @@ export async function deleteTicket(
 
   // Remembered so project diffs can report the deletion
   await db.run(
-    `INSERT INTO ticket_deletions (project_id, ticket_id, title) VALUES (?, ?, ?)`,
+    `INSERT INTO ticket_deletions (project_id, ticket_id, title, created_at) VALUES (?, ?, ?, ?)`,
     projectId,
     ticketId,
-    ticket.title
+    ticket.title,
+    ticket.created_at
   );
 
   // The schema has no ON DELETE CASCADE, so we cascade manually.
