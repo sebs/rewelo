@@ -241,4 +241,11 @@ describe("JSON import", () => {
     const json = JSON.stringify({ tickets: [{ title: "Dup" }, { title: "Dup" }] });
     await assert.rejects(importJson(db, projectId, json), /Ticket 2: title "Dup" is the same as ticket 1's/);
   });
+
+  it("refuses more than 100 tags on one ticket, quickly", async () => {
+    const tags = Array.from({ length: 20_000 }, (_, i) => ({ prefix: `p${i}`, value: "v" }));
+    const started = Date.now();
+    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Tagged", tags }] })), /Ticket 1: at most 100 tags per ticket/);
+    assert.ok(Date.now() - started < 3000);
+  });
 });

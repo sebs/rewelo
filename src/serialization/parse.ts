@@ -3,7 +3,7 @@ import { ValidationError, validateTagPrefix, validateTagValue, validateTicketDes
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 import { isValidRelationType } from "../relations/types.js";
 import { validateWeights } from "../weights/repository.js";
-import { assertOneValuePerPrefix } from "../tags/assignment.js";
+import { assertOneValuePerPrefix, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
 import type { ImportableHistory, ImportableTicket } from "./import-project.js";
 import { normalizeSince } from "../validation/timestamps.js";
 
@@ -101,6 +101,7 @@ export function parseTickets(
 
     const tags = parseTags(t.tags, `${errorPrefix} ${i + 1}: tag`);
     try {
+      if (tags && tags.length > MAX_TAGS_PER_TICKET) throw new ValidationError(`at most ${MAX_TAGS_PER_TICKET} tags per ticket`);
       if (tags) assertOneValuePerPrefix(tags);
     } catch (e) {
       throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
@@ -145,6 +146,7 @@ export function parseRelations(raw: unknown): SerializedRelation[] | undefined {
   if (!Array.isArray(raw)) {
     throw new ValidationError('Relations must be an array of {"source", "type", "target"} objects');
   }
+  if (raw.length > 100_000) throw new ValidationError("Exceeds maximum of 100,000 relations");
   return raw.map((rel, i) => {
     const r = rel as Record<string, unknown>;
     if (!r || typeof r !== "object" || typeof r.source !== "string" || typeof r.type !== "string" || typeof r.target !== "string") {

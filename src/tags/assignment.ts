@@ -26,6 +26,13 @@ export function assertOneValuePerPrefix(tags: { prefix: string; value: string }[
   }
 }
 
+/**
+ * A ticket holds one value per prefix, so it never needs many tags. Every
+ * assignment checks all of a ticket's tags for its prefix, so without a cap
+ * one imported ticket with 20,000 tags took 16 s and blocked the MCP server.
+ */
+export const MAX_TAGS_PER_TICKET = 100;
+
 export interface AssignResult {
   /** false if the ticket already had this tag */
   assigned: boolean;
@@ -67,6 +74,10 @@ export async function assignTag(
       ticketId,
       tagId
     );
+    if (samePrefix.length === 0) {
+      const [{ n }] = await db.all<{ n: number }>(`SELECT count(*) AS n FROM ticket_tags WHERE ticket_id = ?`, ticketId);
+      if (n >= MAX_TAGS_PER_TICKET) throw new AppError(`A ticket can hold at most ${MAX_TAGS_PER_TICKET} tags`);
+    }
     for (const row of samePrefix) {
       await db.run(
         `DELETE FROM ticket_tags WHERE ticket_id = ? AND tag_id = ?`,
