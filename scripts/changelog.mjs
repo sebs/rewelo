@@ -45,7 +45,8 @@ function entryFor(version, range) {
     const match = line.match(/^(\w+)(?:\(.+?\))?(!)?:\s*(.+)/);
     if (match && match[2]) {
       groups.breaking.push(`${match[1]}: ${match[3].trim()}`);
-    } else if (match && groups[match[1]]) {
+    } else if (match && Object.hasOwn(groups, match[1])) {
+      // hasOwn: "constructor: tidy" found Object.prototype.constructor
       groups[match[1]].push(match[3].trim());
     } else {
       groups.other.push(line.trim());

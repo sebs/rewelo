@@ -95,4 +95,12 @@ describe("scripts/changelog.mjs", () => {
     // A prerelease still lists what is new since the tag before it
     assert.doesNotMatch(changelog("v1.1.0-rc.1"), /rc fix|first feature/);
   });
+
+  it("puts commit types named like object properties under Other", () => {
+    commit("constructor: tidy");
+    commit("toString: nicer");
+    const out = changelog();
+    assert.match(out, /- constructor: tidy/);
+    assert.match(out, /- toString: nicer/);
+  });
 });
