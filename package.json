@@ -15,6 +15,7 @@
   },
   "files": [
     "dist/",
+    "!dist/**/*.map",
     "db/create.sql",
     "db/model.dbml",
     "README.md",

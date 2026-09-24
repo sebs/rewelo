@@ -22,4 +22,8 @@ describe("package.json", () => {
     // Publishing with --provenance failed with E422: "repository.url" is ""
     assert.match(pkg.repository?.url ?? "", /github\.com\/sebs\/rewelo(\.git)?$/);
   });
+
+  it("leaves source maps out of the package, as their sources aren't in it", () => {
+    assert.ok(pkg.files.includes("!dist/**/*.map"));
+  });
 });
