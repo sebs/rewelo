@@ -133,9 +133,13 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
   },
   {
     // Version 8 could cut a title just after a space, and a title ending in
-    // one can't be found by name (names are looked up trimmed)
+    // one can't be found by name (names are looked up trimmed). A blank
+    // description is no description, stored as null like "" since version 9.
     version: 10,
-    run: (db) => retitleTickets(db, (title) => title.trim()),
+    run: async (db) => {
+      await retitleTickets(db, (title) => title.trim());
+      await db.run(`UPDATE tickets SET description = NULL WHERE trim(description, ' ' || char(9, 10, 13)) = ''`);
+    },
   },
 ];
 

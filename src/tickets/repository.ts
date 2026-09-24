@@ -48,6 +48,10 @@ function validateScores(input: {
   if (input.risk !== undefined) assertFibonacci(input.risk, "risk");
 }
 
+// Whitespace alone is no description: stored as null, like ""
+const blankToNull = (description: string | undefined): string | null =>
+  description === undefined || description.trim() === "" ? null : description;
+
 export async function createTicket(
   db: DB,
   input: CreateTicketInput
@@ -73,7 +77,7 @@ export async function createTicket(
        RETURNING *`,
       input.projectId,
       input.title,
-      input.description || null, // "" is no description, stored as null
+      blankToNull(input.description), // "" and "   " are no description, stored as null
       input.benefit ?? 1,
       input.penalty ?? 1,
       input.estimate ?? 1,
@@ -214,8 +218,8 @@ export async function updateTicket(
     }
 
     const title = input.title ?? current.title;
-    // An empty description clears it; "no description" is always null
-    const description = input.description === "" ? null : (input.description ?? current.description);
+    // An empty or blank description clears it; "no description" is always null
+    const description = input.description === undefined ? current.description : blankToNull(input.description);
     const benefit = input.benefit ?? current.benefit;
     const penalty = input.penalty ?? current.penalty;
     const estimate = input.estimate ?? current.estimate;

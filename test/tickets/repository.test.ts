@@ -293,5 +293,8 @@ describe("tickets repository", () => {
     assert.equal(created.description, null);
     const described = await createTicket(db, { projectId, title: "Described", description: "text" });
     assert.equal((await updateTicket(db, projectId, described.id, { description: "" })).description, null);
+    assert.equal((await createTicket(db, { projectId, title: "Blank", description: " \n\t " })).description, null);
+    assert.equal((await updateTicket(db, projectId, described.id, { description: "  " })).description, null);
+    assert.equal((await createTicket(db, { projectId, title: "Indented", description: "  code" })).description, "  code");
   });
 });
