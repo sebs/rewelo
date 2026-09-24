@@ -104,6 +104,7 @@ rw tag create <prefix:value> --project <name>
 rw tag assign <tags...> --project <name> --ticket <title> [--ticket <title>...]
 rw tag remove <prefix:value> --project <name> --ticket <title>
 rw tag list --project <name>
+rw tag delete <prefix:value> --project <name>     # only a tag no ticket holds
 rw tag rename --project <name> --prefix <prefix> --old <value> --new <value>
 rw tag log --project <name> --ticket <title>
 ```

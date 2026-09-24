@@ -10,6 +10,8 @@ import {
   renameTag,
   deleteTag,
 } from "../../src/tags/repository.js";
+import { createTicket } from "../../src/tickets/repository.js";
+import { assignTag, removeTag } from "../../src/tags/assignment.js";
 
 describe("tags repository", () => {
   let db: DB;
@@ -96,5 +98,18 @@ describe("tags repository", () => {
     assert.equal(deleted, true);
     const tags = await listTags(db, projectId);
     assert.equal(tags.length, 0);
+  });
+
+  it("deletes only a tag no ticket holds, keeping tag history", async () => {
+    const t = await createTicket(db, { projectId, title: "Holder" });
+    const tag = await createTag(db, projectId, "state", "typo");
+    await assignTag(db, t.id, tag.id);
+    await assert.rejects(deleteTag(db, projectId, tag.id), /assigned to 1 ticket; remove it from it first/);
+    await removeTag(db, t.id, tag.id);
+    assert.equal(await deleteTag(db, projectId, tag.id), true);
+    assert.equal((await db.all("SELECT 1 FROM ticket_tag_changes WHERE ticket_id = ?", t.id)).length, 2);
+    // the name is free again for a rename
+    const other = await createTag(db, projectId, "state", "fine");
+    assert.equal((await renameTag(db, projectId, other.id, "state", "typo")).value, "typo");
   });
 });

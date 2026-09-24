@@ -120,6 +120,7 @@ The legacy `tag` parameter (single string) is still supported alongside the new 
 | `tag_assign`      | Assign tags to tickets             | `project?`, `ticket?`, `tickets?`, `prefix?`, `value?`, `tags?` |
 | `tag_remove`      | Remove a tag from a ticket         | `project?`, `ticket`, `prefix`, `value`    |
 | `tag_list`        | List all tags in a project         | `project?`                                 |
+| `tag_delete`      | Delete a tag no ticket holds       | `project?`, `prefix`, `value`             |
 | `tag_rename`      | Rename a tag value (assignments carry over) | `project?`, `prefix`, `oldValue`, `newValue` |
 
 Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, `in-progress`).

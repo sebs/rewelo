@@ -79,7 +79,7 @@ rw project create|list|delete|history|diff
                                     Manage projects, view history and changes
 rw ticket  create|list|update|upsert|delete|history
                                     Manage tickets and view revision history
-rw tag     create|assign|remove|list|rename|log
+rw tag     create|assign|remove|delete|list|rename|log
                                     Manage tags and view audit log
 rw relation create|remove|list|list-all
                                     Ticket relations (blocks, depends-on, relates-to)

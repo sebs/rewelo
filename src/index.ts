@@ -18,6 +18,7 @@ import {
 } from "./tickets/repository.js";
 import {
   createTag,
+  deleteTag,
   getTag,
   listTags,
   renameTag,
@@ -865,6 +866,22 @@ tagCmd
           console.log(`  ${tag.value}`);
         }
       }
+    });
+  });
+
+tagCmd
+  .command("delete <tag>")
+  .description("delete a tag that no ticket holds")
+  .option("--project <name>", "project name (falls back to .rewelo.json)")
+  .action(async (tagStr: string, cmdOpts: any, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    const { prefix, value } = parseTag(tagStr);
+    await withProject(opts, cmdOpts.project, async (db, project) => {
+      const tag = await getTag(db, project.id, prefix, value);
+      if (!tag) { console.error(`Tag "${prefix}:${value}" not found`); process.exit(1); }
+      await deleteTag(db, project.id, tag.id);
+      if (opts.json) console.log(JSON.stringify({ deleted: true, tag: `${prefix}:${value}` }));
+      else if (!opts.quiet) console.log(`Deleted tag "${prefix}:${value}"`);
     });
   });
 

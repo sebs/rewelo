@@ -107,18 +107,27 @@ export async function renameTag(
   });
 }
 
+/**
+ * Delete a tag no ticket holds (remove it from its tickets first). Tickets'
+ * tag change history stays: each change records the tag's name.
+ */
 export async function deleteTag(
   db: DB,
   projectId: number,
   tagId: number
 ): Promise<boolean> {
-  const tag = await getTagById(db, projectId, tagId);
-  if (!tag) return false;
+  return db.transaction(async () => {
+    const tag = await getTagById(db, projectId, tagId);
+    if (!tag) return false;
 
-  // Manual cascade: the schema has no ON DELETE CASCADE.
-  await db.run(`DELETE FROM ticket_tag_changes WHERE tag_id = ?`, tagId);
-  await db.run(`DELETE FROM ticket_tags WHERE tag_id = ?`, tagId);
-  await db.run(`DELETE FROM tag_revisions WHERE tag_id = ?`, tagId);
-  await db.run(`DELETE FROM tags WHERE id = ? AND project_id = ?`, tagId, projectId);
-  return true;
+    const [{ n }] = await db.all<{ n: number }>(`SELECT count(*) AS n FROM ticket_tags WHERE tag_id = ?`, tagId);
+    if (n > 0) {
+      throw new ValidationError(
+        `Tag "${tag.prefix}:${tag.value}" is assigned to ${n} ticket${n === 1 ? "" : "s"}; remove it from ${n === 1 ? "it" : "them"} first`
+      );
+    }
+    await db.run(`DELETE FROM tag_revisions WHERE tag_id = ?`, tagId);
+    await db.run(`DELETE FROM tags WHERE id = ? AND project_id = ?`, tagId, projectId);
+    return true;
+  });
 }

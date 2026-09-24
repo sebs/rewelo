@@ -36,6 +36,7 @@ Feature: MCP Server
       | tag_assign            |
       | tag_remove            |
       | tag_list              |
+      | tag_delete            |
       | tag_rename            |
       | weight_get            |
       | weight_set            |

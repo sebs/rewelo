@@ -21,7 +21,7 @@ import {
   deleteTicket,
   Ticket,
 } from "../tickets/repository.js";
-import { createTag, getTag, listTags, renameTag } from "../tags/repository.js";
+import { createTag, deleteTag, getTag, listTags, renameTag } from "../tags/repository.js";
 import {
   assertOneValuePerPrefix,
   assignTag,
@@ -562,6 +562,26 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     "List all tags defined in a project, sorted by prefix then value.",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listTags(db, proj.id)))
+  );
+
+  tool(
+    "tag_delete",
+    "Delete a tag that no ticket holds (use tag_remove on its tickets first). Tickets' tag history is kept.",
+    {
+      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      prefix: z.string().describe("Tag prefix"),
+      value: z.string().describe("Tag value"),
+    },
+    safe(async ({ project, prefix, value }) => {
+      const validPrefix = validateTagPrefix(prefix);
+      const validValue = validateTagValue(value);
+      return withProject(resolveProject(project), async (db, proj) => {
+        const tag = await getTag(db, proj.id, validPrefix, validValue);
+        if (!tag) throw new AppError("Tag not found");
+        await deleteTag(db, proj.id, tag.id);
+        return { deleted: true, tag: `${validPrefix}:${validValue}` };
+      });
+    })
   );
 
   tool(
