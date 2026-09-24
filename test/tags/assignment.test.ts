@@ -193,7 +193,7 @@ describe("tag audit log", () => {
   it("caps a ticket at 100 tags, but still lets a tag replace another of its prefix", async () => {
     const t = await createTicket(db, { projectId, title: "Full" });
     for (let i = 0; i < 100; i++) await assignTag(db, t.id, (await createTag(db, projectId, `p${i}`, "v")).id);
-    await assert.rejects(assignTag(db, t.id, (await createTag(db, projectId, "extra", "v")).id), /at most 100 tags/);
+    await assert.rejects(assignTag(db, t.id, (await createTag(db, projectId, "extra", "v")).id), /Can.t add extra:v to ticket "Full": a ticket can hold at most 100 tags/);
     const replaced = await assignTag(db, t.id, (await createTag(db, projectId, "p0", "w")).id);
     assert.deepEqual(replaced.replaced, ["p0:v"]);
   });

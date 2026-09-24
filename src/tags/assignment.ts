@@ -76,7 +76,16 @@ export async function assignTag(
     );
     if (samePrefix.length === 0) {
       const [{ n }] = await db.all<{ n: number }>(`SELECT count(*) AS n FROM ticket_tags WHERE ticket_id = ?`, ticketId);
-      if (n >= MAX_TAGS_PER_TICKET) throw new AppError(`A ticket can hold at most ${MAX_TAGS_PER_TICKET} tags`);
+      if (n >= MAX_TAGS_PER_TICKET) {
+        // Name both: in a batch (tag assign a:b c:d --ticket X Y) the plain
+        // message didn't say which ticket was full
+        const [{ title, tag }] = await db.all<{ title: string; tag: string }>(
+          `SELECT (SELECT title FROM tickets WHERE id = ?) AS title, (SELECT prefix || ':' || value FROM tags WHERE id = ?) AS tag`,
+          ticketId,
+          tagId
+        );
+        throw new AppError(`Can't add ${tag} to ticket "${title}": a ticket can hold at most ${MAX_TAGS_PER_TICKET} tags`);
+      }
     }
     for (const row of samePrefix) {
       await db.run(
