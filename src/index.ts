@@ -549,7 +549,7 @@ ticketCmd
       }
       await deleteTicket(db, project.id, ticket.id);
       if (opts.json) console.log(JSON.stringify({ deleted: true, title: ticket.title }));
-      else if (!opts.quiet) console.log(`Deleted ticket "${cmdOpts.title}"`);
+      else if (!opts.quiet) console.log(`Deleted ticket "${ticket.title}"`);
     });
   });
 
@@ -657,7 +657,7 @@ tagCmd
     if (tickets.length === 0) { console.error("At least one --ticket is required"); process.exit(1); }
     const parsedTags = tagStrs.map((s: string) => {
       const { prefix, value } = parseTagPair(s);
-      return { raw: s, prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
+      return { prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
     });
     assertOneValuePerPrefix(parsedTags);
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -667,7 +667,7 @@ tagCmd
       for (const ticketTitle of tickets) {
         const ticket = await getTicketByTitle(db, project.id, ticketTitle);
         if (!ticket) { console.error(`Ticket "${ticketTitle}" not found`); process.exit(1); }
-        resolved.push({ title: ticketTitle, id: ticket.id });
+        resolved.push({ title: ticket.title, id: ticket.id });
       }
       const results: { ticket: string; tag: string; status: string; replaced?: string[] }[] = [];
       for (const { title: ticketTitle, id } of resolved) {
@@ -683,7 +683,8 @@ tagCmd
           });
           if (opts.json || opts.quiet) continue;
           const note = replaced.length > 0 ? ` (replaced ${replaced.map((r) => `"${r}"`).join(", ")})` : "";
-          console.log(assigned ? `Assigned "${t.raw}" to "${ticketTitle}"${note}` : `Tag "${t.raw}" already assigned to "${ticketTitle}"`);
+          const label = `${t.prefix}:${t.value}`;
+          console.log(assigned ? `Assigned "${label}" to "${ticketTitle}"${note}` : `Tag "${label}" already assigned to "${ticketTitle}"`);
         }
       }
       if (opts.json) console.log(JSON.stringify(results));
@@ -704,10 +705,10 @@ tagCmd
       const ticket = await getTicketByTitle(db, project.id, cmdOpts.ticket);
       if (!ticket) { console.error(`Ticket "${cmdOpts.ticket}" not found`); process.exit(1); }
       const tag = await getTag(db, project.id, prefix, value);
-      if (!tag) { console.error(`Tag "${tagStr}" not found`); process.exit(1); }
+      if (!tag) { console.error(`Tag "${prefix}:${value}" not found`); process.exit(1); }
       const removed = await removeTag(db, ticket.id, tag.id);
       if (opts.json) console.log(JSON.stringify({ ticket: ticket.title, tag: `${prefix}:${value}`, status: removed ? "removed" : "was_not_assigned" }));
-      else if (!opts.quiet) console.log(removed ? `Removed "${tagStr}" from "${cmdOpts.ticket}"` : `Tag "${tagStr}" was not assigned`);
+      else if (!opts.quiet) console.log(removed ? `Removed "${prefix}:${value}" from "${ticket.title}"` : `Tag "${prefix}:${value}" was not assigned`);
     });
   });
 
@@ -823,7 +824,7 @@ relationCmd
       if (opts.json) {
         console.log(JSON.stringify(relation));
       } else if (!opts.quiet) {
-        console.log(`Created: "${cmdOpts.source}" ${cmdOpts.type} "${cmdOpts.target}"`);
+        console.log(`Created: "${source.title}" ${cmdOpts.type} "${target.title}"`);
       }
     });
   });
@@ -846,7 +847,7 @@ relationCmd
       if (opts.json) {
         console.log(JSON.stringify({ removed: true }));
       } else if (!opts.quiet) {
-        console.log(`Removed: "${cmdOpts.source}" ${cmdOpts.type} "${cmdOpts.target}"`);
+        console.log(`Removed: "${source.title}" ${cmdOpts.type} "${target.title}"`);
       }
     });
   });

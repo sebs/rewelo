@@ -481,7 +481,8 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         // missing ticket or tag aborts the whole batch instead of half of it.
         const tickets: { title: string; id: number }[] = [];
         for (const title of new Set(allTickets)) {
-          tickets.push({ title, id: (await resolveTicket(db, proj.id, title)).id });
+          const ticket = await resolveTicket(db, proj.id, title);
+          tickets.push({ title: ticket.title, id: ticket.id });
         }
         const tags: { label: string; id: number }[] = [];
         for (const t of validatedTags) {
@@ -526,7 +527,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const tag = await getTag(db, proj.id, validPrefix, validValue);
         if (!tag) throw new AppError("Tag not found");
         const wasRemoved = await removeTag(db, ticket.id, tag.id);
-        return { ticket: ticketTitle, tag: `${validPrefix}:${validValue}`, status: wasRemoved ? "removed" : "was_not_assigned" };
+        return { ticket: ticket.title, tag: `${validPrefix}:${validValue}`, status: wasRemoved ? "removed" : "was_not_assigned" };
       });
     })
   );
@@ -821,7 +822,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const srcTicket = await resolveTicket(db, proj.id, source);
         const tgtTicket = await resolveTicket(db, proj.id, target);
         await createRelation(db, proj.id, srcTicket.id, tgtTicket.id, type);
-        return { created: true, source, type, target };
+        return { created: true, source: srcTicket.title, type, target: tgtTicket.title };
       })
     )
   );

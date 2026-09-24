@@ -91,6 +91,15 @@ describe("global output flags (CLI)", () => {
     });
   });
 
+  it("echoes the stored tag and ticket names, not the raw input", () => {
+    const out = rw("tag", "assign", "STATE:Done", "--project", "P", "--ticket", "  A, with comma ").stdout;
+    assert.equal(out, 'Assigned "state:done" to "A, with comma"\n');
+    assert.equal(
+      rw("tag", "remove", "STATE:DONE", "--project", "P", "--ticket", " A, with comma").stdout,
+      'Removed "state:done" from "A, with comma"\n'
+    );
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);
