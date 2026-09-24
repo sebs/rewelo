@@ -999,7 +999,7 @@ configCmd
   .command("weights")
   .description("view or manage weight configuration")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
-  .option("--set", "set weights (requires --w1..--w4)")
+  .option("--set", "set the weights given with --w1..--w4 (at least one; the others keep their value)")
   .option("--reset", "reset weights to defaults")
   .option("--w1 <n>", "benefit weight", parseFloatOption)
   .option("--w2 <n>", "penalty weight", parseFloatOption)
