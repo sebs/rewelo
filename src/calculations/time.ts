@@ -29,11 +29,12 @@ export async function getTicketTimes(
 
   const createdAt = ticket[0].created_at;
 
-  // Find first state:wip added
+  // Work started when the ticket was first tagged state:wip, under the name
+  // the tag had then: renaming wip (to e.g. doing) must not erase cycle times,
+  // and renaming another tag to wip must not invent them.
   const wipRows = await db.all<{ changed_at: string }>(
     `SELECT c.changed_at FROM ticket_tag_changes c
-     JOIN tags t ON t.id = c.tag_id
-     WHERE c.ticket_id = ? AND c.action = 'added' AND t.prefix = 'state' AND t.value = 'wip'
+     WHERE c.ticket_id = ? AND c.action = 'added' AND c.prefix = 'state' AND c.value = 'wip'
      ORDER BY c.changed_at
      LIMIT 1`,
     ticketId

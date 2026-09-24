@@ -4,7 +4,7 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
-import { createTag } from "../../src/tags/repository.js";
+import { createTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { getTicketTimes, averageLeadTime } from "../../src/calculations/time.js";
 
@@ -123,5 +123,15 @@ describe("lead and cycle time", () => {
     }
     assert.deepEqual(times.map((t) => t.leadTimeDays), [1, 0]);
     assert.equal(averageLeadTime(times), 0);
+  });
+
+  it("keeps cycle times when state:wip is renamed later", async () => {
+    const t = await createTicket(db, { projectId, title: "Renamed wip" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, t.id, wip.id);
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
+    await renameTag(db, projectId, wip.id, "state", "doing");
+
+    assert.equal((await getTicketTimes(db, t.id)).cycleTimeDays, 0);
   });
 });
