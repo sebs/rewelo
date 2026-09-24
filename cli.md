@@ -193,7 +193,7 @@ rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] 
 
 | Report         | Description |
 |----------------|-------------|
-| `summary`      | Total tickets, breakdown by `state:` tag, top-N by priority (default 5) |
+| `summary`      | Total tickets, breakdown by `state:` tag, top-N open tickets (not `state:done`) by priority (default 5) |
 | `group`        | Group tickets by a tag prefix and show average priority per group |
 | `distribution` | Histogram of Fibonacci scores across benefit, penalty, estimate, risk |
 | `health`       | High/low priority ratio, total backlog cost, done vs open counts |

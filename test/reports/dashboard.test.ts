@@ -6,6 +6,8 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createRelation } from "../../src/relations/repository.js";
 import { renderDashboard } from "../../src/reports/dashboard.js";
+import { createTag } from "../../src/tags/repository.js";
+import { assignTag } from "../../src/tags/assignment.js";
 
 describe("dashboard report", () => {
   let db: DB;
@@ -56,5 +58,15 @@ describe("dashboard report", () => {
     const html = await renderDashboard(db, projectId, "Dash");
     assert.ok(html.includes("n/a (no low-priority tickets)"));
     assert.ok(!html.includes("&infin;"));
+  });
+
+  it("ranks open tickets only and says how many done ones it leaves out", async () => {
+    const done = await createTicket(db, { projectId, title: "Done already" });
+    await createTicket(db, { projectId, title: "Still open" });
+    await assignTag(db, done.id, (await createTag(db, projectId, "state", "done")).id);
+    const html = await renderDashboard(db, projectId, "Dash");
+    assert.ok(!html.includes("<td>Done already</td>"));
+    assert.ok(html.includes("<td>Still open</td>"));
+    assert.ok(html.includes("1 done ticket is not listed."));
   });
 });

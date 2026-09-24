@@ -66,4 +66,11 @@ describe("project summary report", () => {
     assert.deepEqual(summary.byState, { untagged: 1 });
     assert.equal(summary.withoutState, 1);
   });
+
+  it("ranks open tickets only in the top list", async () => {
+    const done = await createTicket(db, { projectId, title: "Done already", benefit: 21 });
+    await createTicket(db, { projectId, title: "Still open", benefit: 3 });
+    await assignTag(db, done.id, (await createTag(db, projectId, "state", "done")).id);
+    assert.deepEqual((await getProjectSummary(db, projectId)).topByPriority.map((t) => t.title), ["Still open"]);
+  });
 });

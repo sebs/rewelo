@@ -24,7 +24,7 @@ describe("rw report (CLI)", () => {
     rw("ticket", "create", "--project", "P", "--title", "A");
     rw("ticket", "create", "--project", "P", "--title", "B");
     const out = rw("report", "summary", "--project", "P").stdout;
-    assert.ok(out.includes("Top 2 by priority:"), out);
+    assert.ok(out.includes("Top 2 open by priority:"), out);
   });
 
   it("report times --json has a stable shape with both averages", () => {

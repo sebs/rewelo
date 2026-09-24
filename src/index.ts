@@ -1341,7 +1341,7 @@ reportCmd
         }
         if (summary.withoutState > 0) console.log(`  (no state tag): ${summary.withoutState}`);
         if (summary.topByPriority.length > 0) {
-          console.log(`\nTop ${summary.topByPriority.length} by priority:`);
+          console.log(`\nTop ${summary.topByPriority.length} open by priority:`);
           summary.topByPriority.forEach((t, i) =>
             console.log(`  ${i + 1}. ${t.title} (${t.priority.toFixed(2)})`)
           );

@@ -12,6 +12,18 @@ export interface BacklogHealth {
   totalBacklogCost: number;
 }
 
+/** Tickets holding the tag now called state:done, in one query */
+export async function doneTicketIds(db: DB, projectId: number): Promise<Set<number>> {
+  const rows = await db.all<{ ticket_id: number }>(
+    `SELECT DISTINCT tt.ticket_id
+     FROM ticket_tags tt
+     JOIN tags tg ON tg.id = tt.tag_id
+     WHERE tg.project_id = ? AND tg.prefix = 'state' AND tg.value = 'done'`,
+    projectId
+  );
+  return new Set(rows.map((r) => r.ticket_id));
+}
+
 export async function getBacklogHealth(
   db: DB,
   projectId: number,
@@ -19,15 +31,7 @@ export async function getBacklogHealth(
 ): Promise<BacklogHealth> {
   const tickets = await listTickets(db, projectId);
 
-  // Single query: fetch all ticket IDs that have state:done
-  const doneRows = await db.all<{ ticket_id: number }>(
-    `SELECT DISTINCT tt.ticket_id
-     FROM ticket_tags tt
-     JOIN tags tg ON tg.id = tt.tag_id
-     WHERE tg.project_id = ? AND tg.prefix = 'state' AND tg.value = 'done'`,
-    projectId
-  );
-  const doneIds = new Set(doneRows.map((r) => r.ticket_id));
+  const doneIds = await doneTicketIds(db, projectId);
 
   let highCount = 0;
   let lowCount = 0;

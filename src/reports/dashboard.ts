@@ -2,7 +2,7 @@ import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { byPriority, priority } from "../calculations/priority.js";
 import { getDistribution } from "./distribution.js";
-import { getBacklogHealth } from "./health.js";
+import { doneTicketIds, getBacklogHealth } from "./health.js";
 import { listProjectRelations } from "../relations/repository.js";
 
 const FIBS = [1, 2, 3, 5, 8, 13, 21];
@@ -38,7 +38,10 @@ export async function renderDashboard(
   options: DashboardOptions = {}
 ): Promise<string> {
   const tickets = await listTickets(db, projectId);
-  const rows = [...tickets]
+  // The ranking is what to do next: open tickets only, as the health cards count
+  const done = await doneTicketIds(db, projectId);
+  const rows = tickets
+    .filter((t) => !done.has(t.id))
     .sort(byPriority)
     .map((t) => ({
       title: t.title,
@@ -145,7 +148,8 @@ ${generated}
   <div class="card"><span class="k">Backlog cost</span><span class="v">${health.totalBacklogCost}</span></div>
 </div>
 
-<h2>Priority ranking</h2>
+<h2>Open tickets by priority</h2>
+${done.size > 0 ? `<p class="meta">${done.size} done ticket${done.size === 1 ? " is" : "s are"} not listed.</p>` : ""}
 <table>
   <thead><tr><th>Title</th><th>B</th><th>P</th><th>E</th><th>R</th><th>Value</th><th>Cost</th><th>Priority</th></tr></thead>
   <tbody>${priorityRows}</tbody>

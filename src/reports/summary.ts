@@ -2,6 +2,7 @@ import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
 import { byPriority, priority } from "../calculations/priority.js";
+import { doneTicketIds } from "./health.js";
 
 export interface ProjectSummary {
   totalTickets: number;
@@ -27,7 +28,10 @@ export async function getProjectSummary(
     else withoutState++;
   }
 
-  const sorted = [...tickets]
+  // The top list is what to do next: open tickets only, as report health counts
+  const done = await doneTicketIds(db, projectId);
+  const sorted = tickets
+    .filter((t) => !done.has(t.id))
     .sort(byPriority)
     .map((t) => ({
       title: t.title,

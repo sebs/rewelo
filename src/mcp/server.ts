@@ -707,7 +707,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "report_summary",
-    "Get project overview: total tickets, breakdown by state tag, and top-N by priority. Good starting point for any project.",
+    "Get project overview: total tickets, breakdown by state tag, and the top-N open (not state:done) tickets by priority. Good starting point for any project.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       topN: z.number().int().nonnegative().optional().describe("Number of top tickets"),
