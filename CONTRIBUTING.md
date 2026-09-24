@@ -16,7 +16,6 @@ npm test
 
 - **Build**: `npm run build` (compiles TypeScript and injects version)
 - **Test**: `npm test` (compiles `src` and `test` into `build/` and runs them with Node's built-in test runner, `node --test`)
-- **Watch**: `npm run test:watch`
 
 Tests use in-memory SQLite databases, so no setup is needed beyond `npm install`.
 
