@@ -9,15 +9,19 @@ export interface Project {
 }
 
 export async function createProject(db: DB, name: string): Promise<Project> {
-  const existing = await getProjectByName(db, name);
-  if (existing) {
-    throw new ValidationError(`A project named "${name}" already exists`);
-  }
-  const rows = await db.all<Project>(
-    `INSERT INTO projects (name) VALUES (?) RETURNING *`,
-    name
-  );
-  return rows[0];
+  // One write transaction, so a process losing a race gets this message
+  // rather than the database's generic unique-key error
+  return db.transaction(async () => {
+    const existing = await getProjectByName(db, name);
+    if (existing) {
+      throw new ValidationError(`A project named "${name}" already exists`);
+    }
+    const rows = await db.all<Project>(
+      `INSERT INTO projects (name) VALUES (?) RETURNING *`,
+      name
+    );
+    return rows[0];
+  });
 }
 
 export async function listProjects(db: DB): Promise<Project[]> {

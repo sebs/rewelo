@@ -16,18 +16,21 @@ export async function createTag(
   prefix: string,
   value: string
 ): Promise<Tag> {
-  const existing = await getTag(db, projectId, prefix, value);
-  if (existing) {
-    throw new ValidationError(`Tag "${prefix}:${value}" already exists`);
-  }
+  // One write transaction, as for projects: a lost race reports this message
+  return db.transaction(async () => {
+    const existing = await getTag(db, projectId, prefix, value);
+    if (existing) {
+      throw new ValidationError(`Tag "${prefix}:${value}" already exists`);
+    }
 
-  const rows = await db.all<Tag>(
-    `INSERT INTO tags (project_id, prefix, value) VALUES (?, ?, ?) RETURNING *`,
-    projectId,
-    prefix,
-    value
-  );
-  return rows[0];
+    const rows = await db.all<Tag>(
+      `INSERT INTO tags (project_id, prefix, value) VALUES (?, ?, ?) RETURNING *`,
+      projectId,
+      prefix,
+      value
+    );
+    return rows[0];
+  });
 }
 
 export async function getTag(

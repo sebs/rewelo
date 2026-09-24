@@ -47,4 +47,20 @@ describe("concurrent CLI writes", () => {
     ).filter(Boolean);
     assert.deepEqual(held, ["T"]);
   });
+
+  it("tells every process that loses a project create race that the project exists", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        new Promise<string>((resolve) => {
+          const child = spawn(process.execPath, [BIN, "--db", db, "project", "create", "Same"], { stdio: ["ignore", "ignore", "pipe"] });
+          let stderr = "";
+          child.stderr!.on("data", (d) => (stderr += d));
+          child.once("exit", () => resolve(stderr.trim()));
+        })
+      )
+    );
+    const errors = results.filter(Boolean);
+    assert.equal(errors.length, 7);
+    for (const e of errors) assert.equal(e, 'A project named "Same" already exists');
+  });
 });
