@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Fibonacci, assertFibonacci } from "../db/types.js";
-import { AppError, ValidationError, collapseSpaces, normalizeName } from "../validation/strings.js";
+import { AppError, MAX_TICKET_TITLE, ValidationError, collapseSpaces, normalizeName } from "../validation/strings.js";
 import { getTicketTags } from "../tags/assignment.js";
 
 export interface Ticket {
@@ -131,7 +131,11 @@ export async function listTickets(
   // pattern (a bare "%" previously matched every ticket).
   // Titles are stored trimmed and NFC-normalised, so match the query in the same form
   if (options?.search) {
-    const escaped = collapseSpaces(normalizeName(options.search))
+    const term = collapseSpaces(normalizeName(options.search));
+    // No title is longer than this, and SQLite refuses LIKE patterns over
+    // 50,000 characters (which surfaced as an internal error)
+    if (term.length > MAX_TICKET_TITLE) return [];
+    const escaped = term
       .toLowerCase()
       .replace(/[\\%_]/g, (c) => `\\${c}`);
     sql += ` AND unicode_lower(collapse_spaces(t.title)) LIKE ? ESCAPE '\\'`;

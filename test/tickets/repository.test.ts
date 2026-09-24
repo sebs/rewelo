@@ -266,4 +266,9 @@ describe("tickets repository", () => {
     await db.run("DELETE FROM projects WHERE id = ?", projectId);
     await assert.rejects(createTicket(db, { projectId, title: "Too late" }), /Project not found \(it may just have been deleted\)/);
   });
+
+  it("finds nothing for a search longer than any title, instead of failing", async () => {
+    await createTicket(db, { projectId, title: "x" });
+    assert.deepEqual(await listTickets(db, projectId, { search: "x".repeat(60_000) }), []);
+  });
 });
