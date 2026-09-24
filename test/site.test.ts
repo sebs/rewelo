@@ -56,4 +56,14 @@ describe("website (site/build.mjs)", () => {
     const examples = readFileSync(join(out, "docs/examples/index.html"), "utf-8");
     assert.ok(examples.includes('href="https://github.com/sebs/rewelo/blob/main/fixtures/stories.csv"'));
   });
+
+  it("adds the leading slash SITE_BASE is missing", () => {
+    const other = mkdtempSync(join(tmpdir(), "rw-site-"));
+    try {
+      execFileSync(process.execPath, [BUILD, other], { stdio: "pipe", env: { ...process.env, SITE_BASE: "rewelo/" } });
+      assert.ok(readFileSync(join(other, "docs/cli/index.html"), "utf-8").includes('href="/rewelo/assets/style.css"'));
+    } finally {
+      rmSync(other, { recursive: true, force: true });
+    }
+  });
 });
