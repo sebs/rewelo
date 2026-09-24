@@ -468,7 +468,8 @@ projectCmd
       } else {
         if (diff.newTickets.length > 0) {
           console.log(`New tickets (${diff.newTickets.length}):`);
-          diff.newTickets.forEach((t: any) => console.log(`  + ${t.title} (priority: ${t.priority})`));
+          // Two decimals, as everywhere else in text output
+          diff.newTickets.forEach((t: any) => console.log(`  + ${t.title} (priority: ${t.priority.toFixed(2)})`));
         }
         if (diff.updatedTickets.length > 0) {
           console.log(`Updated tickets (${diff.updatedTickets.length}):`);
@@ -1526,7 +1527,12 @@ reportCmd
         if (opts.csv) {
           console.log(formatTable(["Timestamp", "Type", "Ticket", "Detail"], events.map((e) => [e.timestamp, e.type, e.ticketTitle, detail(e)])));
         } else {
-          for (const e of events) console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${e.ticketTitle}  ${detail(e)}`);
+          // The ticket column padded to its widest title, so the details line up
+          const width = Math.max(...events.map((e) => displayWidth(e.ticketTitle)));
+          for (const e of events) {
+            const ticket = e.ticketTitle + " ".repeat(width - displayWidth(e.ticketTitle));
+            console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${ticket}  ${detail(e)}`);
+          }
         }
       }
     });

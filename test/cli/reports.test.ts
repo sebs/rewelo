@@ -79,4 +79,15 @@ describe("rw report (CLI)", () => {
     assert.equal(rw("project", "history", "--project", "P", "--limit", "0").stdout, "No revisions shown (--limit 0).\n");
     assert.equal(rw("report", "event-log", "--project", "P", "--limit", "0").stdout, "No events shown (--limit 0).\n");
   });
+
+  it("prints diff priorities with two decimals and lines up the event log's details", () => {
+    const since = new Date(Date.now() - 1000).toISOString();
+    rw("ticket", "create", "--project", "P", "--title", "A", "--benefit", "8", "--estimate", "5");
+    rw("ticket", "create", "--project", "P", "--title", "Much longer title");
+    assert.match(rw("project", "diff", "--project", "P", "--since", since).stdout, /\+ A \(priority: 1\.50\)/);
+
+    const lines = rw("report", "event-log", "--project", "P").stdout.trim().split("\n");
+    const detailAt = lines.map((line) => line.indexOf("{"));
+    assert.equal(new Set(detailAt).size, 1, lines.join("\n"));
+  });
 });
