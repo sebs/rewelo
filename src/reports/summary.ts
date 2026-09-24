@@ -6,6 +6,8 @@ import { priority } from "../calculations/priority.js";
 export interface ProjectSummary {
   totalTickets: number;
   byState: Record<string, number>;
+  /** Tickets without any state tag (kept apart from a real state:untagged tag) */
+  withoutState: number;
   topByPriority: { title: string; priority: number }[];
 }
 
@@ -17,11 +19,12 @@ export async function getProjectSummary(
   const tickets = await listTickets(db, projectId);
 
   const byState: Record<string, number> = {};
+  let withoutState = 0;
   for (const t of tickets) {
     const tags = await getTicketTags(db, t.id);
     const stateTag = tags.find((tg) => tg.prefix === "state");
-    const state = stateTag ? stateTag.value : "untagged";
-    byState[state] = (byState[state] || 0) + 1;
+    if (stateTag) byState[stateTag.value] = (byState[stateTag.value] || 0) + 1;
+    else withoutState++;
   }
 
   const sorted = tickets
@@ -34,6 +37,7 @@ export async function getProjectSummary(
   return {
     totalTickets: tickets.length,
     byState,
+    withoutState,
     topByPriority: sorted.slice(0, topN),
   };
 }

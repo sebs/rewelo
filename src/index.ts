@@ -1170,6 +1170,7 @@ reportCmd
         for (const [state, count] of Object.entries(summary.byState)) {
           console.log(`  state:${state}: ${count}`);
         }
+        if (summary.withoutState > 0) console.log(`  (no state tag): ${summary.withoutState}`);
         if (summary.topByPriority.length > 0) {
           console.log(`\nTop ${cmdOpts.top} by priority:`);
           summary.topByPriority.forEach((t, i) =>

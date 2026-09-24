@@ -57,9 +57,13 @@ describe("project summary report", () => {
     assert.equal(summary.topByPriority[0].title, "High");
   });
 
-  it("counts untagged tickets as 'untagged'", async () => {
+  it("counts tickets without a state tag apart from a real state:untagged tag", async () => {
     await createTicket(db, { projectId, title: "No tags" });
+    const tagged = await createTicket(db, { projectId, title: "Tagged untagged" });
+    await assignTag(db, tagged.id, (await createTag(db, projectId, "state", "untagged")).id);
+
     const summary = await getProjectSummary(db, projectId);
-    assert.equal(summary.byState.untagged, 1);
+    assert.deepEqual(summary.byState, { untagged: 1 });
+    assert.equal(summary.withoutState, 1);
   });
 });
