@@ -1,5 +1,5 @@
-import { existsSync, statSync } from "node:fs";
-import { dirname, resolve, sep } from "node:path";
+import { existsSync, realpathSync, statSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 /** Whether a directory or file is a mount point: on another device than its parent. */
 export function isMountPoint(dir: string): boolean {
@@ -7,6 +7,16 @@ export function isMountPoint(dir: string): boolean {
     return statSync(dir).dev !== statSync(dirname(resolve(dir))).dev;
   } catch {
     return false;
+  }
+}
+
+// The real path of a file, or of its directory if it doesn't exist yet
+function realPath(path: string): string | undefined {
+  try {
+    const full = resolve(path);
+    return existsSync(full) ? realpathSync(full) : join(realpathSync(dirname(full)), basename(full));
+  } catch {
+    return undefined;
   }
 }
 
@@ -29,9 +39,12 @@ export function mountedBetween(db: string, dir: string, isMount: (path: string) 
 export function warnIfNoVolume(dbPath: string, env: NodeJS.ProcessEnv = process.env): void {
   const volume = env.RW_DATA_VOLUME;
   if (!volume || dbPath === ":memory:") return;
-  const dir = resolve(volume);
-  const db = resolve(dbPath);
-  if (!db.startsWith(dir + sep)) return;
+  // Real paths: a database reached through a symbolic link is still inside
+  const dir = realPath(volume);
+  const db = realPath(dbPath);
+  if (!dir || !db) return; // the database can't be opened there anyway
+  const rel = relative(dir, db);
+  if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) return;
   if (mountedBetween(db, dir)) return;
   console.error(
     `Warning: no volume is mounted at ${dir}, so the database is lost when the container is removed. Mount one, e.g. docker run -v rw-data:${dir} ...`

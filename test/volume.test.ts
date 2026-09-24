@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isMountPoint, mountedBetween, warnIfNoVolume } from "../src/volume.js";
@@ -36,6 +36,19 @@ describe("data volume warning", () => {
       const out = stderrOf(() => warnIfNoVolume(join(dir, "rw.db"), { RW_DATA_VOLUME: dir }));
       assert.match(out, /no volume is mounted/);
       assert.match(out, /-v rw-data:/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("warns for a database reached through a symbolic link, and for RW_DATA_VOLUME=/", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-vol-"));
+    try {
+      mkdirSync(join(dir, "vol"));
+      symlinkSync(join(dir, "vol"), join(dir, "link"));
+      assert.match(stderrOf(() => warnIfNoVolume(join(dir, "link", "rw.db"), { RW_DATA_VOLUME: join(dir, "vol") })), /no volume/);
+      // Without a mount on the way, everything is on the root's device
+      assert.equal(mountedBetween(join(dir, "vol", "rw.db"), "/", () => false), false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
