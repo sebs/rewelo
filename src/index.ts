@@ -65,16 +65,26 @@ import { displayWidth } from "./display-width.js";
 
 const DEFAULT_DB = "./relative-weight.db";
 
-// An empty RW_DB_PATH (e.g. `RW_DB_PATH= rw …`) counts as unset
+// An empty or blank RW_DB_PATH (e.g. `RW_DB_PATH= rw …`) counts as unset.
+// A path from the variable is named as such when it is rejected.
 function resolveDbPath(opts: { db?: string }): string {
-  return opts.db ?? (process.env.RW_DB_PATH || DEFAULT_DB);
+  const fromEnv = process.env.RW_DB_PATH?.trim() || undefined;
+  const path = opts.db ?? fromEnv ?? DEFAULT_DB;
+  try {
+    return validateDbPath(path);
+  } catch (err) {
+    if (err instanceof ValidationError && opts.db === undefined && fromEnv !== undefined) {
+      throw new ValidationError(`RW_DB_PATH=${fromEnv}: ${err.message}`);
+    }
+    throw err;
+  }
 }
 
 async function withDb<T>(
   opts: { db?: string },
   fn: (db: DB) => Promise<T>
 ): Promise<T> {
-  const dbPath = validateDbPath(resolveDbPath(opts));
+  const dbPath = resolveDbPath(opts);
   const db = await DB.open(dbPath);
   try {
     await migrate(db);

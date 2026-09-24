@@ -139,6 +139,14 @@ describe("global output flags (CLI)", () => {
     assert.ok(bad.stderr.includes("Tag value must start with a lowercase letter or digit"));
   });
 
+  it("treats a blank RW_DB_PATH as unset and names the variable when its path is rejected", () => {
+    const blank = runCli(["project", "list"], { cwd: dir, env: { RW_DB_PATH: "  " } });
+    assert.equal(blank.code, 0);
+    const bad = runCli(["project", "list"], { cwd: dir, env: { RW_DB_PATH: "data.txt" } });
+    assert.equal(bad.code, 1);
+    assert.match(bad.stderr, /^RW_DB_PATH=data\.txt: Database file must have \.db extension/);
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);
