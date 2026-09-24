@@ -100,6 +100,12 @@ describe("global output flags (CLI)", () => {
     );
   });
 
+  it("tag assign reports a tag or ticket named twice once", () => {
+    const t = "A, with comma";
+    const out = rw("tag", "assign", "state:done", "STATE:Done", "--project", "P", "--ticket", t, "--ticket", ` ${t}`).stdout;
+    assert.equal(out, `Assigned "state:done" to "${t}"\n`);
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);

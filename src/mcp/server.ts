@@ -482,13 +482,13 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const tickets: { title: string; id: number }[] = [];
         for (const title of new Set(allTickets)) {
           const ticket = await resolveTicket(db, proj.id, title);
-          tickets.push({ title: ticket.title, id: ticket.id });
+          if (!tickets.some((t) => t.id === ticket.id)) tickets.push({ title: ticket.title, id: ticket.id });
         }
         const tags: { label: string; id: number }[] = [];
         for (const t of validatedTags) {
           const tag = await getTag(db, proj.id, t.prefix, t.value);
           if (!tag) throw new AppError(`Tag "${t.prefix}:${t.value}" not found. Create it first with tag_create.`);
-          tags.push({ label: `${t.prefix}:${t.value}`, id: tag.id });
+          if (!tags.some((known) => known.id === tag.id)) tags.push({ label: `${t.prefix}:${t.value}`, id: tag.id });
         }
 
         return db.transaction(async () => {

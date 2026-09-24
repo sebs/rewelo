@@ -655,10 +655,12 @@ tagCmd
     const opts = cmd.optsWithGlobals();
     const tickets: string[] = cmdOpts.ticket;
     if (tickets.length === 0) { console.error("At least one --ticket is required"); process.exit(1); }
-    const parsedTags = tagStrs.map((s: string) => {
-      const { prefix, value } = parseTagPair(s);
-      return { prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
-    });
+    // The same tag or ticket named twice (possibly spelt differently) is
+    // applied and reported once
+    const parsedTags = [...new Map(tagStrs.map((s: string) => {
+      const tag = parseTag(s);
+      return [`${tag.prefix}:${tag.value}`, tag] as const;
+    })).values()];
     assertOneValuePerPrefix(parsedTags);
     await withProject(opts, cmdOpts.project, async (db, project) => {
       // Resolve every target ticket up front so a missing one aborts before
@@ -667,7 +669,7 @@ tagCmd
       for (const ticketTitle of tickets) {
         const ticket = await getTicketByTitle(db, project.id, ticketTitle);
         if (!ticket) { console.error(`Ticket "${ticketTitle}" not found`); process.exit(1); }
-        resolved.push({ title: ticket.title, id: ticket.id });
+        if (!resolved.some((r) => r.id === ticket.id)) resolved.push({ title: ticket.title, id: ticket.id });
       }
       const results: { ticket: string; tag: string; status: string; replaced?: string[] }[] = [];
       for (const { title: ticketTitle, id } of resolved) {
