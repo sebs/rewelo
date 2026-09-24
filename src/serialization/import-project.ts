@@ -39,6 +39,7 @@ export interface ImportableTagChange {
 /** History from `export json --with-history`, restored as it was */
 export interface ImportableHistory {
   createdAt?: string;
+  updatedAt?: string;
   revisions?: ImportableRevision[];
   tagChanges?: ImportableTagChange[];
 }
@@ -163,6 +164,9 @@ async function prepareHistory(db: DB, ticketId: number, history: ImportableHisto
   if (history.createdAt) {
     await db.run(`UPDATE tickets SET created_at = ? WHERE id = ?`, history.createdAt, ticketId);
   }
+  // Else the ticket's last update would be the import
+  const updated = history.updatedAt ?? history.createdAt;
+  if (updated) await db.run(`UPDATE tickets SET updated_at = ? WHERE id = ?`, updated, ticketId);
   // Assigning the ticket's tags just now logged them with today's date. With
   // tag changes in the file those replace them; without, but with an older
   // createdAt, when the tags were added is unknown: keep no date rather than

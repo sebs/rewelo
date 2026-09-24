@@ -16,6 +16,7 @@ export interface JsonExportOptions {
 
 export interface ExportedTicket extends SerializedTicket {
   createdAt?: string;
+  updatedAt?: string;
   revisions?: unknown[];
   tagChanges?: unknown[];
 }
@@ -61,7 +62,7 @@ async function readProject(db: DB, projectId: number, options: JsonExportOptions
   const byTitle = new Map(tickets.map((t) => [t.title, t]));
   for (const serialized of data.tickets) {
     const ticket = byTitle.get(serialized.title)!;
-    const exported: ExportedTicket = { ...serialized, createdAt: ticket.created_at };
+    const exported: ExportedTicket = { ...serialized, createdAt: ticket.created_at, updatedAt: ticket.updated_at };
     exported.revisions = (await listRevisions(db, ticket.id)).map((r) => ({ ...r, sequence: sequences.get(`revision:${r.id}`) }));
     exported.tagChanges = (await getTagChangeLog(db, ticket.id)).map((c) => ({
       ...c,

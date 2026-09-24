@@ -198,9 +198,10 @@ function list(raw: unknown, field: string): Record<string, unknown>[] {
 
 // The createdAt, revisions and tagChanges written by `export json --with-history`
 function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined {
-  if (t.createdAt === undefined && t.revisions === undefined && t.tagChanges === undefined) return undefined;
+  if (t.createdAt === undefined && t.updatedAt === undefined && t.revisions === undefined && t.tagChanges === undefined) return undefined;
   const history: ImportableHistory = {};
   if (t.createdAt !== undefined) history.createdAt = timestamp(t.createdAt, "createdAt");
+  if (t.updatedAt !== undefined) history.updatedAt = timestamp(t.updatedAt, "updatedAt");
   if (t.revisions !== undefined) {
     history.revisions = list(t.revisions, "revisions").map((r, j) => {
       const at = `revision ${j + 1}`;
@@ -274,6 +275,10 @@ function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
   const now = new Date(Date.now() + CLOCK_SKEW_MS).toISOString();
   const created = history.createdAt;
   if (created !== undefined && created > now) throw new ValidationError("createdAt is in the future");
+  if (history.updatedAt !== undefined) {
+    if (history.updatedAt > now) throw new ValidationError("updatedAt is in the future");
+    if (created !== undefined && history.updatedAt < created) throw new ValidationError("updatedAt is before createdAt");
+  }
   const check = (at: string, when: string) => {
     if (when > now) throw new ValidationError(`${at} is in the future`);
     if (created !== undefined && when < created) throw new ValidationError(`${at} is before createdAt`);

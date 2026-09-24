@@ -299,6 +299,22 @@ describe("round-trip", () => {
     await assert.rejects(importJson(db, target.id, JSON.stringify(bad)), /tagChanges do not end in the ticket's tags/);
   });
 
+  it("JSON history round trip keeps when each ticket was last updated", async () => {
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "A", createdAt: "2025-01-01T00:00:00.000Z", updatedAt: "2025-02-01T00:00:00.000Z" }, { title: "B", createdAt: "2025-01-01T00:00:00.000Z" }] }));
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+    const copies = await listTickets(db, target.id);
+    assert.deepEqual(copies.map((t) => [t.title, t.updated_at]), [
+      ["A", "2025-02-01T00:00:00.000Z"],
+      ["B", "2025-01-01T00:00:00.000Z"],
+    ]);
+    await assert.rejects(
+      importJson(db, target.id, JSON.stringify({ tickets: [{ title: "C", createdAt: "2025-01-02T00:00:00.000Z", updatedAt: "2025-01-01T00:00:00.000Z" }] })),
+      /updatedAt is before createdAt/
+    );
+  });
+
   it("JSON import stores a blank revision description as null", async () => {
     const revisions = [
       { title: "T", description: "   ", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: [], revised_at: "2026-01-01T00:00:00Z" },
