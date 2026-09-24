@@ -27,8 +27,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "rewelo": {
-      "command": "bash",
-      "args": ["-c", "docker rm -f rw-mcp >/dev/null 2>&1; docker run --rm -i --init --name rw-mcp --cap-drop=ALL --read-only --tmpfs /tmp --memory=256m -v rw-data:/data rewelo-mcp serve"]
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "--init", "--cap-drop=ALL", "--read-only", "--tmpfs", "/tmp", "--memory=256m", "-v", "rw-data:/data", "rewelo-mcp", "serve"]
     }
   }
 }
@@ -42,8 +42,8 @@ Add to `.mcp.json` in your project root or `~/.claude/mcp.json` globally:
 {
   "mcpServers": {
     "rewelo": {
-      "command": "bash",
-      "args": ["-c", "docker rm -f rw-mcp >/dev/null 2>&1; docker run --rm -i --init --name rw-mcp --cap-drop=ALL --read-only --tmpfs /tmp --memory=256m -v rw-data:/data rewelo-mcp serve"]
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "--init", "--cap-drop=ALL", "--read-only", "--tmpfs", "/tmp", "--memory=256m", "-v", "rw-data:/data", "rewelo-mcp", "serve"]
     }
   }
 }
@@ -51,10 +51,9 @@ Add to `.mcp.json` in your project root or `~/.claude/mcp.json` globally:
 
 ### What this does
 
-- `docker rm -f rw-mcp` removes any stale container from a previous crash
 - `--rm` cleans up the container on exit
 - `--init` ensures signals (Ctrl+C, SIGTERM) are forwarded correctly
-- `--name rw-mcp` gives the container a fixed name
+- each client session gets its own container (no fixed `--name`), so a second session, e.g. Claude Desktop and Claude Code at once, doesn't stop the first; they share the database in the `rw-data` volume
 - `-v rw-data:/data` persists the database across container restarts
 - `-i` keeps stdin open for stdio transport
 - `--cap-drop=ALL` drops all Linux capabilities for minimal attack surface
