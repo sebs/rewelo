@@ -73,7 +73,7 @@ export async function createTicket(
        RETURNING *`,
       input.projectId,
       input.title,
-      input.description ?? null,
+      input.description || null, // "" is no description, stored as null
       input.benefit ?? 1,
       input.penalty ?? 1,
       input.estimate ?? 1,
@@ -213,7 +213,8 @@ export async function updateTicket(
     }
 
     const title = input.title ?? current.title;
-    const description = input.description ?? current.description;
+    // An empty description clears it; "no description" is always null
+    const description = input.description === "" ? null : (input.description ?? current.description);
     const benefit = input.benefit ?? current.benefit;
     const penalty = input.penalty ?? current.penalty;
     const estimate = input.estimate ?? current.estimate;

@@ -191,6 +191,18 @@ describe("migrate", () => {
     assert.ok(rows[1].title.endsWith(" (2)"));
   });
 
+  it("turns empty descriptions into null", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec(`
+      INSERT INTO projects (id, name) VALUES (1, 'P');
+      INSERT INTO tickets (project_id, title, description) VALUES (1, 'A', ''), (1, 'B', 'text');
+      PRAGMA user_version = 8;`);
+    await migrate(db);
+    const rows = await db.all<{ description: string | null }>("SELECT description FROM tickets ORDER BY id");
+    assert.deepEqual(rows.map((r) => r.description), [null, "text"]);
+  });
+
   it("refuses a database from a newer schema version", async () => {
     db = await DB.open(":memory:");
     await migrate(db);

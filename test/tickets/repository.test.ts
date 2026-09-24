@@ -283,4 +283,11 @@ describe("tickets repository", () => {
     assert.deepEqual((await listTickets(db, projectId, { excludeTags: others })).map((x) => x.title), ["Tagged"]);
     assert.deepEqual(await listTickets(db, projectId, { includeTags: [...many, { prefix: "a", value: "c" }] }), []);
   });
+
+  it("stores no description as null, whether never set or cleared", async () => {
+    const created = await createTicket(db, { projectId, title: "Empty", description: "" });
+    assert.equal(created.description, null);
+    const described = await createTicket(db, { projectId, title: "Described", description: "text" });
+    assert.equal((await updateTicket(db, projectId, described.id, { description: "" })).description, null);
+  });
 });

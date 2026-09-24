@@ -126,6 +126,11 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
     version: 8,
     run: (db) => retitleTickets(db, (title) => title),
   },
+  {
+    // "No description" was stored as NULL or "" depending on how it was set
+    version: 9,
+    sql: `UPDATE tickets SET description = NULL WHERE description = ''`,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

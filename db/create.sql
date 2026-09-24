@@ -13,10 +13,10 @@
 -- Foreign keys are enforced (the app enables PRAGMA foreign_keys). There is no
 -- ON DELETE CASCADE; cascading deletes are handled in application code.
 
--- Marks the file as a rewelo database ("RWLO") at schema version 8;
+-- Marks the file as a rewelo database ("RWLO") at schema version 9;
 -- see src/db/migrate.ts.
 PRAGMA application_id = 1381452879;
-PRAGMA user_version = 8;
+PRAGMA user_version = 9;
 
 -- =============================================================================
 --  1. PROJECTS
