@@ -304,13 +304,21 @@ projectCmd
         process.exit(1);
       }
       const readline = await import("readline");
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const answer = await new Promise<string>((res) =>
-        rl.question(`Delete project "${name}" and all its data? (y/N) `, res)
-      );
+      // The prompt goes to stderr so it doesn't mix with --json output
+      const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+      const answer = await new Promise<string | { interrupted: number }>((res) => {
+        rl.question(`Delete project "${name}" and all its data? (y/N) `, res);
+        rl.on("SIGINT", () => res({ interrupted: 130 })); // Ctrl-C
+        rl.on("close", () => res({ interrupted: 1 })); // Ctrl-D, no answer
+      });
       rl.close();
-      if (answer.toLowerCase() !== "y") {
-        console.log("Aborted.");
+      if (typeof answer !== "string") {
+        // Fail, so `rw project delete X && ...` stops here
+        console.error("\nAborted.");
+        process.exit(answer.interrupted);
+      }
+      if (!["y", "yes"].includes(answer.trim().toLowerCase())) {
+        console.error("Aborted.");
         return;
       }
     }
