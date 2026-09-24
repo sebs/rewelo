@@ -63,4 +63,13 @@ describe("scripts/changelog.mjs", () => {
   it("fails clearly for an unknown tag", () => {
     assert.throws(() => changelog("v9.9.9"), (err: { stderr: Buffer }) => /Unknown tag "v9.9.9"/.test(String(err.stderr)));
   });
+
+  it("--all writes an entry for every tag, leaving out version bump commits", () => {
+    commit("1.1.0");
+    git("tag", "v1.1.0");
+    execFileSync(process.execPath, [SCRIPT, "--all"], { cwd: repo, stdio: "pipe" });
+    const text = readFileSync(join(repo, "CHANGELOG.md"), "utf-8");
+    assert.match(text, /^# Changelog\n\n## 1\.1\.0\n\n- after the release\n\n## 1\.0\.0\n\n- first feature\n/);
+    assert.doesNotMatch(text, /- 1\.1\.0/);
+  });
 });

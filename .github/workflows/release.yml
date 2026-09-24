@@ -126,6 +126,8 @@ jobs:
       - name: Generate changelog
         run: |
           node scripts/changelog.mjs "$GITHUB_REF_NAME" | tee release-notes.md
+          # The CHANGELOG.md attached to the release covers every version
+          node scripts/changelog.mjs --all
 
       - name: Create GitHub Release
         env:
