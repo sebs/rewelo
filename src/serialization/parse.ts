@@ -249,6 +249,12 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
       };
     });
   }
+  // Without createdAt the ticket would count as created at import time, after
+  // its own history (negative lead times): it existed by its first change
+  if (history.createdAt === undefined) {
+    const times = [...(history.revisions ?? []).map((r) => r.revised_at), ...(history.tagChanges ?? []).map((c) => c.changed_at)];
+    if (times.length > 0) history.createdAt = times.reduce((a, b) => (a < b ? a : b));
+  }
   return history;
 }
 

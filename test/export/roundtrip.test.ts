@@ -252,4 +252,16 @@ describe("round-trip", () => {
     await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Fresh", tags: [{ prefix: "state", value: "done" }], tagChanges }] }));
     assert.equal((await listTickets(db, projectId)).length, 1);
   });
+
+  it("dates a ticket imported without createdAt by its first recorded change", async () => {
+    const tagChanges = [
+      { action: "added", prefix: "state", value: "wip", changed_at: "2024-01-01T00:00:00Z" },
+      { action: "removed", prefix: "state", value: "wip", changed_at: "2024-01-10T00:00:00Z" },
+      { action: "added", prefix: "state", value: "done", changed_at: "2024-01-10T00:00:00Z" },
+    ];
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Old", tags: [{ prefix: "state", value: "done" }], tagChanges }] }));
+    const [t] = await listTickets(db, projectId);
+    assert.equal(t.created_at, "2024-01-01T00:00:00.000Z");
+    assert.equal((await getTicketTimes(db, t.id)).leadTimeDays, 9);
+  });
 });
