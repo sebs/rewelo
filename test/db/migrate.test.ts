@@ -191,6 +191,23 @@ describe("migrate", () => {
     assert.ok(rows[1].title.endsWith(" (2)"));
   });
 
+  it("doesn't leave a space at the end of a shortened title, and trims titles version 8 left so", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec(`
+      INSERT INTO projects (id, name) VALUES (1, 'P');
+      INSERT INTO tickets (project_id, title) VALUES (1, '${"a".repeat(499)} ccc');
+      PRAGMA user_version = 7;`);
+    await migrate(db);
+    const [row] = await db.all<{ title: string }>("SELECT title FROM tickets");
+    assert.equal(row.title, "a".repeat(499));
+
+    await db.exec(`UPDATE tickets SET title = 'b '; PRAGMA user_version = 9;`);
+    await migrate(db);
+    const [trimmed] = await db.all<{ title: string }>("SELECT title FROM tickets");
+    assert.equal(trimmed.title, "b");
+  });
+
   it("turns empty descriptions into null", async () => {
     db = await DB.open(":memory:");
     await migrate(db);

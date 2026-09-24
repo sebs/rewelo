@@ -131,6 +131,12 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
     version: 9,
     sql: `UPDATE tickets SET description = NULL WHERE description = ''`,
   },
+  {
+    // Version 8 could cut a title just after a space, and a title ending in
+    // one can't be found by name (names are looked up trimmed)
+    version: 10,
+    run: (db) => retitleTickets(db, (title) => title.trim()),
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -222,7 +228,8 @@ async function retitleTickets(db: DB, rewrite: (title: string) => string): Promi
     "SELECT id, project_id, title FROM tickets ORDER BY project_id, id"
   );
   const taken = new Set(tickets.map((t) => `${t.project_id}/${t.title}`));
-  const fit = (base: string, suffix: string) => base.slice(0, MAX_TICKET_TITLE - suffix.length) + suffix;
+  // Titles are stored trimmed, so a cut just after a space drops it
+  const fit = (base: string, suffix: string) => base.slice(0, MAX_TICKET_TITLE - suffix.length).trimEnd() + suffix;
   for (const t of tickets) {
     const base = rewrite(t.title);
     if (base === t.title && t.title.length <= MAX_TICKET_TITLE) continue;
