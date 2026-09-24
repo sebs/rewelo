@@ -29,6 +29,14 @@
     "cli"
   ],
   "author": "Sebastian Schürmann",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sebs/rewelo.git"
+  },
+  "homepage": "https://sebs.github.io/rewelo/",
+  "bugs": {
+    "url": "https://github.com/sebs/rewelo/issues"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=24"

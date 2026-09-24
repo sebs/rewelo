@@ -17,4 +17,9 @@ describe("package.json", () => {
     assert.match(pkg.scripts.prepack ?? "", /npm run build/);
     assert.ok(pkg.files.includes("dist/"));
   });
+
+  it("names the GitHub repository, which npm checks provenance against", () => {
+    // Publishing with --provenance failed with E422: "repository.url" is ""
+    assert.match(pkg.repository?.url ?? "", /github\.com\/sebs\/rewelo(\.git)?$/);
+  });
 });
