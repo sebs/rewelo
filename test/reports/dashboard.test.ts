@@ -112,4 +112,12 @@ describe("dashboard report", () => {
     assert.match(html, /Showing 0 of 2 open tickets/);
     assert.match(html, /Showing 0 of 1 relation;/);
   });
+
+  it("says there are no open tickets, not no tickets, when all are done", async () => {
+    const t = await createTicket(db, { projectId, title: "Finished" });
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
+    const html = await renderDashboard(db, projectId, "DashTest");
+    assert.match(html, /No open tickets\./);
+    assert.doesNotMatch(html, /No tickets yet/);
+  });
 });

@@ -86,7 +86,9 @@ export async function renderDashboard(
       )
       .join("") +
     // Only when there are none: with --limit 0 the note below says how many
-    (rows.length === 0 ? `<tr><td colspan="8" class="empty">No tickets yet.</td></tr>` : "");
+    (rows.length === 0
+      ? `<tr><td colspan="8" class="empty">${done.size > 0 ? "No open tickets." : "No tickets yet."}</td></tr>`
+      : "");
 
   const distRows = distribution
     .map(
