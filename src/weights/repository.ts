@@ -74,6 +74,9 @@ export async function resetWeights(
 }
 
 const MAX_WEIGHT = 100;
+// A weight like 1e-22 makes weighted priorities astronomically large (2.1e+23)
+// and prints as exponent notation; below 0.01 a weight is as good as 0.
+const MIN_NONZERO_WEIGHT = 0.01;
 
 export function validateWeights(w1: number, w2: number, w3: number, w4: number): void {
   for (const [name, val] of [["w1", w1], ["w2", w2], ["w3", w3], ["w4", w4]] as const) {
@@ -82,6 +85,9 @@ export function validateWeights(w1: number, w2: number, w3: number, w4: number):
     }
     if (val > MAX_WEIGHT) {
       throw new AppError(`Weight ${name} must not exceed ${MAX_WEIGHT}`);
+    }
+    if (val > 0 && val < MIN_NONZERO_WEIGHT) {
+      throw new AppError(`Weight ${name} must be 0 or at least ${MIN_NONZERO_WEIGHT}`);
     }
   }
   if (w3 === 0 && w4 === 0) {

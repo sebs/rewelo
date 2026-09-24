@@ -90,4 +90,9 @@ describe("weight configuration", () => {
   it("rejects w3=0 and w4=0 simultaneously", async () => {
     await assert.rejects(setWeights(db, projectId, 1.5, 1.5, 0, 0), /w3 and w4 cannot both be zero/);
   });
+
+  it("rejects weights between 0 and 0.01", async () => {
+    await assert.rejects(setWeights(db, projectId, 1.5, 1.5, 1e-22, 0), /Weight w3 must be 0 or at least 0.01/);
+    await setWeights(db, projectId, 1.5, 1.5, 0.01, 0);
+  });
 });

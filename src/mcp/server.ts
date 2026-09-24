@@ -573,7 +573,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "weight_set",
-    "Set weight configuration (w1-w4) for a project. Range: 0-100. Only provided weights change; omitted ones keep their current value.",
+    "Set weight configuration (w1-w4) for a project. Each weight is 0 or between 0.01 and 100. Only provided weights change; omitted ones keep their current value.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       w1: z.number().optional().describe("Benefit weight"),
