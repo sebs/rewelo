@@ -114,6 +114,8 @@ function formatTable(headers: string[], rows: unknown[][]): string {
   const cells = rows.map((r) =>
     r.map((c) => (c == null ? "" : c instanceof Date ? c.toISOString() : String(c)))
   );
+  // --csv applies to every table
+  if (program.opts().csv) return [headers, ...cells].map(csvRow).join("\n");
   const widths = headers.map((h, i) =>
     cells.reduce((max, r) => Math.max(max, (r[i] || "").length), h.length)
   );
@@ -253,7 +255,8 @@ projectCmd
     await withDb(opts, async (db) => {
       const deleted = await deleteProject(db, name);
       if (deleted) {
-        console.log(`Deleted project "${name}"`);
+        if (opts.json) console.log(JSON.stringify({ deleted: true, name }));
+        else console.log(`Deleted project "${name}"`);
       } else {
         console.error(`Project "${name}" not found`);
         process.exit(1);
@@ -520,7 +523,8 @@ ticketCmd
         process.exit(1);
       }
       await deleteTicket(db, project.id, ticket.id);
-      console.log(`Deleted ticket "${cmdOpts.title}"`);
+      if (opts.json) console.log(JSON.stringify({ deleted: true, title: ticket.title }));
+      else console.log(`Deleted ticket "${cmdOpts.title}"`);
     });
   });
 
@@ -582,6 +586,8 @@ ticketCmd
       });
       if (opts.json) {
         console.log(JSON.stringify(result));
+      } else if (opts.quiet) {
+        console.log(result.ticket.ticket_uuid);
       } else {
         const t = result.ticket;
         console.log(
@@ -636,15 +642,24 @@ tagCmd
         if (!ticket) { console.error(`Ticket "${ticketTitle}" not found`); process.exit(1); }
         resolved.push({ title: ticketTitle, id: ticket.id });
       }
+      const results: { ticket: string; tag: string; status: string; replaced?: string[] }[] = [];
       for (const { title: ticketTitle, id } of resolved) {
         for (const t of parsedTags) {
           let tag = await getTag(db, project.id, t.prefix, t.value);
           if (!tag) tag = await createTag(db, project.id, t.prefix, t.value);
           const { assigned, replaced } = await assignTag(db, id, tag.id);
+          results.push({
+            ticket: ticketTitle,
+            tag: `${t.prefix}:${t.value}`,
+            status: assigned ? "assigned" : "already_assigned",
+            ...(replaced.length > 0 ? { replaced } : {}),
+          });
+          if (opts.json) continue;
           const note = replaced.length > 0 ? ` (replaced ${replaced.map((r) => `"${r}"`).join(", ")})` : "";
           console.log(assigned ? `Assigned "${t.raw}" to "${ticketTitle}"${note}` : `Tag "${t.raw}" already assigned to "${ticketTitle}"`);
         }
       }
+      if (opts.json) console.log(JSON.stringify(results));
     });
   });
 
@@ -678,6 +693,8 @@ tagCmd
       const tags = await listTags(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(tags));
+      } else if (opts.csv) {
+        console.log([["prefix", "value"], ...tags.map((t) => [t.prefix, t.value])].map(csvRow).join("\n"));
       } else if (tags.length === 0) {
         console.log("No tags found.");
       } else {
@@ -877,7 +894,7 @@ configCmd
         const config = await resetWeights(db, project.id);
         if (opts.json) {
           console.log(JSON.stringify(config));
-        } else {
+        } else if (!opts.quiet) {
           console.log(`Reset weights for "${project.name}" to defaults: w1=${config.w1} w2=${config.w2} w3=${config.w3} w4=${config.w4}`);
         }
         return;
@@ -892,7 +909,7 @@ configCmd
         const config = await setWeights(db, project.id, w1, w2, w3, w4);
         if (opts.json) {
           console.log(JSON.stringify(config));
-        } else {
+        } else if (!opts.quiet) {
           console.log(`Set weights for "${project.name}": w1=${config.w1} w2=${config.w2} w3=${config.w3} w4=${config.w4}`);
         }
         return;
