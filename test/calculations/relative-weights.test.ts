@@ -67,10 +67,21 @@ describe("relative weight calculations", () => {
     const all = calculateAllRelativeWeights(stories);
     stories.forEach((t, i) => assert.deepEqual(all[i], { ...t, ...calculateRelativeWeights(t, stories) }));
 
-    const many = Array.from({ length: 50_000 }, () => ({ benefit: 5, penalty: 1, estimate: 1, risk: 1 }));
-    const started = Date.now();
-    calculateAllRelativeWeights(many);
-    assert.ok(Date.now() - started < 1000, "linear in the number of tickets");
+    // Linear, not quadratic: 8x the tickets must take far less than the 64x
+    // a quadratic pass needs (a ratio, so the check holds on a busy machine
+    // too; best of 5)
+    const time = (n: number) => {
+      const tickets = Array.from({ length: n }, () => ({ benefit: 5, penalty: 1, estimate: 1, risk: 1 }));
+      let best = Infinity;
+      for (let i = 0; i < 5; i++) {
+        const started = performance.now();
+        calculateAllRelativeWeights(tickets);
+        best = Math.min(best, performance.now() - started);
+      }
+      return best;
+    };
+    const ratio = time(40_000) / Math.max(time(5_000), 0.5);
+    assert.ok(ratio < 32, `8x the tickets took ${ratio.toFixed(1)}x as long`);
   });
 
   it("keeps small shares in large backlogs instead of rounding them to 0", () => {
