@@ -161,8 +161,11 @@ async function prepareHistory(db: DB, ticketId: number, history: ImportableHisto
   if (history.createdAt) {
     await db.run(`UPDATE tickets SET created_at = ? WHERE id = ?`, history.createdAt, ticketId);
   }
-  if (history.tagChanges) {
-    // Replace the changes logged just now by assigning the current tags
+  // Assigning the ticket's tags just now logged them with today's date. With
+  // tag changes in the file those replace them; without, but with an older
+  // createdAt, when the tags were added is unknown: keep no date rather than
+  // today's (a ticket from 2020 tagged done showed a lead time of 2,459 days)
+  if (history.tagChanges || history.createdAt) {
     await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
   }
   return [

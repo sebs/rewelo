@@ -271,4 +271,11 @@ describe("round-trip", () => {
       /Ticket 1: createdAt must be an ISO timestamp/
     );
   });
+
+  it("doesn't date an imported ticket's tags to the import when only createdAt is known", async () => {
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Old", tags: [{ prefix: "state", value: "done" }], createdAt: "2020-01-01T00:00:00Z" }] }));
+    const [t] = await listTickets(db, projectId);
+    assert.equal((await getTicketTimes(db, t.id)).leadTimeDays, undefined);
+    assert.deepEqual((await getTicketTags(db, t.id)).map((tag) => tag.value), ["done"]);
+  });
 });
