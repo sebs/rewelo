@@ -16,6 +16,11 @@ describe("validateDbPath", () => {
     expect(result).toMatch(/^\//); // resolved to absolute
   });
 
+  it("accepts the .db extension in any case", () => {
+    expect(validateDbPath("./DATA.DB")).toContain("DATA.DB");
+    expect(() => validateDbPath("./old.DUCKDB")).toThrow("rw export json");
+  });
+
   it("rejects non-.db extensions", () => {
     expect(() => validateDbPath("./data.sqlite")).toThrow(".db extension");
     expect(() => validateDbPath("./data.txt")).toThrow(".db extension");

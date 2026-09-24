@@ -64,11 +64,16 @@ import { VERSION } from "./version.generated.js";
 
 const DEFAULT_DB = "./relative-weight.db";
 
+// An empty RW_DB_PATH (e.g. `RW_DB_PATH= rw …`) counts as unset
+function resolveDbPath(opts: { db?: string }): string {
+  return opts.db ?? (process.env.RW_DB_PATH || DEFAULT_DB);
+}
+
 async function withDb<T>(
   opts: { db?: string },
   fn: (db: DB) => Promise<T>
 ): Promise<T> {
-  const dbPath = validateDbPath(opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB);
+  const dbPath = validateDbPath(resolveDbPath(opts));
   const db = await DB.open(dbPath);
   try {
     await migrate(db);
@@ -1328,7 +1333,7 @@ program
   .description("start MCP server (stdio transport)")
   .action(async (_opts: unknown, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
-    const dbPath = opts.db ?? process.env.RW_DB_PATH ?? DEFAULT_DB;
+    const dbPath = resolveDbPath(opts);
     // Loaded on demand: the MCP SDK roughly quadruples CLI startup time,
     // and no other command needs it.
     const { startMcpServer } = await import("./mcp/server.js");

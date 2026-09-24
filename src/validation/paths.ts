@@ -15,14 +15,15 @@ export function validateDbPath(dbPath: string): string {
   }
 
   const resolved = resolve(dbPath);
+  const ext = extname(resolved).toLowerCase();
 
-  if (extname(resolved) === ".duckdb") {
+  if (ext === ".duckdb") {
     throw new ValidationError(
       "DuckDB databases are no longer supported. Export your projects with rewelo 0.4.x (rw export json) and import them into a .db file"
     );
   }
 
-  if (extname(resolved) !== ".db") {
+  if (ext !== ".db") {
     throw new ValidationError("Database file must have .db extension");
   }
 
@@ -41,7 +42,7 @@ export function validateDbPath(dbPath: string): string {
     } catch {
       target = undefined;
     }
-    if (!target || extname(target) !== ".db" || !statSync(target).isFile()) {
+    if (!target || extname(target).toLowerCase() !== ".db" || !statSync(target).isFile()) {
       throw new ValidationError("Database path resolves to a disallowed location");
     }
   }

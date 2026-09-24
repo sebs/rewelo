@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -79,5 +79,11 @@ describe("global output flags (CLI)", () => {
     // Numeric columns are right-aligned: " 1 |" rather than "1  |" under "B "
     const row = lines.find((l) => l.startsWith("A, with comma"))!;
     expect(row).toMatch(/\|  1 \|/);
+  });
+
+  it("treats an empty RW_DB_PATH as unset", () => {
+    const r = runCli(["project", "create", "Default"], { cwd: dir, env: { RW_DB_PATH: "" } });
+    expect(r.code, r.stderr).toBe(0);
+    expect(existsSync(join(dir, "relative-weight.db"))).toBe(true);
   });
 });
