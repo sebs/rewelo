@@ -72,6 +72,8 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data r
 
 ## Available Tools
 
+`project` is optional everywhere it appears: without it, a tool uses the `"project"` field of the nearest `.rewelo.json`, looked up from the server's working directory upwards (for example `{"project": "Acme"}`). A `?` marks optional parameters.
+
 ### Server
 
 | Tool              | Description                        | Parameters                    |
@@ -85,18 +87,18 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data r
 | `project_create`  | Create a new project               | `name`                        |
 | `project_list`    | List all projects                  |                               |
 | `project_delete`  | Delete a project and all its data  | `name`                        |
-| `project_history` | Revision history across all tickets in a project | `project`, `since?`, `limit?` |
+| `project_history` | Revision history across all tickets in a project | `project?`, `since?`, `limit?` |
 
 ### Tickets
 
 | Tool              | Description                        | Parameters                                                         |
 |-------------------|------------------------------------|--------------------------------------------------------------------|
-| `ticket_create`   | Create a new ticket                | `project`, `title`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
-| `ticket_list`     | List tickets with filtering and pagination | `project`, `tag?`, `tags?`, `excludeTags?`, `search?`, `sort?`, `limit?`, `offset?`, `minPriority?`, `minValue?`, `maxCost?` |
-| `ticket_update`   | Update a ticket                    | `project`, `title`, `newTitle?`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
-| `ticket_upsert`   | Create or update by title (idempotent) | `project`, `title`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
-| `ticket_delete`   | Delete a ticket                    | `project`, `title`                                                |
-| `ticket_history`  | Show revision history              | `project`, `title?`, `id?`                                       |
+| `ticket_create`   | Create a new ticket                | `project?`, `title`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
+| `ticket_list`     | List tickets with filtering and pagination | `project?`, `tag?`, `tags?`, `excludeTags?`, `search?`, `sort?`, `limit?`, `offset?`, `minPriority?`, `minValue?`, `maxCost?` |
+| `ticket_update`   | Update a ticket                    | `project?`, `title`, `newTitle?`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
+| `ticket_upsert`   | Create or update by title (idempotent) | `project?`, `title`, `description?`, `benefit?`, `penalty?`, `estimate?`, `risk?` |
+| `ticket_delete`   | Delete a ticket                    | `project?`, `title`                                                |
+| `ticket_history`  | Show revision history              | `project?`, `title?`, `id?`                                       |
 
 Score parameters (`benefit`, `penalty`, `estimate`, `risk`) must be Fibonacci values: 1, 2, 3, 5, 8, 13, or 21.
 
@@ -114,11 +116,11 @@ The legacy `tag` parameter (single string) is still supported alongside the new 
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `tag_create`      | Create a tag                       | `project`, `prefix`, `value`              |
-| `tag_assign`      | Assign tags to tickets             | `project`, `ticket?`, `tickets?`, `prefix?`, `value?`, `tags?` |
-| `tag_remove`      | Remove a tag from a ticket         | `project`, `ticket`, `prefix`, `value`    |
-| `tag_list`        | List all tags in a project         | `project`                                 |
-| `tag_rename`      | Rename a tag value (assignments carry over) | `project`, `prefix`, `oldValue`, `newValue` |
+| `tag_create`      | Create a tag                       | `project?`, `prefix`, `value`              |
+| `tag_assign`      | Assign tags to tickets             | `project?`, `ticket?`, `tickets?`, `prefix?`, `value?`, `tags?` |
+| `tag_remove`      | Remove a tag from a ticket         | `project?`, `ticket`, `prefix`, `value`    |
+| `tag_list`        | List all tags in a project         | `project?`                                 |
+| `tag_rename`      | Rename a tag value (assignments carry over) | `project?`, `prefix`, `oldValue`, `newValue` |
 
 Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, `in-progress`).
 
@@ -139,25 +141,25 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `weight_get`      | View current weights (defaults: 1.5) | `project`                               |
-| `weight_set`      | Set weights (omitted ones keep current value) | `project`, `w1?`, `w2?`, `w3?`, `w4?` |
-| `weight_reset`    | Reset weights to defaults (all 1.5) | `project`                               |
+| `weight_get`      | View current weights (defaults: 1.5) | `project?`                               |
+| `weight_set`      | Set weights (omitted ones keep current value) | `project?`, `w1?`, `w2?`, `w3?`, `w4?` |
+| `weight_reset`    | Reset weights to defaults (all 1.5) | `project?`                               |
 
 ### Calculations
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `calc_priority`   | Weighted priorities for all tickets | `project`, `w1?`, `w2?`, `w3?`, `w4?`   |
-| `calc_weights`    | Relative weights as share of total (fraction 0–1) | `project`, `tag?`                      |
+| `calc_priority`   | Weighted priorities for all tickets | `project?`, `w1?`, `w2?`, `w3?`, `w4?`   |
+| `calc_weights`    | Relative weights as share of total (fraction 0–1) | `project?`, `tag?`                      |
 
 ### Relations
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `relation_create` | Create a typed relation between tickets | `project`, `source`, `type`, `target` |
-| `relation_remove` | Remove a relation (both directions) | `project`, `source`, `type`, `target`    |
-| `relation_list`   | List all relations for a ticket    | `project`, `ticket`                       |
-| `relation_list_all` | List every relation in a project | `project`                                 |
+| `relation_create` | Create a typed relation between tickets | `project?`, `source`, `type`, `target` |
+| `relation_remove` | Remove a relation (both directions) | `project?`, `source`, `type`, `target`    |
+| `relation_list`   | List all relations for a ticket    | `project?`, `ticket`                       |
+| `relation_list_all` | List every relation in a project | `project?`                                 |
 
 Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
 
@@ -165,28 +167,28 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `report_summary`  | Project summary by state           | `project`, `topN?`                        |
-| `report_times`    | Lead and cycle time report         | `project`                                 |
-| `report_health`   | Backlog health report              | `project`, `threshold?`                   |
-| `report_distribution` | Fibonacci score distribution   | `project`                                 |
-| `report_group`    | Group tickets by tag prefix        | `project`, `prefix`                       |
-| `report_dashboard`| Self-contained HTML dashboard      | `project`                                 |
+| `report_summary`  | Project summary by state           | `project?`, `topN?`                        |
+| `report_times`    | Lead and cycle time report         | `project?`                                 |
+| `report_health`   | Backlog health report              | `project?`, `threshold?`                   |
+| `report_distribution` | Fibonacci score distribution   | `project?`                                 |
+| `report_group`    | Group tickets by tag prefix        | `project?`, `prefix`                       |
+| `report_dashboard`| Self-contained HTML dashboard      | `project?`                                 |
 
 ### Event Log & Diff
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `event_log`       | Unified chronological event stream: newest first, or oldest first after `since` (for polling) | `project`, `since?`, `after?`, `limit?` (default 50) |
-| `project_diff`    | Changes since a point in time      | `project`, `since`                        |
+| `event_log`       | Unified chronological event stream: newest first, or oldest first after `since` (for polling) | `project?`, `since?`, `after?`, `limit?` (default 50) |
+| `project_diff`    | Changes since a point in time      | `project?`, `since`                        |
 
 ### Export / Import
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `export_csv`      | Export tickets as CSV              | `project`, `withCalculations?`            |
-| `export_json`     | Export project data as JSON        | `project`, `withHistory?`                 |
-| `import_csv`      | Import tickets from CSV string     | `project`, `csv`                          |
-| `import_json`     | Import project data from JSON (creates the project if needed) | `project`, `json`                         |
+| `export_csv`      | Export tickets as CSV              | `project?`, `withCalculations?`            |
+| `export_json`     | Export project data as JSON        | `project?`, `withHistory?`                 |
+| `import_csv`      | Import tickets from CSV string     | `project?`, `csv`                          |
+| `import_json`     | Import project data from JSON (creates the project if needed) | `project?`, `json`                         |
 
 ## Example Session
 
