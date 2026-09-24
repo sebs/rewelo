@@ -169,3 +169,10 @@ describe("project name spacing", () => {
     assert.equal(validateProjectName("a b"), "a b");
   });
 });
+
+describe("line separators", () => {
+  it("rejects Unicode line and paragraph separators in titles like newlines", () => {
+    assert.throws(() => validateTicketTitle("first\u2028second"), /must not contain newline characters/);
+    assert.throws(() => validateTicketTitle("first\u2029second"), /must not contain newline characters/);
+  });
+});

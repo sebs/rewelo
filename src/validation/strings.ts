@@ -68,7 +68,9 @@ export function validateTicketTitle(title: string): string {
   if (hasNullBytes(title)) {
     throw new ValidationError("Ticket title must not contain null bytes");
   }
-  if (/[\n\r]/.test(title)) {
+  // Unicode line and paragraph separators break lines as well (e.g. for
+  // Python's splitlines() reading --quiet output)
+  if (/[\n\r\u2028\u2029]/.test(title)) {
     throw new ValidationError("Ticket title must not contain newline characters");
   }
   // Escape sequences would be echoed raw into terminals (colours, cursor moves)
