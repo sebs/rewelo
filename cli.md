@@ -220,8 +220,8 @@ Starts the MCP server over stdio. The database path can also be set via the `RW_
 ## Docker
 
 ```bash
-# Build
-docker build -t rw .
+# Build (APP_VERSION labels the image; rw --version works without it)
+docker build --build-arg APP_VERSION="$(node -p "require('./package.json').version")" -t rw .
 
 # Run CLI commands
 docker run --rm -v rw-data:/data rw project list

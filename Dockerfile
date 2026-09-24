@@ -47,8 +47,9 @@ ENV NODE_ENV=production
 # limit was ever reached. Imports up to the 50 MB limit fit.
 ENV NODE_OPTIONS="--max-old-space-size=192"
 
-# OCI image label
-ARG APP_VERSION
+# OCI image label. A label can't read package.json as the builder stage does:
+# without --build-arg APP_VERSION it says "unknown" rather than nothing
+ARG APP_VERSION=unknown
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 
 # Drop privileges

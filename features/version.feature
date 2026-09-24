@@ -58,4 +58,5 @@ Feature: Version visibility
   Scenario: Docker build without version arg defaults to package.json version
     When I run "docker build -t rewelo-mcp ."
     Then the baked-in version should fall back to the package.json version
+    And the label "org.opencontainers.image.version" should equal "unknown"
     But the "org.opencontainers.image.version" label should be empty, as it is only set from APP_VERSION
