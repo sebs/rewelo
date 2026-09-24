@@ -143,6 +143,23 @@ export async function migrate(db: DB): Promise<void> {
 
   // Decide under the write lock: a concurrent process may be creating the
   // schema right now, and we must see its result rather than race it.
+  try {
+    await upgrade(db);
+  } catch (err) {
+    // An older schema can only be read after upgrading it, which needs write
+    // access: say that rather than just "read-only"
+    if (err instanceof AppError && err.message === "The database file is read-only") {
+      const version = await pragma(db, "user_version");
+      throw new AppError(
+        `The database uses schema version ${version} and is read-only; open it once with write access so rewelo can upgrade it to version ${SCHEMA_VERSION}`
+      );
+    }
+    throw err;
+  }
+  await enableWal(db);
+}
+
+async function upgrade(db: DB): Promise<void> {
   await db.transaction(async () => {
     if ((await pragma(db, "application_id")) !== APPLICATION_ID) {
       const appId = await pragma(db, "application_id");
@@ -172,7 +189,6 @@ export async function migrate(db: DB): Promise<void> {
     }
     await db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   });
-  await enableWal(db);
 }
 
 // Write-ahead logging lets commands read while another process writes (a

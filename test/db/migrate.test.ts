@@ -1,5 +1,8 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { chmodSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DB } from "../../src/db/connection.js";
 import { migrate, SCHEMA_VERSION } from "../../src/db/migrate.js";
 import { AppError } from "../../src/validation/strings.js";
@@ -149,6 +152,25 @@ describe("migrate", () => {
     await migrate(db);
     const rows = await db.all<{ title: string }>("SELECT title FROM tickets ORDER BY id");
     assert.deepEqual(rows.map((r) => r.title), ["a b", "a b (2)", "c d"]);
+  });
+
+  it("says a read-only database of an older version needs write access once", { skip: process.getuid?.() === 0 }, async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-ro-"));
+    const path = join(dir, "old.db");
+    db = await DB.open(path);
+    await migrate(db);
+    await db.exec(`PRAGMA journal_mode = DELETE; PRAGMA user_version = ${SCHEMA_VERSION - 1}`);
+    await db.close();
+    chmodSync(path, 0o444);
+
+    db = await DB.open(path);
+    try {
+      await assert.rejects(migrate(db), /schema version \d+ and is read-only; open it once with write access/);
+    } finally {
+      await db.close();
+      db = undefined as unknown as DB;
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("refuses a database from a newer schema version", async () => {
