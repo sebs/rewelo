@@ -47,4 +47,27 @@ describe("site Markdown renderer", () => {
       '<ol><li><p>step</p>\n<pre data-lang="bash"><code>rw x</code></pre></li><li>next</li></ol>'
     );
   });
+
+  it("renders the CommonMark/GFM constructs it used to get wrong", () => {
+    const cases: [string, string][] = [
+      ["[wiki](https://en.wikipedia.org/wiki/Foo_(bar))", '<p><a href="https://en.wikipedia.org/wiki/Foo_(bar)">wiki</a></p>'],
+      ["![logo](img.png)", '<p><img src="img.png" alt="logo"></p>'],
+      ["<https://x.org>", '<p><a href="https://x.org">https://x.org</a></p>'],
+      ["``a`b``", "<p><code>a`b</code></p>"],
+      ["\\*x\\*", "<p>*x*</p>"],
+      ["&copy; &amp; <b>", "<p>&copy; &amp; &lt;b&gt;</p>"],
+      ["**a * b**", "<p><strong>a * b</strong></p>"],
+      ["_em_ and __strong__ but snake_case_name", "<p><em>em</em> and <strong>strong</strong> but snake_case_name</p>"],
+      ["Title\n=====", '<h1 id="title"><a class="anchor" href="#title">Title</a></h1>'],
+      ["Sub\n---", '<h2 id="sub"><a class="anchor" href="#sub">Sub</a></h2>'],
+      ["+ a\n+ b", "<ul><li>a</li><li>b</li></ul>"],
+      ["1) a\n2) b", "<ol><li>a</li><li>b</li></ol>"],
+      ["    code line\n    more", "<pre><code>code line\nmore</code></pre>"],
+      ["a | b\n--- | ---\n1 | 2", '<div class="table"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table></div>'],
+      ["| l | c | r |\n|:--|:-:|--:|\n| 1 | 2 | 3 |", '<div class="table"><table><thead><tr><th style="text-align:left">l</th><th style="text-align:center">c</th><th style="text-align:right">r</th></tr></thead><tbody><tr><td style="text-align:left">1</td><td style="text-align:center">2</td><td style="text-align:right">3</td></tr></tbody></table></div>'],
+      ["line one  \nline two", "<p>line one<br>line two</p>"],
+      ["In\n2024. was fine", "<p>In 2024. was fine</p>"],
+    ];
+    for (const [markdown, html] of cases) assert.equal(render(markdown), html, markdown);
+  });
 });
