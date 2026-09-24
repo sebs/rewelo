@@ -33,13 +33,21 @@ export function collapseSpaces(s: string): string {
 /** Whitespace alone (as JavaScript's trim() sees it) is no description */
 export const isBlank = (s: string): boolean => s.trim() === "";
 
+const graphemes = new Intl.Segmenter();
+
 /**
- * The first `max` UTF-16 units of s (the unit lengths are counted in), minus
- * a lone high surrogate at the end: a plain slice can cut an emoji in half.
+ * At most `max` UTF-16 units of s (the unit lengths are counted in), cut
+ * between user-perceived characters: a plain slice can cut an emoji in half,
+ * a flag into one regional indicator, or a family 👨‍👩‍👧 after a joiner.
  */
 export function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
-  return s.slice(0, max).replace(/[\uD800-\uDBFF]$/, "");
+  let end = 0;
+  for (const { index, segment } of graphemes.segment(s)) {
+    if (index + segment.length > max) break;
+    end = index + segment.length;
+  }
+  return s.slice(0, end);
 }
 
 export class AppError extends Error {

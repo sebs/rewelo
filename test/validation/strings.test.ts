@@ -17,6 +17,12 @@ describe("truncate", () => {
     assert.equal(truncate("a😀b", 2), "a");
     assert.doesNotMatch(truncate("😀".repeat(10), 7), /[\uD800-\uDBFF]$/);
   });
+
+  it("keeps flags and joined emoji whole", () => {
+    assert.equal(truncate("ab" + "🇩🇪".repeat(3), 8), "ab🇩🇪");
+    const family = "👨‍👩‍👧";
+    assert.equal(truncate("a" + family.repeat(2), 1 + family.length + 4), "a" + family);
+  });
 });
 
 describe("validateProjectName", () => {
