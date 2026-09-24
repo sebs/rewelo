@@ -45,6 +45,7 @@ import {
   listRelations,
   listProjectRelations,
 } from "../relations/repository.js";
+import { normalizeRelationType } from "../relations/types.js";
 import { getProjectSummary } from "../reports/summary.js";
 import { getBacklogHealth } from "../reports/health.js";
 import { getDistribution } from "../reports/distribution.js";
@@ -872,7 +873,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         const srcTicket = await resolveTicket(db, proj.id, source);
         const tgtTicket = await resolveTicket(db, proj.id, target);
         await createRelation(db, proj.id, srcTicket.id, tgtTicket.id, type);
-        return { created: true, source: srcTicket.title, type, target: tgtTicket.title };
+        return { created: true, source: srcTicket.title, type: normalizeRelationType(type), target: tgtTicket.title };
       })
     )
   );

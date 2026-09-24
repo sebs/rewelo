@@ -51,7 +51,7 @@ import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "./import/csv.js";
 import { importJsonAsProject } from "./import/json.js";
 import { MAX_JSON_SIZE_BYTES } from "./serialization/parse.js";
 import { createRelation, removeRelation, listRelations, listProjectRelations } from "./relations/repository.js";
-import { getRelationType } from "./relations/types.js";
+import { getRelationType, normalizeRelationType } from "./relations/types.js";
 import { getProjectSummary } from "./reports/summary.js";
 import { groupByTagPrefix } from "./reports/group.js";
 import { getDistribution } from "./reports/distribution.js";
@@ -968,7 +968,7 @@ relationCmd
       if (opts.json) {
         console.log(JSON.stringify(relation));
       } else if (!opts.quiet) {
-        console.log(`Created: "${source.title}" ${cmdOpts.type} "${target.title}"`);
+        console.log(`Created: "${source.title}" ${normalizeRelationType(cmdOpts.type)} "${target.title}"`);
       }
     });
   });
@@ -991,7 +991,7 @@ relationCmd
       if (opts.json) {
         console.log(JSON.stringify({ removed: true }));
       } else if (!opts.quiet) {
-        console.log(`Removed: "${source.title}" ${cmdOpts.type} "${target.title}"`);
+        console.log(`Removed: "${source.title}" ${normalizeRelationType(cmdOpts.type)} "${target.title}"`);
       }
     });
   });

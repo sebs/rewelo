@@ -40,8 +40,13 @@ for (const rt of RELATION_TYPES) {
   BY_INVERSE.set(rt.inverse, rt);
 }
 
+/** Relation types are matched like tag names: trimmed and lowercase */
+export function normalizeRelationType(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 export function getRelationType(name: string): RelationType {
-  const rt = BY_FORWARD.get(name);
+  const rt = BY_FORWARD.get(normalizeRelationType(name));
   if (rt) return rt;
   throw new ValidationError(
     `Unknown relation type "${name}". Valid types: ${RELATION_TYPES.map((r) => r.forward).join(", ")}`
@@ -58,6 +63,7 @@ export function canonicalRelation(
   targetId: number,
   name: string
 ): { sourceId: number; targetId: number; type: string } {
+  name = normalizeRelationType(name);
   if (BY_FORWARD.has(name)) return { sourceId, targetId, type: name };
   const rt = BY_INVERSE.get(name);
   if (rt) return { sourceId: targetId, targetId: sourceId, type: rt.forward };
@@ -70,6 +76,7 @@ export function forwardTypeNames(): string[] {
 }
 
 export function isValidRelationType(name: string): boolean {
+  name = normalizeRelationType(name);
   return BY_FORWARD.has(name) || BY_INVERSE.has(name);
 }
 

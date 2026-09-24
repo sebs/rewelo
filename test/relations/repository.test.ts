@@ -192,6 +192,12 @@ describe("relations repository", () => {
     assert.equal((relA.filter((r) => r.direction === "outgoing")).length, 2);
   });
 
+  it("accepts relation types in any case, like tag names", async () => {
+    const r = await createRelation(db, projectId, ticketA, ticketB, " Blocks ");
+    assert.equal(r.relation_type, "blocks");
+    assert.equal(await removeRelation(db, projectId, ticketB, ticketA, "IS-BLOCKED-BY"), true);
+  });
+
   it("reports the same relation id from both tickets, as listed project-wide", async () => {
     const created = await createRelation(db, projectId, ticketB, ticketA, "blocks");
     const [fromA] = await listRelations(db, projectId, ticketA);
