@@ -1,9 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isMountPoint, warnIfNoVolume } from "../src/volume.js";
+import { isMountPoint, mountedBetween, warnIfNoVolume } from "../src/volume.js";
 
 function stderrOf(fn: () => void): string {
   const original = console.error;
@@ -48,8 +48,26 @@ describe("data volume warning", () => {
       assert.equal(stderrOf(() => warnIfNoVolume("/elsewhere/rw.db", { RW_DATA_VOLUME: dir })), "");
       assert.equal(stderrOf(() => warnIfNoVolume(":memory:", { RW_DATA_VOLUME: dir })), "");
       assert.equal(stderrOf(() => warnIfNoVolume("/dev/rw.db", { RW_DATA_VOLUME: "/dev" })), "");
+
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("counts a volume mounted below RW_DATA_VOLUME or on the database file", () => {
+    const mounts = (...paths: string[]) => (path: string) => paths.includes(path);
+    assert.equal(mountedBetween("/data/sub/rw.db", "/data", mounts("/data/sub")), true);
+    assert.equal(mountedBetween("/data/rw.db", "/data", mounts("/data")), true);
+    assert.equal(mountedBetween("/data/sub/rw.db", "/data", mounts()), false);
+    const dir = mkdtempSync(join(tmpdir(), "rw-vol-"));
+    try {
+      const file = join(dir, "rw.db");
+      writeFileSync(file, "");
+      assert.equal(mountedBetween(file, dir, mounts(file)), true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+    // Mounts above RW_DATA_VOLUME don't count
+    assert.equal(mountedBetween("/data/sub/rw.db", "/data", mounts("/")), false);
   });
 });

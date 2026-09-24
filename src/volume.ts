@@ -1,12 +1,23 @@
-import { statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 
-/** Whether a directory is a mount point: on another device than its parent. */
+/** Whether a directory or file is a mount point: on another device than its parent. */
 export function isMountPoint(dir: string): boolean {
   try {
     return statSync(dir).dev !== statSync(dirname(resolve(dir))).dev;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Whether a volume holds the database: mounted at `dir` (/data), below it
+ * (-v x:/data/sub) or on the file itself (-v ./rw.db:/data/rw.db).
+ */
+export function mountedBetween(db: string, dir: string, isMount: (path: string) => boolean = isMountPoint): boolean {
+  for (let at = existsSync(db) ? db : dirname(db); ; at = dirname(at)) {
+    if (isMount(at)) return true;
+    if (at === dir || dirname(at) === at) return false;
   }
 }
 
@@ -19,7 +30,9 @@ export function warnIfNoVolume(dbPath: string, env: NodeJS.ProcessEnv = process.
   const volume = env.RW_DATA_VOLUME;
   if (!volume || dbPath === ":memory:") return;
   const dir = resolve(volume);
-  if (!resolve(dbPath).startsWith(dir + sep) || isMountPoint(dir)) return;
+  const db = resolve(dbPath);
+  if (!db.startsWith(dir + sep)) return;
+  if (mountedBetween(db, dir)) return;
   console.error(
     `Warning: no volume is mounted at ${dir}, so the database is lost when the container is removed. Mount one, e.g. docker run -v rw-data:${dir} ...`
   );
