@@ -1379,12 +1379,13 @@ reportCmd
   .command("event-log")
   .description("unified chronological event stream for a project")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
-  .option("--since <timestamp>", "only events after this ISO timestamp")
+  .option("--since <timestamp>", "only events after this ISO timestamp, oldest first")
+  .option("--after <sequence>", "only events written after this sequence number, in write order", parseNonNegativeIntOption)
   .option("--limit <n>", "maximum number of events", parseNonNegativeIntOption, 50)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const events = await getEventLog(db, project.id, cmdOpts.since, cmdOpts.limit);
+      const events = await getEventLog(db, project.id, cmdOpts.since, cmdOpts.limit, cmdOpts.after);
       if (opts.json) {
         console.log(JSON.stringify(events));
       } else if (opts.quiet) {

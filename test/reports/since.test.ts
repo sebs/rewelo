@@ -102,4 +102,34 @@ describe("since filters", () => {
   it("reports the normalised since in the diff", async () => {
     assert.equal((await getProjectDiff(db, projectId, "2026-03-10T09:00:00+02:00")).since, "2026-03-10T07:00:00.000Z");
   });
+
+  it("returns the events right after since first, so polling with a limit reaches them all", async () => {
+    for (let i = 0; i < 6; i++) {
+      const t = await createTicket(db, { projectId, title: `P${i}` });
+      await db.run("UPDATE tickets SET created_at = ? WHERE id = ?", `2026-01-0${i + 1}T00:00:00.000Z`, t.id);
+    }
+    const seen: string[] = [];
+    let since = "2020-01-01";
+    for (;;) {
+      const page = await getEventLog(db, projectId, since, 2);
+      if (page.length === 0) break;
+      seen.push(...page.map((e) => e.ticketTitle));
+      since = page[page.length - 1].timestamp;
+    }
+    assert.deepEqual(seen.slice(0, 6), ["P0", "P1", "P2", "P3", "P4", "P5"]);
+  });
+
+  it("polls without losing events written in the same millisecond via after", async () => {
+    for (let i = 0; i < 6; i++) await createTicket(db, { projectId, title: `P${i}` });
+    await db.run("UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z'");
+    const seen: string[] = [];
+    let after = 0;
+    for (;;) {
+      const page = await getEventLog(db, projectId, undefined, 2, after);
+      if (page.length === 0) break;
+      seen.push(...page.filter((e) => e.type === "ticket_created").map((e) => e.ticketTitle));
+      after = page[page.length - 1].sequence;
+    }
+    assert.deepEqual(seen, ["A", "P0", "P1", "P2", "P3", "P4", "P5"]);
+  });
 });

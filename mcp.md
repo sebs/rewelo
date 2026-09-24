@@ -176,7 +176,7 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `event_log`       | Unified chronological event stream | `project`, `since?`, `limit?`             |
+| `event_log`       | Unified chronological event stream: newest first, or oldest first after `since` (for polling) | `project`, `since?`, `after?`, `limit?` (default 50) |
 | `project_diff`    | Changes since a point in time      | `project`, `since`                        |
 
 ### Export / Import

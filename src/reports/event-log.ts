@@ -7,13 +7,16 @@ export interface ProjectEvent {
   ticketId: number;
   ticketTitle: string;
   detail: Record<string, unknown>;
+  /** Position in the order events were written; pass it as `after` to poll */
+  sequence: number;
 }
 
 export async function getEventLog(
   db: DB,
   projectId: number,
   since?: string,
-  limit?: number
+  limit?: number,
+  after?: number
 ): Promise<ProjectEvent[]> {
   // An empty since is invalid (as in project diff), not "no filter"
   if (since !== undefined) since = normalizeSince(since);
@@ -32,6 +35,13 @@ export async function getEventLog(
   // 3. Tag changes (from ticket_tag_changes)
   // 4. Ticket deletions (from ticket_deletions; the ticket's own history is
   //    deleted with it, so this is the only trace it leaves)
+  // Without since: the newest events. With since: the events right after it,
+  // oldest first, so polling from the last timestamp of each page reaches
+  // every event (newest-first pages under a limit skipped the older ones).
+  // With after: the events written after that sequence number, in write
+  // order. Unlike since (millisecond timestamps) this never skips an event
+  // written in the same millisecond as the last one seen.
+  const order = since !== undefined || after !== undefined ? "ASC" : "DESC";
   const sql = `
     SELECT * FROM (
       SELECT
@@ -91,9 +101,10 @@ export async function getEventLog(
       FROM ticket_deletions d
       WHERE d.project_id = ?${sinceClause.replace("ts", "d.deleted_at")}
     ) events
+    ${after !== undefined ? "WHERE seq > ?" : ""}
     -- Timestamps have millisecond resolution, so break ties by the order the
     -- rows were written (event_order), across all four tables
-    ORDER BY ts DESC, seq DESC, rank DESC
+    ORDER BY ${after !== undefined ? `seq ${order}` : `ts ${order}, seq ${order}, rank ${order}`}
   `;
 
   // Add projectId for each UNION branch
@@ -101,6 +112,8 @@ export async function getEventLog(
     params.push(projectId);
     if (since !== undefined) params.push(since);
   }
+
+  if (after !== undefined) params.push(after);
 
   if (limit !== undefined) {
     params.push(limit);
@@ -114,6 +127,7 @@ export async function getEventLog(
     ticket_id: number;
     ticket_title: string;
     detail: string;
+    seq: number;
   }>(sql + limitClause, ...params);
 
   return rows.map((r) => ({
@@ -122,5 +136,6 @@ export async function getEventLog(
     ticketId: r.ticket_id,
     ticketTitle: r.ticket_title,
     detail: typeof r.detail === "string" ? JSON.parse(r.detail) : r.detail,
+    sequence: r.seq,
   }));
 }

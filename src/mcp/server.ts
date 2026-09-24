@@ -735,14 +735,15 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "event_log",
-    "Get a unified event stream combining ticket creates, updates, deletes, and tag changes. Newest first. Use 'since' to poll incrementally.",
+    "Get a unified event stream combining ticket creates, updates, deletes, and tag changes. Without since/after: the newest events, newest first. With since or after: the events after it, oldest first. To poll incrementally without missing events, pass the sequence of the last event received as the next after.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
-      since: z.string().optional().describe("Only events after this ISO timestamp"),
-      limit: z.number().int().nonnegative().optional().describe("Maximum number of events to return"),
+      since: z.string().optional().describe("Only events after this ISO timestamp (then oldest first)"),
+      after: z.number().int().nonnegative().optional().describe("Only events written after this sequence number (an earlier event's sequence), in write order"),
+      limit: z.number().int().nonnegative().optional().describe("Maximum number of events to return (default 50)"),
     },
-    safe(({ project, since, limit }) =>
-      withProject(resolveProject(project), (db, proj) => getEventLog(db, proj.id, since, limit ?? 50))
+    safe(({ project, since, after, limit }) =>
+      withProject(resolveProject(project), (db, proj) => getEventLog(db, proj.id, since, limit ?? 50, after))
     )
   );
 
