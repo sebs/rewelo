@@ -79,6 +79,12 @@ describe("since filters", () => {
     }
   });
 
+  it("rejects an empty since everywhere instead of ignoring it", async () => {
+    await assert.rejects(getEventLog(db, projectId, ""), /Invalid timestamp ""/);
+    await assert.rejects(listProjectRevisions(db, projectId, ""), /Invalid timestamp ""/);
+    await assert.rejects(getProjectDiff(db, projectId, ""), /Invalid timestamp ""/);
+  });
+
   it("reports the normalised since in the diff", async () => {
     assert.equal((await getProjectDiff(db, projectId, "2026-03-10T09:00:00+02:00")).since, "2026-03-10T07:00:00.000Z");
   });

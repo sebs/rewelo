@@ -85,7 +85,8 @@ export async function listProjectRevisions(
      WHERE t.project_id = ?`;
   const params: unknown[] = [projectId];
 
-  if (since) {
+  // An empty since is invalid (as in project diff), not "no filter"
+  if (since !== undefined) {
     sql += ` AND r.revised_at >= ?`;
     params.push(normalizeSince(since));
   }

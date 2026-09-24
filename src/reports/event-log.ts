@@ -15,10 +15,11 @@ export async function getEventLog(
   since?: string,
   limit?: number
 ): Promise<ProjectEvent[]> {
-  if (since) since = normalizeSince(since);
+  // An empty since is invalid (as in project diff), not "no filter"
+  if (since !== undefined) since = normalizeSince(since);
   const params: unknown[] = [projectId];
   let sinceClause = "";
-  if (since) {
+  if (since !== undefined) {
     sinceClause = " AND ts >= ?";
     params.push(since);
   }
@@ -90,7 +91,7 @@ export async function getEventLog(
   // Add projectId for each UNION branch
   for (let branch = 1; branch < 4; branch++) {
     params.push(projectId);
-    if (since) params.push(since);
+    if (since !== undefined) params.push(since);
   }
 
   if (limit !== undefined) {
