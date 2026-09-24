@@ -21,7 +21,9 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
 const REPO = "https://github.com/sebs/rewelo";
 // GitHub Pages serves the project under https://sebs.github.io/rewelo/, so
 // root-absolute links need that prefix. SITE_BASE='' for a custom domain.
-const BASE = (process.env.SITE_BASE ?? "/rewelo").replace(/\/$/, "");
+// Leading slash added and trailing one dropped: "rewelo" and "/rewelo/" both
+// mean "/rewelo" (without the leading slash every asset link was relative).
+const BASE = (process.env.SITE_BASE ?? "/rewelo").replace(/^\/*/, "/").replace(/\/+$/, "");
 const withBase = (html) => (BASE ? html.replace(/(href|src)="\//g, `$1="${BASE}/`) : html);
 
 const docs = [
@@ -38,7 +40,7 @@ const pageOf = new Map(docs.map((d) => [d.file.toLowerCase(), d.slug ? `/docs/${
 function link(href) {
   if (/^(https?:|mailto:|#)/.test(href)) return href;
   const [path, anchor] = href.split("#");
-  const page = pageOf.get(path.toLowerCase());
+  const page = pageOf.get(path.replace(/^\.\//, "").toLowerCase());
   if (page) return page + (anchor ? `#${anchor}` : "");
   return `${REPO}/blob/main/${path.replace(/^\.\//, "")}${anchor ? `#${anchor}` : ""}`;
 }
