@@ -40,6 +40,7 @@ import {
   validateTagPrefix,
   validateTagValue,
   parseTagPair,
+  parseTag,
   ValidationError,
 } from "./validation/strings.js";
 import { validateDbPath, validateExportPath, validateImportPath } from "./validation/paths.js";
@@ -426,8 +427,8 @@ ticketCmd
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       // Build tag filter arrays
-      const includeTags = (cmdOpts.tag as string[]).map((s: string) => parseTagPair(s));
-      const excludeTagPairs = (cmdOpts.excludeTag as string[]).map((s: string) => parseTagPair(s));
+      const includeTags = (cmdOpts.tag as string[]).map((s: string) => parseTag(s));
+      const excludeTagPairs = (cmdOpts.excludeTag as string[]).map((s: string) => parseTag(s));
 
       const tickets = await listTickets(db, project.id, {
         includeTags: includeTags.length > 0 ? includeTags : undefined,
@@ -973,7 +974,7 @@ calcCmd
       let tickets = await listTickets(db, project.id);
 
       if (cmdOpts.tag) {
-        const { prefix, value } = parseTagPair(cmdOpts.tag);
+        const { prefix, value } = parseTag(cmdOpts.tag);
         const tag = await getTag(db, project.id, prefix, value);
         if (tag) {
           const ids = await listTicketsByTag(db, project.id, tag.id);
@@ -1187,7 +1188,7 @@ reportCmd
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const groups = await groupByTagPrefix(db, project.id, cmdOpts.prefix);
+      const groups = await groupByTagPrefix(db, project.id, validateTagPrefix(cmdOpts.prefix));
       if (opts.json) {
         console.log(JSON.stringify(groups));
       } else if (groups.length === 0) {

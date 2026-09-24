@@ -158,3 +158,12 @@ export function validateTagValue(value: string): string {
   }
   return normalized;
 }
+
+/**
+ * Parse and validate a "prefix:value" tag the way it is stored (trimmed,
+ * lowercase), so filters match tags written as e.g. "STATE:Done".
+ */
+export function parseTag(raw: string): { prefix: string; value: string } {
+  const { prefix, value } = parseTagPair(raw);
+  return { prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
+}

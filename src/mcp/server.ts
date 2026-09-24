@@ -60,7 +60,7 @@ import {
   validateTicketDescription,
   validateTagPrefix,
   validateTagValue,
-  parseTagPair,
+  parseTag,
 } from "../validation/strings.js";
 import { validateDbPath } from "../validation/paths.js";
 import { sanitizeError } from "../validation/errors.js";
@@ -288,11 +288,11 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       withProject(resolveProject(project), async (db, proj) => {
         // Build tag filter arrays
         const includeTags: { prefix: string; value: string }[] = [];
-        if (tag) { includeTags.push(parseTagPair(tag)); }
-        if (tagFilters) for (const ts of tagFilters) { includeTags.push(parseTagPair(ts)); }
+        if (tag) { includeTags.push(parseTag(tag)); }
+        if (tagFilters) for (const ts of tagFilters) { includeTags.push(parseTag(ts)); }
 
         const excludeTagPairs: { prefix: string; value: string }[] = [];
-        if (excludeTags) for (const ts of excludeTags) { excludeTagPairs.push(parseTagPair(ts)); }
+        if (excludeTags) for (const ts of excludeTags) { excludeTagPairs.push(parseTag(ts)); }
 
         const tickets = await listTickets(db, proj.id, {
           includeTags: includeTags.length > 0 ? includeTags : undefined,

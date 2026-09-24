@@ -81,4 +81,20 @@ describe("rw ticket list (CLI)", () => {
     assert.equal(r.code, 1);
     assert.ok(r.stderr.includes("Ticket title must not be empty"));
   });
+
+  it("normalises tag filters like tag assign does", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Done one");
+    rw("ticket", "create", "--project", "P", "--title", "Open one");
+    rw("tag", "assign", "STATE:Done", "--project", "P", "--ticket", "Done one");
+    const list = (...args: string[]) => rw("--quiet", "ticket", "list", "--project", "P", ...args).stdout.trim();
+
+    assert.equal(list("--tag", "STATE:DONE"), "Done one");
+    assert.equal(list("--tag", "state: done"), "Done one");
+    assert.equal(list("--exclude-tag", "STATE:DONE"), "Open one");
+    assert.ok(rw("calc", "weights", "--project", "P", "--tag", "State:Done").stdout.includes("Done one"));
+    assert.ok(rw("report", "group", "--project", "P", "--prefix", "State").stdout.includes("done"));
+    const bad = rw("ticket", "list", "--project", "P", "--exclude-tag", "bad tag:x");
+    assert.equal(bad.code, 1);
+    assert.ok(bad.stderr.includes("Tag prefix must contain only"));
+  });
 });
