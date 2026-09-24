@@ -1275,6 +1275,8 @@ reportCmd
       const groups = await groupByTagPrefix(db, project.id, validateTagPrefix(cmdOpts.prefix));
       if (opts.json) {
         console.log(JSON.stringify(groups));
+      } else if (opts.quiet) {
+        groups.forEach((g) => console.log(`${g.value}\t${g.ticketCount}\t${g.averagePriority.toFixed(2)}`));
       } else if (groups.length === 0 && !opts.csv) {
         console.log(`No tickets with "${cmdOpts.prefix}:" tags found.`);
       } else {
@@ -1353,6 +1355,8 @@ reportCmd
       const avg = averageLeadTime(times);
       if (opts.json) {
         console.log(JSON.stringify(timesReport(times)));
+      } else if (opts.quiet) {
+        times.forEach((t) => console.log(`${t.ticketTitle}\t${t.leadTimeDays ?? ""}\t${t.cycleTimeDays ?? ""}`));
       } else if (times.length === 0 && !opts.csv) {
         console.log("No tickets found.");
       } else {

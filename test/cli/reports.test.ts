@@ -50,4 +50,11 @@ describe("rw report (CLI)", () => {
     assert.equal(rw("--csv", "report", "times", "--project", "P").stdout, "Title,Lead Time,Cycle Time\nDone,0d,\nOpen,,\n");
     assert.match(rw("report", "times", "--project", "P").stdout, /Open +\| -/);
   });
+
+  it("report group and report times honour --quiet", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Done");
+    rw("tag", "assign", "state:done", "--project", "P", "--ticket", "Done");
+    assert.equal(rw("--quiet", "report", "group", "--project", "P", "--prefix", "state").stdout, "done\t1\t1.00\n");
+    assert.equal(rw("--quiet", "report", "times", "--project", "P").stdout, "Done\t0\t\n");
+  });
 });
