@@ -27,6 +27,7 @@ describe("global output flags (CLI)", () => {
     assert.equal(rw("--csv", "tag", "list", "--project", "P").stdout, "prefix,value\nstate,wip\n");
     assert.ok(!rw("--csv", "tag", "log", "--project", "P", "--ticket", "A, with comma").stdout.includes(" | "));
     const priority = rw("--csv", "calc", "priority", "--project", "P").stdout;
+    assert.equal(priority.split("\n")[0], "Title,Priority,Weighted");
     assert.ok(priority.includes('"A, with comma",'));
     assert.ok(!priority.includes(" | "));
   });

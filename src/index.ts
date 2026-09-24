@@ -1070,7 +1070,7 @@ calcCmd
       } else if (results.length === 0 && !opts.csv) {
         console.log("No tickets found.");
       } else {
-        console.log(`Weights: w1=${w1} w2=${w2} w3=${w3} w4=${w4}\n`);
+        if (!opts.csv) console.log(`Weights: w1=${w1} w2=${w2} w3=${w3} w4=${w4}\n`);
         console.log(
           formatTable(
             ["Title", "Priority", "Weighted"],
