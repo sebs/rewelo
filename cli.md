@@ -154,7 +154,7 @@ rw import csv <file> --project <name>
 rw import json <file> --project <name>
 ```
 
-`import json` creates the project if it does not exist yet, and restores relations and weights when the file has them (weights replace the project's current ones). Imports are all-or-nothing: if any row fails, nothing is imported.
+`import json` creates the project if it does not exist yet, and restores relations and weights when the file has them (weights replace the project's current ones). A file written with `--with-history` also restores each ticket's creation time, revisions and tag changes, so lead and cycle times survive a backup and restore. Imports are all-or-nothing: if any row fails, nothing is imported.
 
 ### relation
 

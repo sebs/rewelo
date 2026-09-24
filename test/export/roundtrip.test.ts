@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { createTicket, listTickets } from "../../src/tickets/repository.js";
+import { createTicket, listTickets, updateTicket } from "../../src/tickets/repository.js";
+import { getTicketTimes } from "../../src/calculations/time.js";
+import { listRevisions } from "../../src/revisions/repository.js";
+import { getTagChangeLog } from "../../src/tags/audit.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag, getTicketTags } from "../../src/tags/assignment.js";
 import { exportCsv } from "../../src/export/csv.js";
@@ -101,6 +104,41 @@ describe("round-trip", () => {
     await assert.rejects(
       importJson(db, projectId, JSON.stringify({ tickets: [], weights: { w1: 1, w2: 1, w3: 0, w4: 0 } })),
       /Weights: /
+    );
+  });
+
+  it("JSON round-trip with history restores creation time, revisions and tag changes", async () => {
+    const t = await createTicket(db, { projectId, title: "Hist", benefit: 3 });
+    await updateTicket(db, projectId, t.id, { benefit: 8 });
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "wip")).id);
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
+    await db.run("UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z' WHERE id = ?", t.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-03T00:00:00.000Z' WHERE ticket_id = ? AND value = 'wip'", t.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-11T00:00:00.000Z' WHERE ticket_id = ? AND value = 'done'", t.id);
+
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+
+    const [copy] = await listTickets(db, target.id);
+    assert.equal(copy.created_at, "2026-01-01T00:00:00.000Z");
+    const times = await getTicketTimes(db, copy.id);
+    assert.deepEqual([times.leadTimeDays, times.cycleTimeDays], [10, 8]);
+    assert.deepEqual((await listRevisions(db, copy.id)).map((r) => r.benefit), [3]);
+    assert.deepEqual(
+      (await getTagChangeLog(db, copy.id)).map((c) => `${c.action} ${c.value}`),
+      (await getTagChangeLog(db, t.id)).map((c) => `${c.action} ${c.value}`)
+    );
+  });
+
+  it("JSON import rejects malformed history", async () => {
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "X", createdAt: "yesterday" }] })),
+      /Ticket 1: createdAt must be an ISO timestamp/
+    );
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "X", tagChanges: [{ action: "moved", prefix: "a", value: "b", changed_at: "2026-01-01" }] }] })),
+      /Ticket 1: tag change 1: action must be/
     );
   });
 });

@@ -9,6 +9,31 @@ import { getTicketByTitle } from "../tickets/repository.js";
 import { ValidationError } from "../validation/strings.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 
+export interface ImportableRevision {
+  title: string;
+  description: string | null;
+  benefit: number;
+  penalty: number;
+  estimate: number;
+  risk: number;
+  tags: TagPair[];
+  revised_at: string;
+}
+
+export interface ImportableTagChange {
+  action: "added" | "removed";
+  prefix: string;
+  value: string;
+  changed_at: string;
+}
+
+/** History from `export json --with-history`, restored as it was */
+export interface ImportableHistory {
+  createdAt?: string;
+  revisions?: ImportableRevision[];
+  tagChanges?: ImportableTagChange[];
+}
+
 export interface ImportableTicket {
   title: string;
   description?: string | null;
@@ -17,6 +42,7 @@ export interface ImportableTicket {
   estimate: number;
   risk: number;
   tags?: TagPair[];
+  history?: ImportableHistory;
 }
 
 export async function importProjectData(
@@ -61,6 +87,8 @@ export async function importProjectData(
           await assignTag(db, ticket.id, tag.id);
         }
       }
+
+      if (t.history) tagsCreated += await restoreHistory(db, projectId, ticket.id, t.history);
     }
 
     for (const [i, r] of (extras.relations ?? []).entries()) {
@@ -84,4 +112,37 @@ export async function importProjectData(
 
     return { imported: tickets.length, tagsCreated };
   });
+}
+
+// Put back what `export json --with-history` recorded, so lead and cycle
+// times and the event log survive a backup and restore. Returns the number
+// of tags created for tag changes whose tag no longer existed.
+async function restoreHistory(db: DB, projectId: number, ticketId: number, history: ImportableHistory): Promise<number> {
+  let tagsCreated = 0;
+  if (history.createdAt) {
+    await db.run(`UPDATE tickets SET created_at = ? WHERE id = ?`, history.createdAt, ticketId);
+  }
+  for (const r of history.revisions ?? []) {
+    await db.run(
+      `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags, revised_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ticketId, r.title, r.description, r.benefit, r.penalty, r.estimate, r.risk, JSON.stringify(r.tags), r.revised_at
+    );
+  }
+  if (history.tagChanges) {
+    // Replace the changes logged just now by assigning the current tags
+    await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
+    for (const c of history.tagChanges) {
+      let tag = await getTag(db, projectId, c.prefix, c.value);
+      if (!tag) {
+        tag = await createTag(db, projectId, c.prefix, c.value);
+        tagsCreated++;
+      }
+      await db.run(
+        `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action, changed_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        ticketId, tag.id, c.prefix, c.value, c.action, c.changed_at
+      );
+    }
+  }
+  return tagsCreated;
 }

@@ -14,6 +14,7 @@ export interface JsonExportOptions {
 }
 
 export interface ExportedTicket extends SerializedTicket {
+  createdAt?: string;
   revisions?: unknown[];
   tagChanges?: unknown[];
 }
@@ -38,7 +39,7 @@ export async function exportJson(
   const enrichedTickets: ExportedTicket[] = [];
 
   for (let i = 0; i < data.tickets.length; i++) {
-    const exported: ExportedTicket = { ...data.tickets[i] };
+    const exported: ExportedTicket = { ...data.tickets[i], createdAt: tickets[i].created_at };
     exported.revisions = await listRevisions(db, tickets[i].id);
     exported.tagChanges = await getTagChangeLog(db, tickets[i].id);
     enrichedTickets.push(exported);

@@ -4,7 +4,8 @@ import type { SerializedRelation, SerializedWeights, TagPair } from "./export-pr
 import { isValidRelationType } from "../relations/types.js";
 import { validateWeights } from "../weights/repository.js";
 import { assertOneValuePerPrefix } from "../tags/assignment.js";
-import type { ImportableTicket } from "./import-project.js";
+import type { ImportableHistory, ImportableTicket } from "./import-project.js";
+import { normalizeSince } from "../validation/timestamps.js";
 
 export const MAX_JSON_SIZE_BYTES = 50 * 1024 * 1024;
 export const MAX_NESTING_DEPTH = 10;
@@ -106,6 +107,13 @@ export function parseTickets(
       throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
     }
 
+    let history: ImportableHistory | undefined;
+    try {
+      history = parseHistory(t);
+    } catch (e) {
+      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
+    }
+
     tickets.push({
       title,
       description: typeof t.description === "string" ? t.description : undefined,
@@ -114,6 +122,7 @@ export function parseTickets(
       estimate,
       risk,
       tags,
+      ...(history ? { history } : {}),
     });
   }
 
@@ -150,4 +159,61 @@ export function parseWeights(raw: unknown): SerializedWeights | undefined {
     throw new ValidationError(`Weights: ${(e as Error).message}`);
   }
   return weights;
+}
+
+function timestamp(raw: unknown, field: string): string {
+  if (typeof raw !== "string") throw new ValidationError(`${field} must be an ISO timestamp`);
+  try {
+    return normalizeSince(raw);
+  } catch {
+    throw new ValidationError(`${field} must be an ISO timestamp`);
+  }
+}
+
+function list(raw: unknown, field: string): Record<string, unknown>[] {
+  if (!Array.isArray(raw) || raw.some((e) => !e || typeof e !== "object")) {
+    throw new ValidationError(`${field} must be an array of objects`);
+  }
+  return raw as Record<string, unknown>[];
+}
+
+// The createdAt, revisions and tagChanges written by `export json --with-history`
+function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined {
+  if (t.createdAt === undefined && t.revisions === undefined && t.tagChanges === undefined) return undefined;
+  const history: ImportableHistory = {};
+  if (t.createdAt !== undefined) history.createdAt = timestamp(t.createdAt, "createdAt");
+  if (t.revisions !== undefined) {
+    history.revisions = list(t.revisions, "revisions").map((r, j) => {
+      const at = `revision ${j + 1}`;
+      const score = (name: string) => {
+        assertFibonacci(r[name] as number, `${at} ${name}`);
+        return r[name] as number;
+      };
+      if (typeof r.title !== "string") throw new ValidationError(`${at}: title is required`);
+      if (r.description !== null && r.description !== undefined && typeof r.description !== "string") {
+        throw new ValidationError(`${at}: description must be a string`);
+      }
+      return {
+        title: validateTicketTitle(r.title),
+        description: typeof r.description === "string" ? validateTicketDescription(r.description)! : null,
+        benefit: score("benefit"),
+        penalty: score("penalty"),
+        estimate: score("estimate"),
+        risk: score("risk"),
+        tags: parseTags(r.tags, `${at}: tag`) ?? [],
+        revised_at: timestamp(r.revised_at, `${at} revised_at`),
+      };
+    });
+  }
+  if (t.tagChanges !== undefined) {
+    history.tagChanges = list(t.tagChanges, "tagChanges").map((c, j) => {
+      const at = `tag change ${j + 1}`;
+      if (c.action !== "added" && c.action !== "removed") {
+        throw new ValidationError(`${at}: action must be "added" or "removed"`);
+      }
+      const [tag] = parseTags([{ prefix: c.prefix, value: c.value }], `${at}: tag`)!;
+      return { action: c.action, ...tag, changed_at: timestamp(c.changed_at, `${at} changed_at`) };
+    });
+  }
+  return history;
 }
