@@ -1369,9 +1369,8 @@ reportCmd
         const none = opts.csv ? "" : "-";
         // Every ticket, as in --json: open ones without times
         const rows = times.map((t) => {
-          const ticket = tickets.find((tk) => tk.id === t.ticketId);
           return [
-            ticket?.title || String(t.ticketId),
+            t.ticketTitle,
             t.leadTimeDays !== undefined ? `${t.leadTimeDays}d` : none,
             t.cycleTimeDays !== undefined ? `${t.cycleTimeDays}d` : none,
           ];

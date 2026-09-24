@@ -108,6 +108,18 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
     version: 6,
     run: collapseStoredTitles,
   },
+  {
+    // History is read per ticket: without indexes report times, the event log
+    // and history export/import scanned whole tables once per ticket (22 s
+    // for 20,000 tickets)
+    version: 7,
+    sql: `CREATE INDEX IF NOT EXISTS ticket_revisions_ticket ON ticket_revisions (ticket_id);
+    CREATE INDEX IF NOT EXISTS ticket_tag_changes_ticket ON ticket_tag_changes (ticket_id);
+    CREATE INDEX IF NOT EXISTS ticket_tags_ticket ON ticket_tags (ticket_id);
+    CREATE INDEX IF NOT EXISTS tickets_project ON tickets (project_id, created_at);
+    CREATE INDEX IF NOT EXISTS tickets_title ON tickets (project_id, title);
+    CREATE INDEX IF NOT EXISTS ticket_deletions_project ON ticket_deletions (project_id, deleted_at);`,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

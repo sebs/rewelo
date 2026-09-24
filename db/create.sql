@@ -13,10 +13,10 @@
 -- Foreign keys are enforced (the app enables PRAGMA foreign_keys). There is no
 -- ON DELETE CASCADE; cascading deletes are handled in application code.
 
--- Marks the file as a rewelo database ("RWLO") at schema version 6;
+-- Marks the file as a rewelo database ("RWLO") at schema version 7;
 -- see src/db/migrate.ts.
 PRAGMA application_id = 1381452879;
-PRAGMA user_version = 6;
+PRAGMA user_version = 7;
 
 -- =============================================================================
 --  1. PROJECTS
@@ -191,6 +191,19 @@ CREATE TRIGGER IF NOT EXISTS ticket_deletions_event_order_insert AFTER INSERT ON
 BEGIN INSERT INTO event_order (source, row_id) VALUES ('deletion', NEW.id); END;
 CREATE TRIGGER IF NOT EXISTS ticket_deletions_event_order_delete AFTER DELETE ON ticket_deletions
 BEGIN DELETE FROM event_order WHERE source = 'deletion' AND row_id = OLD.id; END;
+
+-- =============================================================================
+--  10. INDEXES
+-- =============================================================================
+
+-- History is read per ticket (times, event log, export); without these the
+-- reports scan whole tables once per ticket.
+CREATE INDEX IF NOT EXISTS ticket_revisions_ticket ON ticket_revisions (ticket_id);
+CREATE INDEX IF NOT EXISTS ticket_tag_changes_ticket ON ticket_tag_changes (ticket_id);
+CREATE INDEX IF NOT EXISTS ticket_tags_ticket ON ticket_tags (ticket_id);
+CREATE INDEX IF NOT EXISTS tickets_project ON tickets (project_id, created_at);
+CREATE INDEX IF NOT EXISTS tickets_title ON tickets (project_id, title);
+CREATE INDEX IF NOT EXISTS ticket_deletions_project ON ticket_deletions (project_id, deleted_at);
 
 -- #############################################################################
 -- #  End of Schema Definition
