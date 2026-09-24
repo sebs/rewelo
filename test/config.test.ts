@@ -78,4 +78,9 @@ describe("loadConfig", () => {
     mkdirSync(join(child, ".rewelo.json"), { recursive: true });
     assert.throws(() => loadConfig(child), /Cannot read/);
   });
+
+  it("reports unknown keys, such as a misspelt project", () => {
+    writeFileSync(join(dir, ".rewelo.json"), JSON.stringify({ Project: "acme" }));
+    assert.throws(() => loadConfig(dir), /Unknown key "Project" .*the only key is "project"/);
+  });
 });

@@ -41,6 +41,14 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
         throw new ValidationError(`${candidate} must contain a JSON object, e.g. {"project": "Acme"}`);
       }
+      // A misspelt key ("Project") would otherwise be ignored, and the error
+      // then claims there is no .rewelo.json at all
+      const unknown = Object.keys(parsed).filter((key) => key !== "project");
+      if (unknown.length > 0) {
+        throw new ValidationError(
+          `Unknown key${unknown.length > 1 ? "s" : ""} ${unknown.map((k) => `"${k}"`).join(", ")} in ${candidate}; the only key is "project"`
+        );
+      }
       const config: ReweloConfig = {};
       if (parsed.project !== undefined) {
         if (typeof parsed.project !== "string" || parsed.project.trim().length === 0) {
