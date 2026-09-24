@@ -75,32 +75,36 @@ export async function renameTag(
   newPrefix: string,
   newValue: string
 ): Promise<Tag> {
-  const current = await getTagById(db, projectId, tagId);
-  if (!current) throw new AppError("Tag not found");
-  // Renaming to the same name is a no-op, not a clash with itself
-  if (current.prefix === newPrefix && current.value === newValue) return current;
+  // One write transaction: a parallel rename to the same name must fail with
+  // "already exists" and leave no revision for a rename that didn't happen
+  return db.transaction(async () => {
+    const current = await getTagById(db, projectId, tagId);
+    if (!current) throw new AppError("Tag not found");
+    // Renaming to the same name is a no-op, not a clash with itself
+    if (current.prefix === newPrefix && current.value === newValue) return current;
 
-  const conflict = await getTag(db, projectId, newPrefix, newValue);
-  if (conflict) {
-    throw new ValidationError(`Tag "${newPrefix}:${newValue}" already exists`);
-  }
+    const conflict = await getTag(db, projectId, newPrefix, newValue);
+    if (conflict) {
+      throw new ValidationError(`Tag "${newPrefix}:${newValue}" already exists`);
+    }
 
-  // Snapshot before change
-  await db.run(
-    `INSERT INTO tag_revisions (tag_id, prefix, value) VALUES (?, ?, ?)`,
-    tagId,
-    current.prefix,
-    current.value
-  );
+    // Snapshot before change
+    await db.run(
+      `INSERT INTO tag_revisions (tag_id, prefix, value) VALUES (?, ?, ?)`,
+      tagId,
+      current.prefix,
+      current.value
+    );
 
-  const rows = await db.all<Tag>(
-    `UPDATE tags SET prefix = ?, value = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND project_id = ? RETURNING *`,
-    newPrefix,
-    newValue,
-    tagId,
-    projectId
-  );
-  return rows[0];
+    const rows = await db.all<Tag>(
+      `UPDATE tags SET prefix = ?, value = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND project_id = ? RETURNING *`,
+      newPrefix,
+      newValue,
+      tagId,
+      projectId
+    );
+    return rows[0];
+  });
 }
 
 export async function deleteTag(

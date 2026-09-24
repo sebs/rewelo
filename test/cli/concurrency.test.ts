@@ -71,4 +71,17 @@ describe("concurrent CLI writes", () => {
     const events = JSON.parse(runCli(["--db", db, "--json", "report", "event-log", "--project", "C"]).stdout);
     assert.equal(events.filter((e: { type: string }) => e.type === "ticket_deleted").length, 1);
   });
+
+  it("renames only one of two tags racing for the same new name, leaving no stray revision", async () => {
+    for (const tag of ["x:a", "x:b"]) runCli(["--db", db, "tag", "create", tag, "--project", "C"]);
+    await inParallel(2, (i) => ["--db", db, "tag", "rename", "--project", "C", "--prefix", "x", "--old", i === 0 ? "a" : "b", "--new", "n"]);
+    const tags = runCli(["--db", db, "--quiet", "tag", "list", "--project", "C"]).stdout.trim().split("\n").sort();
+    assert.equal(tags.length, 2);
+    assert.ok(tags.includes("x:n"));
+    const { DB } = await import("../../src/db/connection.js");
+    const conn = await DB.open(db);
+    const revisions = await conn.all("SELECT 1 FROM tag_revisions");
+    await conn.close();
+    assert.equal(revisions.length, 1);
+  });
 });
