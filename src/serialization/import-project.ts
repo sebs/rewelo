@@ -18,6 +18,8 @@ export interface ImportableRevision {
   risk: number;
   tags: TagPair[];
   revised_at: string;
+  /** Position in the original write order (event_order), if exported */
+  sequence?: number;
 }
 
 export interface ImportableTagChange {
@@ -28,6 +30,8 @@ export interface ImportableTagChange {
   /** The tag's name at export time, if it has been renamed since */
   tag?: TagPair;
   changed_at: string;
+  /** Position in the original write order (event_order), if exported */
+  sequence?: number;
 }
 
 /** History from `export json --with-history`, restored as it was */
@@ -69,6 +73,9 @@ export async function importProjectData(
       }
     }
 
+    // History rows of all tickets, written after the tickets in their original
+    // order: the event log breaks timestamp ties by write order
+    const history: PendingHistoryRow[] = [];
     for (const [i, t] of tickets.entries()) {
       let ticket;
       try {
@@ -98,8 +105,9 @@ export async function importProjectData(
         }
       }
 
-      if (t.history) tagsCreated += await restoreHistory(db, projectId, ticket.id, t.history);
+      if (t.history) history.push(...(await prepareHistory(db, ticket.id, t.history)));
     }
+    tagsCreated += await writeHistory(db, projectId, history);
 
     for (const [i, r] of (extras.relations ?? []).entries()) {
       const source = await getTicketByTitle(db, projectId, r.source);
@@ -134,38 +142,65 @@ export async function importProjectData(
   });
 }
 
+type PendingHistoryRow = { ticketId: number; sequence?: number; at: string } & (
+  | { revision: ImportableRevision }
+  | { tagChange: ImportableTagChange }
+);
+
 // Put back what `export json --with-history` recorded, so lead and cycle
-// times and the event log survive a backup and restore. Returns the number
-// of tags created for tag changes whose tag no longer existed.
-async function restoreHistory(db: DB, projectId: number, ticketId: number, history: ImportableHistory): Promise<number> {
-  let tagsCreated = 0;
+// times and the event log survive a backup and restore. The creation time is
+// set right away; revisions and tag changes are returned to be written later.
+async function prepareHistory(db: DB, ticketId: number, history: ImportableHistory): Promise<PendingHistoryRow[]> {
   if (history.createdAt) {
     await db.run(`UPDATE tickets SET created_at = ? WHERE id = ?`, history.createdAt, ticketId);
-  }
-  for (const r of history.revisions ?? []) {
-    await db.run(
-      `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags, revised_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ticketId, r.title, r.description, r.benefit, r.penalty, r.estimate, r.risk, JSON.stringify(r.tags), r.revised_at
-    );
   }
   if (history.tagChanges) {
     // Replace the changes logged just now by assigning the current tags
     await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
-    for (const c of history.tagChanges) {
-      // Link the change to the tag as it is named now, so lead and cycle
-      // times (which follow the tag, not its old name) come out the same
-      const { prefix, value } = c.tag ?? c;
-      let tag = await getTag(db, projectId, prefix, value);
-      if (!tag) {
-        tag = await createTag(db, projectId, prefix, value);
-        tagsCreated++;
-      }
+  }
+  return [
+    ...(history.revisions ?? []).map((revision) => ({ ticketId, sequence: revision.sequence, at: revision.revised_at, revision })),
+    ...(history.tagChanges ?? []).map((tagChange) => ({ ticketId, sequence: tagChange.sequence, at: tagChange.changed_at, tagChange })),
+  ];
+}
+
+// Write history rows in their original write order; rows without a sequence
+// (older files) come after, by timestamp and then position in the file.
+// Returns the number of tags created for tag changes whose tag no longer
+// existed.
+async function writeHistory(db: DB, projectId: number, rows: PendingHistoryRow[]): Promise<number> {
+  let tagsCreated = 0;
+  const key = (row: PendingHistoryRow) => row.sequence ?? Infinity;
+  const sorted = rows
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) =>
+      key(a.row) !== key(b.row) ? (key(a.row) < key(b.row) ? -1 : 1)
+      : a.row.at !== b.row.at ? (a.row.at < b.row.at ? -1 : 1)
+      : a.index - b.index)
+    .map(({ row }) => row);
+  for (const row of sorted) {
+    if ("revision" in row) {
+      const r = row.revision;
       await db.run(
-        `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action, changed_at) VALUES (?, ?, ?, ?, ?, ?)`,
-        ticketId, tag.id, c.prefix, c.value, c.action, c.changed_at
+        `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags, revised_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        row.ticketId, r.title, r.description, r.benefit, r.penalty, r.estimate, r.risk, JSON.stringify(r.tags), r.revised_at
       );
+      continue;
     }
+    const c = row.tagChange;
+    // Link the change to the tag as it is named now, so lead and cycle
+    // times (which follow the tag, not its old name) come out the same
+    const { prefix, value } = c.tag ?? c;
+    let tag = await getTag(db, projectId, prefix, value);
+    if (!tag) {
+      tag = await createTag(db, projectId, prefix, value);
+      tagsCreated++;
+    }
+    await db.run(
+      `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action, changed_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      row.ticketId, tag.id, c.prefix, c.value, c.action, c.changed_at
+    );
   }
   return tagsCreated;
 }

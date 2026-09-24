@@ -40,12 +40,23 @@ export async function exportJson(
   // A tag change records the tag's name at the time; `tag` names the tag it
   // is now, so a restore links the change to the same tag after a rename
   const currentTags = new Map((await listTags(db, projectId)).map((t) => [t.id, { prefix: t.prefix, value: t.value }]));
+  // The order history rows were written in, so an import can restore
+  // same-millisecond events in the same order
+  const sequences = new Map(
+    (await db.all<{ source: string; row_id: number; seq: number }>(
+      `SELECT source, row_id, seq FROM event_order WHERE source IN ('revision', 'tag_change')`
+    )).map((r) => [`${r.source}:${r.row_id}`, r.seq])
+  );
   const enrichedTickets: ExportedTicket[] = [];
 
   for (let i = 0; i < data.tickets.length; i++) {
     const exported: ExportedTicket = { ...data.tickets[i], createdAt: tickets[i].created_at };
-    exported.revisions = await listRevisions(db, tickets[i].id);
-    exported.tagChanges = (await getTagChangeLog(db, tickets[i].id)).map((c) => ({ ...c, tag: currentTags.get(c.tag_id) }));
+    exported.revisions = (await listRevisions(db, tickets[i].id)).map((r) => ({ ...r, sequence: sequences.get(`revision:${r.id}`) }));
+    exported.tagChanges = (await getTagChangeLog(db, tickets[i].id)).map((c) => ({
+      ...c,
+      tag: currentTags.get(c.tag_id),
+      sequence: sequences.get(`tag_change:${c.id}`),
+    }));
     enrichedTickets.push(exported);
   }
 

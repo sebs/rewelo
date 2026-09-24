@@ -13,6 +13,7 @@ import { exportCsv } from "../../src/export/csv.js";
 import { exportJson } from "../../src/export/json.js";
 import { importCsv } from "../../src/import/csv.js";
 import { importJson } from "../../src/import/json.js";
+import { getEventLog } from "../../src/reports/event-log.js";
 import { createRelation, listProjectRelations } from "../../src/relations/repository.js";
 import { getWeights, setWeights } from "../../src/weights/repository.js";
 
@@ -210,5 +211,25 @@ describe("round-trip", () => {
       importJson(db, projectId, JSON.stringify({ tickets: [{ title: "R", revisions }] })),
       /Ticket 1: revision 1 benefit must be a number, got "5"/
     );
+  });
+
+  it("JSON round-trip with history keeps the order of same-millisecond events", async () => {
+    const [a, b, c] = [await createTicket(db, { projectId, title: "A" }), await createTicket(db, { projectId, title: "B" }), await createTicket(db, { projectId, title: "C" })];
+    const wip = await createTag(db, projectId, "state", "wip");
+    const done = await createTag(db, projectId, "state", "done");
+    await updateTicket(db, projectId, c.id, { benefit: 5 });
+    for (const t of [a, b, c]) await assignTag(db, t.id, wip.id);
+    for (const t of [c, a]) await assignTag(db, t.id, done.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-02T00:00:00.000Z'");
+    await db.run("UPDATE ticket_revisions SET revised_at = '2026-01-02T00:00:00.000Z'");
+    await db.run("UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z'");
+
+    const events = async (id: number) =>
+      (await getEventLog(db, id)).map((e) => `${e.type} ${e.ticketTitle} ${(e.detail as any).value ?? ""}`);
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+
+    assert.deepEqual(await events(target.id), await events(projectId));
   });
 });

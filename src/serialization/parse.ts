@@ -181,6 +181,12 @@ function timestamp(raw: unknown, field: string): string {
   }
 }
 
+function sequence(raw: unknown, at: string): { sequence?: number } {
+  if (raw === undefined || raw === null) return {};
+  if (!Number.isSafeInteger(raw) || (raw as number) < 0) throw new ValidationError(`${at}: sequence must be a whole number`);
+  return { sequence: raw as number };
+}
+
 function list(raw: unknown, field: string): Record<string, unknown>[] {
   if (!Array.isArray(raw) || raw.some((e) => !e || typeof e !== "object")) {
     throw new ValidationError(`${field} must be an array of objects`);
@@ -215,6 +221,7 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
         risk: score("risk"),
         tags: parseTags(r.tags, `${at}: tag`) ?? [],
         revised_at: timestamp(r.revised_at, `${at} revised_at`),
+        ...sequence(r.sequence, at),
       };
     });
   }
@@ -226,7 +233,13 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
       }
       const [historic] = parseTags([{ prefix: c.prefix, value: c.value }], `${at}: tag`)!;
       const current = c.tag === undefined ? undefined : parseTags([c.tag], `${at}: current tag`)![0];
-      return { action: c.action, ...historic, ...(current ? { tag: current } : {}), changed_at: timestamp(c.changed_at, `${at} changed_at`) };
+      return {
+        action: c.action,
+        ...historic,
+        ...(current ? { tag: current } : {}),
+        changed_at: timestamp(c.changed_at, `${at} changed_at`),
+        ...sequence(c.sequence, at),
+      };
     });
   }
   return history;
