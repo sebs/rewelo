@@ -232,4 +232,17 @@ describe("round-trip", () => {
 
     assert.deepEqual(await events(target.id), await events(projectId));
   });
+
+  it("JSON import restores revision titles that today's title rules reject", async () => {
+    const revisions = [
+      { title: "Fix\u200Bbug", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: [], revised_at: "2026-01-01T00:00:00Z" },
+    ];
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Fix bug", revisions }] }));
+    const [t] = await listTickets(db, projectId);
+    assert.equal((await listRevisions(db, t.id))[0].title, "Fix\u200Bbug");
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Other", revisions: [{ ...revisions[0], title: "" }] }] })),
+      /Ticket 1: revision 1: title must be a non-empty string/
+    );
+  });
 });

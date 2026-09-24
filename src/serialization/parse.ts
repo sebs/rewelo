@@ -212,8 +212,13 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
       if (r.description !== null && r.description !== undefined && typeof r.description !== "string") {
         throw new ValidationError(`${at}: description must be a string`);
       }
+      // A revision records a title as it was: titles allowed by the rules of
+      // the time (e.g. with characters rejected today) must restore as well
+      if (r.title.length === 0 || r.title.includes("\0") || r.title.length > 10_000) {
+        throw new ValidationError(`${at}: title must be a non-empty string without null bytes`);
+      }
       return {
-        title: validateTicketTitle(r.title),
+        title: r.title,
         description: typeof r.description === "string" ? validateTicketDescription(r.description)! : null,
         benefit: score("benefit"),
         penalty: score("penalty"),
