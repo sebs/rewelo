@@ -10,6 +10,8 @@ import { exportCsv } from "../../src/export/csv.js";
 import { exportJson } from "../../src/export/json.js";
 import { importCsv } from "../../src/import/csv.js";
 import { importJson } from "../../src/import/json.js";
+import { createRelation, listProjectRelations } from "../../src/relations/repository.js";
+import { getWeights, setWeights } from "../../src/weights/repository.js";
 
 describe("round-trip", () => {
   let db: DB;
@@ -71,5 +73,34 @@ describe("round-trip", () => {
     assert.equal(importedTags.length, 1);
     assert.equal(importedTags[0].prefix, "feature");
     assert.equal(importedTags[0].value, "auth");
+  });
+
+  it("JSON round-trip preserves relations and weights", async () => {
+    const a = await createTicket(db, { projectId, title: "A" });
+    const b = await createTicket(db, { projectId, title: "B" });
+    await createRelation(db, projectId, a.id, b.id, "blocks");
+    await createRelation(db, projectId, a.id, b.id, "relates-to");
+    await setWeights(db, projectId, 3, 1, 2, 0.5);
+
+    const json = JSON.stringify(await exportJson(db, projectId));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+    await importJson(db, target.id, JSON.stringify({ tickets: [], relations: JSON.parse(json).relations }));
+
+    const relations = (await listProjectRelations(db, target.id)).map((r) => [r.source_title, r.relation_type, r.target_title]);
+    assert.deepEqual(relations, [["A", "blocks", "B"], ["A", "relates-to", "B"]]);
+    const { w1, w2, w3, w4 } = await getWeights(db, target.id);
+    assert.deepEqual([w1, w2, w3, w4], [3, 1, 2, 0.5]);
+  });
+
+  it("JSON import rejects relations to unknown tickets and invalid weights", async () => {
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [], relations: [{ source: "X", type: "blocks", target: "Y" }] })),
+      /Relation 1: ticket "X" not found/
+    );
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [], weights: { w1: 1, w2: 1, w3: 0, w4: 0 } })),
+      /Weights: /
+    );
   });
 });

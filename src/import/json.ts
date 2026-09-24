@@ -2,13 +2,15 @@ import { DB } from "../db/connection.js";
 import { ValidationError, validateProjectName } from "../validation/strings.js";
 import { createProject, getProjectByName } from "../projects/repository.js";
 import { importProjectData } from "../serialization/import-project.js";
-import { checkDepth, checkJsonSize, safeParseJson, parseTickets, parseTags } from "../serialization/parse.js";
+import { checkDepth, checkJsonSize, safeParseJson, parseTickets, parseTags, parseRelations, parseWeights } from "../serialization/parse.js";
 import type { ImportableTicket } from "../serialization/import-project.js";
-import type { TagPair } from "../serialization/export-project.js";
+import type { SerializedRelation, SerializedWeights, TagPair } from "../serialization/export-project.js";
 
 interface ImportData {
   tickets: ImportableTicket[];
   tags?: TagPair[];
+  relations?: SerializedRelation[];
+  weights?: SerializedWeights;
 }
 
 function validateImportData(data: unknown): ImportData {
@@ -24,6 +26,8 @@ function validateImportData(data: unknown): ImportData {
   return {
     tickets: parseTickets(obj.tickets),
     tags: parseTags(obj.tags),
+    relations: parseRelations(obj.relations),
+    weights: parseWeights(obj.weights),
   };
 }
 
@@ -38,7 +42,10 @@ export async function importJson(
   checkDepth(parsed);
   const data = validateImportData(parsed);
 
-  return importProjectData(db, projectId, data.tickets, data.tags);
+  return importProjectData(db, projectId, data.tickets, data.tags, {
+    relations: data.relations,
+    weights: data.weights,
+  });
 }
 
 // Import into the named project, creating it first if it does not exist.

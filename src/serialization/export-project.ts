@@ -1,6 +1,8 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { listTags } from "../tags/repository.js";
+import { listProjectRelations } from "../relations/repository.js";
+import { getWeights } from "../weights/repository.js";
 
 export interface TagPair {
   prefix: string;
@@ -17,9 +19,25 @@ export interface SerializedTicket {
   tags: TagPair[];
 }
 
+export interface SerializedRelation {
+  source: string;
+  type: string;
+  target: string;
+}
+
+export interface SerializedWeights {
+  w1: number;
+  w2: number;
+  w3: number;
+  w4: number;
+}
+
 export interface SerializedProject {
   tickets: SerializedTicket[];
   tags: TagPair[];
+  /** Between tickets, by title */
+  relations: SerializedRelation[];
+  weights: SerializedWeights;
 }
 
 export async function exportProjectData(
@@ -57,8 +75,13 @@ export async function exportProjectData(
     tags: tagsByTicket.get(ticket.id) ?? [],
   }));
 
+  const relations = await listProjectRelations(db, projectId);
+  const { w1, w2, w3, w4 } = await getWeights(db, projectId);
+
   return {
     tickets: serializedTickets,
     tags: allTags.map((t) => ({ prefix: t.prefix, value: t.value })),
+    relations: relations.map((r) => ({ source: r.source_title, type: r.relation_type, target: r.target_title })),
+    weights: { w1, w2, w3, w4 },
   };
 }

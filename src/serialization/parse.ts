@@ -1,6 +1,8 @@
 import { assertFibonacci } from "../db/types.js";
 import { ValidationError, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
-import type { TagPair } from "./export-project.js";
+import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
+import { isValidRelationType } from "../relations/types.js";
+import { validateWeights } from "../weights/repository.js";
 import { assertOneValuePerPrefix } from "../tags/assignment.js";
 import type { ImportableTicket } from "./import-project.js";
 
@@ -116,4 +118,36 @@ export function parseTickets(
   }
 
   return tickets;
+}
+
+export function parseRelations(raw: unknown): SerializedRelation[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) {
+    throw new ValidationError('Relations must be an array of {"source", "type", "target"} objects');
+  }
+  return raw.map((rel, i) => {
+    const r = rel as Record<string, unknown>;
+    if (!r || typeof r !== "object" || typeof r.source !== "string" || typeof r.type !== "string" || typeof r.target !== "string") {
+      throw new ValidationError(`Relation ${i + 1}: must be an object with string "source", "type" and "target"`);
+    }
+    if (!isValidRelationType(r.type)) {
+      throw new ValidationError(`Relation ${i + 1}: unknown relation type "${r.type}"`);
+    }
+    return { source: r.source, type: r.type, target: r.target };
+  });
+}
+
+export function parseWeights(raw: unknown): SerializedWeights | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const w = raw as Record<string, unknown>;
+  if (typeof raw !== "object" || Array.isArray(raw) || [w.w1, w.w2, w.w3, w.w4].some((v) => typeof v !== "number")) {
+    throw new ValidationError('Weights must be an object with numeric "w1", "w2", "w3" and "w4"');
+  }
+  const weights = { w1: w.w1 as number, w2: w.w2 as number, w3: w.w3 as number, w4: w.w4 as number };
+  try {
+    validateWeights(weights.w1, weights.w2, weights.w3, weights.w4);
+  } catch (e) {
+    throw new ValidationError(`Weights: ${(e as Error).message}`);
+  }
+  return weights;
 }

@@ -145,7 +145,7 @@ rw export csv --project <name> [--output <path>] [--with-calculations]
 rw export json --project <name> [--output <path>] [--with-history]
 ```
 
-Without `--output`, data is written to stdout.
+Without `--output`, data is written to stdout. `export json` contains the tickets with their tags, the project's tags, its relations (by ticket title) and its weight configuration.
 
 ### import
 
@@ -154,7 +154,7 @@ rw import csv <file> --project <name>
 rw import json <file> --project <name>
 ```
 
-`import json` creates the project if it does not exist yet. Imports are all-or-nothing: if any row fails, nothing is imported.
+`import json` creates the project if it does not exist yet, and restores relations and weights when the file has them (weights replace the project's current ones). Imports are all-or-nothing: if any row fails, nothing is imported.
 
 ### relation
 

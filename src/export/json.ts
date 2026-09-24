@@ -44,8 +44,5 @@ export async function exportJson(
     enrichedTickets.push(exported);
   }
 
-  return {
-    tickets: enrichedTickets,
-    tags: data.tags,
-  };
+  return { ...data, tickets: enrichedTickets };
 }
