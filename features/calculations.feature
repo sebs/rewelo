@@ -70,7 +70,7 @@ Feature: Calculations
   Scenario: Weighted priority emphasising benefit
     Given weights w1=3.0, w2=1.0, w3=1.5, w4=1.5
     And a ticket with benefit 8, penalty 5, estimate 3, risk 2
-    Then the weighted priority should be 3.93
+    Then the weighted priority should be 3.87
 
   Scenario: Weighted priority emphasising risk
     Given weights w1=1.5, w2=1.5, w3=1.0, w4=3.0
