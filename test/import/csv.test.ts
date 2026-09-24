@@ -222,4 +222,9 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
     const latin1 = Buffer.from("title,description\nPlain,Men\xfc f\xfcr Caf\xe9\n", "latin1").toString("utf-8");
     await assert.rejects(importCsv(db, projectId, latin1), /Row 1: Ticket description is not valid UTF-8/);
   });
+
+  it("reports a quoted blank title instead of skipping it as a blank line", async () => {
+    await assert.rejects(importCsv(db, projectId, 'title\n"  "\n'), /Row 1: Ticket title must not be empty/);
+    assert.deepEqual(await importCsv(db, projectId, "title\nA\n\n  \nB\n"), { imported: 2 });
+  });
 });

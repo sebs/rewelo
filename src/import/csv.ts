@@ -45,16 +45,20 @@ function parseCsv(csv: string): string[][] {
     const where = records.length === 0 ? "Header" : `Row ${records.length}`;
     throw new ValidationError(`${where}: ${problem}`);
   };
+  let recordQuoted = false; // a field of the current record was quoted
   const endField = () => {
     fields.push(current);
     current = "";
+    recordQuoted ||= quoted;
     quoted = false;
   };
   const endRecord = () => {
     endField();
-    // Skip blank lines
-    if (fields.length > 1 || fields[0].trim().length > 0) records.push(fields);
+    // Skip blank lines, but not a record holding a quoted blank field ("  "):
+    // that is a row with an empty title, to be reported
+    if (fields.length > 1 || fields[0].trim().length > 0 || recordQuoted) records.push(fields);
     fields = [];
+    recordQuoted = false;
   };
 
   for (let i = 0; i < csv.length; i++) {
