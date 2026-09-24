@@ -90,7 +90,7 @@ export async function renderDashboard(
   const distRows = distribution
     .map(
       (d) =>
-        `<tr><td>${esc(d.dimension)}</td>${FIBS.map(
+        `<tr><th scope="row">${esc(d.dimension)}</th>${FIBS.map(
           (f) => `<td class="n">${d.counts[f] || 0}</td>`
         ).join("")}</tr>`
     )
@@ -132,24 +132,27 @@ export async function renderDashboard(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(projectName)} — Rewelo dashboard</title>
 <style>
-  :root { color-scheme: light dark; }
+  /* muted text meets WCAG AA contrast (4.5:1) on the light and dark background */
+  :root { color-scheme: light dark; --muted: #595959; }
+  @media (prefers-color-scheme: dark) { :root { --muted: #a6a6a6; } }
   body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.4; }
   h1 { margin: 0 0 .25rem; }
   h2 { margin: 2rem 0 .5rem; font-size: 1.15rem; }
-  .meta { color: #888; margin: 0 0 1rem; font-size: .85rem; }
+  .meta { color: var(--muted); margin: 0 0 1rem; font-size: .85rem; }
   .cards { display: flex; flex-wrap: wrap; gap: 1rem; }
   .card { border: 1px solid #8884; border-radius: 8px; padding: .75rem 1rem; min-width: 8rem; }
-  .card .k { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+  .card .k { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
   .card .v { font-size: 1.5rem; font-weight: 600; }
   table { border-collapse: collapse; width: 100%; margin-top: .5rem; }
   th, td { border: 1px solid #8883; padding: .35rem .6rem; text-align: left; }
-  th { background: #8881; }
+  th { background: #8882; }
+  tbody th { font-weight: normal; }
   td.n { text-align: right; font-variant-numeric: tabular-nums; }
   td.strong { font-weight: 700; }
-  td.rel { color: #888; }
-  td.empty { text-align: center; color: #888; font-style: italic; }
-  tbody tr:nth-child(even) { background: #8880; }
-  footer { margin-top: 2rem; color: #888; font-size: .8rem; }
+  td.rel { color: var(--muted); }
+  td.empty { text-align: center; color: var(--muted); font-style: italic; }
+  tbody tr:nth-child(even) { background: #8881; }
+  footer { margin-top: 2rem; color: var(--muted); font-size: .8rem; }
 </style>
 </head>
 <body>
@@ -167,24 +170,24 @@ ${generated}
   <div class="card"><span class="k">Backlog cost</span><span class="v">${health.totalBacklogCost}</span></div>
 </div>
 
-<h2>Open tickets by priority</h2>
+<h2 id="tickets">Open tickets by priority</h2>
 ${done.size > 0 ? `<p class="meta">${done.size} done ticket${done.size === 1 ? " is" : "s are"} not listed.</p>` : ""}
 ${customWeights ? `<p class="meta">Priority is value / cost without the project's weights; <code>rw calc priority</code> shows the weighted priority.</p>` : ""}
-<table>
-  <thead><tr><th>Title</th><th>B</th><th>P</th><th>E</th><th>R</th><th>Value</th><th>Cost</th><th>Priority</th></tr></thead>
+<table aria-labelledby="tickets">
+  <thead><tr><th scope="col">Title</th><th scope="col"><abbr title="Benefit">B</abbr></th><th scope="col"><abbr title="Penalty">P</abbr></th><th scope="col"><abbr title="Estimate">E</abbr></th><th scope="col"><abbr title="Risk">R</abbr></th><th scope="col">Value</th><th scope="col">Cost</th><th scope="col">Priority</th></tr></thead>
   <tbody>${priorityRows}</tbody>
 </table>
 ${more(Math.min(limit, rows.length), rows.length, "open ticket")}
 
-<h2>Score distribution</h2>
-<table>
-  <thead><tr><th>Dimension</th>${FIBS.map((f) => `<th>${f}</th>`).join("")}</tr></thead>
+<h2 id="distribution">Score distribution</h2>
+<table aria-labelledby="distribution">
+  <thead><tr><th scope="col">Dimension</th>${FIBS.map((f) => `<th scope="col">${f}</th>`).join("")}</tr></thead>
   <tbody>${distRows}</tbody>
 </table>
 
-<h2>Relationships</h2>
-<table>
-  <thead><tr><th>Source</th><th>Type</th><th>Target</th></tr></thead>
+<h2 id="relations">Relationships</h2>
+<table aria-labelledby="relations">
+  <thead><tr><th scope="col">Source</th><th scope="col">Type</th><th scope="col">Target</th></tr></thead>
   <tbody>${relationRows}</tbody>
 </table>
 ${more(Math.min(limit, relations.length), relations.length, "relation")}

@@ -92,4 +92,14 @@ describe("dashboard report", () => {
     const all = await renderDashboard(db, projectId, "DashTest");
     assert.doesNotMatch(all, /Showing/);
   });
+
+  it("labels its tables and explains the score columns", async () => {
+    await createTicket(db, { projectId, title: "A", benefit: 3 });
+    const html = await renderDashboard(db, projectId, "DashTest");
+    assert.equal(html.match(/<table aria-labelledby="(tickets|distribution|relations)">/g)?.length, 3);
+    assert.doesNotMatch(html, /<th>/);
+    assert.match(html, /<th scope="row">benefit<\/th>/);
+    assert.match(html, /<abbr title="Benefit">B<\/abbr>/);
+    assert.doesNotMatch(html, /#888;|#8880/);
+  });
 });
