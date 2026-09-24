@@ -120,8 +120,9 @@ export async function listTickets(
   // Title search (case-insensitive). Escape LIKE wildcards so a literal
   // "%" or "_" in the search term matches itself instead of acting as a
   // pattern (a bare "%" previously matched every ticket).
+  // Titles are stored trimmed and NFC-normalised, so match the query in the same form
   if (options?.search) {
-    const escaped = options.search
+    const escaped = normalizeName(options.search)
       .toLowerCase()
       .replace(/[\\%_]/g, (c) => `\\${c}`);
     sql += ` AND unicode_lower(t.title) LIKE ? ESCAPE '\\'`;

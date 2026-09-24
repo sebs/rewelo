@@ -225,4 +225,12 @@ describe("tickets repository", () => {
     assert.deepEqual(await titles("ÜBER"), ["Über uns"]);
     assert.deepEqual(await titles("straße"), ["Straße"]);
   });
+
+  it("matches a decomposed or padded search against stored titles", async () => {
+    await createTicket(db, { projectId, title: "Caf\u00e9 login" });
+    const titles = async (search: string) =>
+      (await listTickets(db, projectId, { search })).map((t) => t.title);
+    assert.deepEqual(await titles("cafe\u0301"), ["Caf\u00e9 login"]);
+    assert.deepEqual(await titles(" login "), ["Caf\u00e9 login"]);
+  });
 });
