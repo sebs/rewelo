@@ -1,5 +1,5 @@
 import { assertFibonacci } from "../db/types.js";
-import { ValidationError, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
+import { ValidationError, isBlank, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 import { isValidRelationType } from "../relations/types.js";
 import { validateWeights } from "../weights/repository.js";
@@ -221,7 +221,8 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
       }
       return {
         title: r.title,
-        description: typeof r.description === "string" ? validateTicketDescription(r.description)! : null,
+        // Blank is no description, as for tickets: "   " then null showed as a change
+        description: typeof r.description === "string" && !isBlank(r.description) ? validateTicketDescription(r.description)! : null,
         benefit: score("benefit"),
         penalty: score("penalty"),
         estimate: score("estimate"),

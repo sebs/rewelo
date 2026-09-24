@@ -234,10 +234,13 @@ describe("migrate", () => {
       INSERT INTO projects (id, name) VALUES (1, 'P');
       INSERT INTO tickets (project_id, title, description) VALUES (1, 'A', ''), (1, 'B', 'text'), (1, 'C', ' ' || char(10) || ' '),
         (1, 'D', char(12288) || char(160) || char(8232) || char(65279));
+      INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags) VALUES (1, 'A', '  ', 1, 1, 1, 1, '[]'), (2, 'B', 'old', 1, 1, 1, 1, '[]');
       PRAGMA user_version = 8;`);
     await migrate(db);
     const rows = await db.all<{ description: string | null }>("SELECT description FROM tickets ORDER BY id");
     assert.deepEqual(rows.map((r) => r.description), [null, "text", null, null]);
+    const revisions = await db.all<{ description: string | null }>("SELECT description FROM ticket_revisions ORDER BY id");
+    assert.deepEqual(revisions.map((r) => r.description), [null, "old"]);
   });
 
   it("refuses a database from a newer schema version", async () => {

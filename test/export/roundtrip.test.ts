@@ -246,6 +246,15 @@ describe("round-trip", () => {
     );
   });
 
+  it("JSON import stores a blank revision description as null", async () => {
+    const revisions = [
+      { title: "T", description: "   ", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: [], revised_at: "2026-01-01T00:00:00Z" },
+    ];
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", revisions }] }));
+    const [t] = await listTickets(db, projectId);
+    assert.equal((await listRevisions(db, t.id))[0].description, null);
+  });
+
   it("JSON import tolerates history a few seconds ahead of this machine's clock", async () => {
     const soon = new Date(Date.now() + 3000).toISOString();
     const tagChanges = [{ action: "added", prefix: "state", value: "done", changed_at: soon }];

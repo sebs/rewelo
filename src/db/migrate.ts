@@ -134,11 +134,13 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
   {
     // Version 8 could cut a title just after a space, and a title ending in
     // one can't be found by name (names are looked up trimmed). A blank
-    // description is no description, stored as null like "" since version 9.
+    // description is no description, stored as null like "" since version 9,
+    // in the history as well (else a diff shows "   " → null as a change).
     version: 10,
     run: async (db) => {
       await retitleTickets(db, (title) => title.trim());
       await db.run(`UPDATE tickets SET description = NULL WHERE is_blank(description)`);
+      await db.run(`UPDATE ticket_revisions SET description = NULL WHERE is_blank(description)`);
     },
   },
 ];
