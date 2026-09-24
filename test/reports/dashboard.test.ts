@@ -50,4 +50,11 @@ describe("dashboard report", () => {
     assert.ok(html.includes("&lt;b&gt;xss&lt;/b&gt;"));
     assert.ok(!html.includes("<b>xss</b>"));
   });
+
+  it("describes a missing low-priority count like rw report health", async () => {
+    await createTicket(db, { projectId, title: "Only high", benefit: 21 });
+    const html = await renderDashboard(db, projectId, "Dash");
+    assert.ok(html.includes("n/a (no low-priority tickets)"));
+    assert.ok(!html.includes("&infin;"));
+  });
 });

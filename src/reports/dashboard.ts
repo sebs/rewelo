@@ -85,7 +85,7 @@ export async function renderDashboard(
     health.highToLowRatio !== null
       ? String(health.highToLowRatio)
       : health.highPriorityCount > 0
-        ? "&infin;"
+        ? "n/a (no low-priority tickets)" // same wording as rw report health
         : "n/a";
 
   const relationRows =
