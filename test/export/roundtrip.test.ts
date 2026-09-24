@@ -7,8 +7,8 @@ import { createTicket, listTickets, updateTicket } from "../../src/tickets/repos
 import { getTicketTimes } from "../../src/calculations/time.js";
 import { listRevisions } from "../../src/revisions/repository.js";
 import { getTagChangeLog } from "../../src/tags/audit.js";
-import { createTag, listTags, renameTag } from "../../src/tags/repository.js";
-import { assignTag, getTicketTags } from "../../src/tags/assignment.js";
+import { createTag, deleteTag, listTags, renameTag } from "../../src/tags/repository.js";
+import { assignTag, getTicketTags, removeTag } from "../../src/tags/assignment.js";
 import { exportCsv } from "../../src/export/csv.js";
 import { exportJson } from "../../src/export/json.js";
 import { importCsv } from "../../src/import/csv.js";
@@ -244,6 +244,43 @@ describe("round-trip", () => {
       importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Other", revisions: [{ ...revisions[0], title: "" }] }] })),
       /Ticket 1: revision 1: title must be a non-empty string/
     );
+  });
+
+  it("JSON history round trip doesn't bring back a deleted tag", async () => {
+    const t = await createTicket(db, { projectId, title: "A" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, t.id, wip.id);
+    await removeTag(db, t.id, wip.id);
+    await deleteTag(db, projectId, wip.id);
+
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+    assert.deepEqual(await listTags(db, target.id), []);
+    const [copy] = await listTickets(db, target.id);
+    assert.deepEqual((await getTagChangeLog(db, copy.id)).map((c) => `${c.action} ${c.prefix}:${c.value}`), ["added state:wip", "removed state:wip"]);
+  });
+
+  it("JSON history round trip restores a tag renamed and then deleted", async () => {
+    const t = await createTicket(db, { projectId, title: "A" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    await assignTag(db, t.id, wip.id);
+    await renameTag(db, projectId, wip.id, "state", "doing");
+    await removeTag(db, t.id, wip.id);
+    await deleteTag(db, projectId, wip.id);
+    // A tag of the old name again, which is a different tag
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "wip")).id);
+
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+    assert.deepEqual((await listTags(db, target.id)).map((tag) => `${tag.prefix}:${tag.value}`), ["state:wip"]);
+    const [copy] = await listTickets(db, target.id);
+    assert.deepEqual((await getTagChangeLog(db, copy.id)).map((c) => `${c.action} ${c.prefix}:${c.value}`), [
+      "added state:wip",
+      "removed state:doing",
+      "added state:wip",
+    ]);
   });
 
   it("JSON import stores a blank revision description as null", async () => {

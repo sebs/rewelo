@@ -27,8 +27,10 @@ export interface ImportableTagChange {
   /** The tag's name at the time of the change */
   prefix: string;
   value: string;
-  /** The tag's name at export time, if it has been renamed since */
-  tag?: TagPair;
+  /** The tag's name at export time; null if the tag was deleted since */
+  tag?: TagPair | null;
+  /** The tag's id in the exporting database: which changes are of one tag */
+  tagId?: number;
   changed_at: string;
   /** Position in the original write order (event_order), if exported */
   sequence?: number;
@@ -174,12 +176,26 @@ async function prepareHistory(db: DB, ticketId: number, history: ImportableHisto
   ];
 }
 
+// A tag id no tag has: AUTOINCREMENT never hands out a deleted row's id again
+async function deletedTagId(db: DB, projectId: number): Promise<number> {
+  const [{ id }] = await db.all<{ id: number }>(
+    `INSERT INTO tags (project_id, prefix, value) VALUES (?, 'deleted', ?) RETURNING id`,
+    projectId,
+    `import-${Date.now()}-${Math.random()}`
+  );
+  await db.run(`DELETE FROM tags WHERE id = ?`, id);
+  return id;
+}
+
 // Write history rows in their original write order; rows without a sequence
 // (older files) come after, by timestamp and then position in the file.
 // Returns the number of tags created for tag changes whose tag no longer
 // existed.
 async function writeHistory(db: DB, projectId: number, rows: PendingHistoryRow[]): Promise<number> {
   let tagsCreated = 0;
+  // Tags deleted in the exporting project: their changes keep an id of their
+  // own that no tag has, as they did there (creating the tag brought it back)
+  const deleted = new Map<string, number>();
   const key = (row: PendingHistoryRow) => row.sequence ?? Infinity;
   const sorted = rows
     .map((row, index) => ({ row, index }))
@@ -199,6 +215,17 @@ async function writeHistory(db: DB, projectId: number, rows: PendingHistoryRow[]
       continue;
     }
     const c = row.tagChange;
+    if (c.tag === null) {
+      const key = c.tagId !== undefined ? `#${c.tagId}` : `${c.prefix}:${c.value}`;
+      let id = deleted.get(key);
+      if (id === undefined) id = await deletedTagId(db, projectId);
+      deleted.set(key, id);
+      await db.run(
+        `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action, changed_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        row.ticketId, id, c.prefix, c.value, c.action, c.changed_at
+      );
+      continue;
+    }
     // Link the change to the tag as it is named now, so lead and cycle
     // times (which follow the tag, not its old name) come out the same
     const { prefix, value } = c.tag ?? c;

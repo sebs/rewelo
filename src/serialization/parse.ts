@@ -240,11 +240,16 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
         throw new ValidationError(`${at}: action must be "added" or "removed"`);
       }
       const [historic] = parseTags([{ prefix: c.prefix, value: c.value }], `${at}: tag`)!;
-      const current = c.tag === undefined ? undefined : parseTags([c.tag], `${at}: current tag`)![0];
+      // null: the tag was deleted after the change
+      const current = c.tag === undefined || c.tag === null ? c.tag : parseTags([c.tag], `${at}: current tag`)![0];
+      if (c.tag_id !== undefined && (!Number.isSafeInteger(c.tag_id) || (c.tag_id as number) < 1)) {
+        throw new ValidationError(`${at}: tag_id must be a positive whole number`);
+      }
       return {
         action: c.action,
         ...historic,
-        ...(current ? { tag: current } : {}),
+        ...(current !== undefined ? { tag: current } : {}),
+        ...(c.tag_id !== undefined ? { tagId: c.tag_id as number } : {}),
         changed_at: timestamp(c.changed_at, `${at} changed_at`),
         ...sequence(c.sequence, at),
       };
@@ -275,23 +280,28 @@ function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
   };
   history.revisions?.forEach((r, j) => check(`revision ${j + 1} revised_at`, r.revised_at));
   if (history.tagChanges) {
-    const held = new Set<string>();
+    // tag → its name now (null: deleted since)
+    const held = new Map<string, string | null>();
     let previous = "";
     history.tagChanges.forEach((c, j) => {
       const at = `tag change ${j + 1}`;
       check(`${at} changed_at`, c.changed_at);
       if (c.changed_at < previous) throw new ValidationError(`${at} is earlier than the change before it`);
       previous = c.changed_at;
+      // One tag across renames: by its id if the file has it, else by the
+      // name it has now (a deleted tag has none: by the name it had)
       const { prefix, value } = c.tag ?? c;
-      const key = `${prefix}:${value}`;
+      const name = `${prefix}:${value}`;
+      const key = c.tagId !== undefined ? `#${c.tagId}` : name;
       if (c.action === "added" ? held.has(key) : !held.has(key)) {
-        throw new ValidationError(`${at}: ${key} is ${c.action} but ${c.action === "added" ? "was already there" : "was not there"}`);
+        throw new ValidationError(`${at}: ${c.prefix}:${c.value} is ${c.action} but ${c.action === "added" ? "was already there" : "was not there"}`);
       }
-      if (c.action === "added") held.add(key);
+      if (c.action === "added") held.set(key, c.tag === null ? null : name);
       else held.delete(key);
     });
     const expected = new Set(tags.map((t) => `${t.prefix}:${t.value}`));
-    if (held.size !== expected.size || [...held].some((k) => !expected.has(k))) {
+    const names = [...held.values()];
+    if (names.length !== expected.size || names.some((k) => k === null || !expected.has(k))) {
       throw new ValidationError("tagChanges do not end in the ticket's tags");
     }
   }

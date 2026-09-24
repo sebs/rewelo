@@ -44,7 +44,9 @@ async function readProject(db: DB, projectId: number, options: JsonExportOptions
   // Enrich tickets with revision history
   const tickets = await listTickets(db, projectId);
   // A tag change records the tag's name at the time; `tag` names the tag it
-  // is now, so a restore links the change to the same tag after a rename
+  // is now, so a restore links the change to the same tag after a rename,
+  // and is null for a tag deleted since (a restore must not bring it back).
+  // tag_id tells which changes belong to one tag, across renames.
   const currentTags = new Map((await listTags(db, projectId)).map((t) => [t.id, { prefix: t.prefix, value: t.value }]));
   // The order history rows were written in, so an import can restore
   // same-millisecond events in the same order
@@ -63,7 +65,7 @@ async function readProject(db: DB, projectId: number, options: JsonExportOptions
     exported.revisions = (await listRevisions(db, ticket.id)).map((r) => ({ ...r, sequence: sequences.get(`revision:${r.id}`) }));
     exported.tagChanges = (await getTagChangeLog(db, ticket.id)).map((c) => ({
       ...c,
-      tag: currentTags.get(c.tag_id),
+      tag: currentTags.get(c.tag_id) ?? null,
       sequence: sequences.get(`tag_change:${c.id}`),
     }));
     enrichedTickets.push(exported);
