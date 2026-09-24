@@ -240,7 +240,11 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     "project_delete",
     "Delete a project and all its tickets, tags, relations, and history. Irreversible.",
     { name: z.string().describe("Project name") },
-    safe(async ({ name }) => ({ deleted: await withDb((db) => deleteProject(db, name)) }))
+    safe(async ({ name }) => {
+      // Like every other tool (and the CLI), a missing project is an error
+      if (!(await withDb((db) => deleteProject(db, name)))) throw new AppError("Project not found");
+      return { deleted: true };
+    })
   );
 
   // =========================================================================

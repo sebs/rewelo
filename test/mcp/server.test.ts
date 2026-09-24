@@ -498,4 +498,10 @@ describe("MCP server", () => {
     const weights = JSON.parse((r.content as any)[0].text);
     assert.deepEqual(weights.map((w: any) => [w.title, w.relativeBenefit]), [["A", 0.5], ["B", 0.5]]);
   });
+
+  it("project_delete reports a missing project as an error", async () => {
+    const r = await client.callTool({ name: "project_delete", arguments: { name: "Nope" } });
+    assert.equal(r.isError, true);
+    assert.match((r.content as any)[0].text, /Project not found/);
+  });
 });
