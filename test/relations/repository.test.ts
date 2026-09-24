@@ -46,6 +46,14 @@ describe("relations repository", () => {
     assert.equal(relB.some((r) => r.relation_type === "is-blocked-by" && r.ticket_id === ticketA), true);
   });
 
+  it("rejects an asymmetric relation that reverses an existing one", async () => {
+    await createRelation(db, projectId, ticketA, ticketB, "blocks");
+    await assert.rejects(createRelation(db, projectId, ticketB, ticketA, "blocks"), /reverse relation already exists/);
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "is-blocked-by"), /reverse relation already exists/);
+    // Symmetric relations have no direction to contradict
+    await createRelation(db, projectId, ticketA, ticketB, "relates-to");
+  });
+
   it("creates depends-on / is-depended-on-by", async () => {
     await createRelation(db, projectId, ticketB, ticketA, "depends-on");
     const relB = await listRelations(db, projectId, ticketB);

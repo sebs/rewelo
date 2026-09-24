@@ -55,6 +55,22 @@ export async function createRelation(
     throw new ValidationError("Relation already exists");
   }
 
+  // An asymmetric relation in both directions contradicts itself
+  // (A blocks B and B blocks A)
+  if (!rt.symmetric) {
+    const reverse = await db.all<Relation>(
+      `SELECT * FROM ticket_relations
+       WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
+      projectId,
+      targetId,
+      sourceId,
+      relationType
+    );
+    if (reverse.length > 0) {
+      throw new ValidationError(`The reverse relation already exists: the target ${relationType} the source`);
+    }
+  }
+
   // Insert the forward relation
   const rows = await db.all<Relation>(
     `INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type)
