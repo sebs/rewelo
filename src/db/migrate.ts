@@ -34,6 +34,33 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       deleted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     )`,
   },
+  {
+    // Tag changes remember the tag's name at the time, so a later rename
+    // doesn't rewrite history. Existing rows get the name the tag had then:
+    // the first rename after the change recorded it in tag_revisions.
+    version: 3,
+    sql: `CREATE TABLE ticket_tag_changes_v3 (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id  INTEGER NOT NULL,
+      tag_id     INTEGER NOT NULL,
+      prefix     TEXT NOT NULL,
+      value      TEXT NOT NULL,
+      action     TEXT NOT NULL CHECK (action IN ('added', 'removed')),
+      changed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    INSERT INTO ticket_tag_changes_v3 (id, ticket_id, tag_id, prefix, value, action, changed_at)
+    SELECT c.id, c.ticket_id, c.tag_id,
+      coalesce(
+        (SELECT r.prefix FROM tag_revisions r WHERE r.tag_id = c.tag_id AND r.revised_at > c.changed_at ORDER BY r.revised_at, r.id LIMIT 1),
+        (SELECT t.prefix FROM tags t WHERE t.id = c.tag_id), ''),
+      coalesce(
+        (SELECT r.value FROM tag_revisions r WHERE r.tag_id = c.tag_id AND r.revised_at > c.changed_at ORDER BY r.revised_at, r.id LIMIT 1),
+        (SELECT t.value FROM tags t WHERE t.id = c.tag_id), ''),
+      c.action, c.changed_at
+    FROM ticket_tag_changes c;
+    DROP TABLE ticket_tag_changes;
+    ALTER TABLE ticket_tag_changes_v3 RENAME TO ticket_tag_changes;`,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

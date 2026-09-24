@@ -15,9 +15,8 @@ export async function getTagChangeLog(
   ticketId: number
 ): Promise<TagChange[]> {
   return db.all<TagChange>(
-    `SELECT c.id, c.ticket_id, c.tag_id, c.action, t.prefix, t.value, c.changed_at
+    `SELECT c.id, c.ticket_id, c.tag_id, c.action, c.prefix, c.value, c.changed_at
      FROM ticket_tag_changes c
-     JOIN tags t ON t.id = c.tag_id
      WHERE c.ticket_id = ?
      ORDER BY c.id`,
     ticketId

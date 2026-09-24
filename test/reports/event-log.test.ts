@@ -4,7 +4,7 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket, updateTicket } from "../../src/tickets/repository.js";
-import { createTag } from "../../src/tags/repository.js";
+import { createTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
 import { getEventLog } from "../../src/reports/event-log.js";
@@ -93,5 +93,15 @@ describe("event log", () => {
   it("returns no events for limit 0", async () => {
     await createTicket(db, { projectId, title: "Z" });
     assert.deepEqual(await getEventLog(db, projectId, undefined, 0), []);
+  });
+
+  it("keeps the tag name a change was made under when the tag is renamed later", async () => {
+    const t = await createTicket(db, { projectId, title: "R" });
+    const done = await createTag(db, projectId, "state", "done");
+    await assignTag(db, t.id, done.id);
+    await renameTag(db, projectId, done.id, "state", "closed");
+
+    const added = (await getEventLog(db, projectId)).find((e) => e.type === "tag_added");
+    assert.deepEqual(added!.detail, { prefix: "state", value: "done" });
   });
 });

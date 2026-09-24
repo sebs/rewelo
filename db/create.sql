@@ -13,10 +13,10 @@
 -- Foreign keys are enforced (the app enables PRAGMA foreign_keys). There is no
 -- ON DELETE CASCADE; cascading deletes are handled in application code.
 
--- Marks the file as a rewelo database ("RWLO") at schema version 2;
+-- Marks the file as a rewelo database ("RWLO") at schema version 3;
 -- see src/db/migrate.ts.
 PRAGMA application_id = 1381452879;
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;
 
 -- =============================================================================
 --  1. PROJECTS
@@ -92,10 +92,14 @@ CREATE TABLE ticket_tags (
 --  4. TICKET TAG CHANGES (audit log)
 -- =============================================================================
 
+-- prefix and value record the tag as it was named at the time of the
+-- change, so renaming a tag later does not rewrite the history.
 CREATE TABLE ticket_tag_changes (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     ticket_id  INTEGER NOT NULL,
     tag_id     INTEGER NOT NULL,
+    prefix     TEXT NOT NULL,
+    value      TEXT NOT NULL,
     action     TEXT NOT NULL CHECK (action IN ('added', 'removed')),
     changed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );

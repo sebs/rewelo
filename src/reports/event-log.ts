@@ -66,10 +66,9 @@ export async function getEventLog(
         CASE WHEN c.action = 'added' THEN 'tag_added' ELSE 'tag_removed' END AS type,
         c.ticket_id,
         t.title AS ticket_title,
-        json_object('prefix', tg.prefix, 'value', tg.value) AS detail
+        json_object('prefix', c.prefix, 'value', c.value) AS detail
       FROM ticket_tag_changes c
       JOIN tickets t ON t.id = c.ticket_id
-      JOIN tags tg ON tg.id = c.tag_id
       WHERE t.project_id = ?${sinceClause.replace("ts", "c.changed_at")}
     ) events
     ORDER BY ts DESC, ticket_id DESC

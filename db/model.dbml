@@ -78,6 +78,8 @@ Table ticket_tag_changes {
   id bigint [pk, default: `nextval('rw.ticket_tag_changes_id_seq')`]
   ticket_id bigint [not null, ref: > tickets.id]
   tag_id integer [not null, ref: > tags.id]
+  prefix varchar(50) [not null, note: 'tag prefix at the time of the change']
+  value varchar(100) [not null, note: 'tag value at the time of the change']
   action tag_action [not null]
   changed_at timestamptz [not null, default: `now()`]
 

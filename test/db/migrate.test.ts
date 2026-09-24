@@ -1,7 +1,7 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
-import { migrate } from "../../src/db/migrate.js";
+import { migrate, SCHEMA_VERSION } from "../../src/db/migrate.js";
 import { AppError } from "../../src/validation/strings.js";
 
 describe("migrate", () => {
@@ -92,13 +92,36 @@ describe("migrate", () => {
     await migrate(db);
     assert.ok((await tables()).includes("ticket_deletions"));
     const [row] = await db.all<{ user_version: number }>("PRAGMA user_version");
-    assert.equal(row.user_version, 2);
+    assert.equal(row.user_version, SCHEMA_VERSION);
   });
 
   it("creates new databases at the current schema version", async () => {
     db = await DB.open(":memory:");
     await migrate(db);
     const [row] = await db.all<{ user_version: number }>("PRAGMA user_version");
-    assert.equal(row.user_version, 2);
+    assert.equal(row.user_version, SCHEMA_VERSION);
+  });
+
+  it("backfills tag changes with the tag's name at the time of the change", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    // A version 2 table: tag changes without their own prefix/value
+    await db.exec(`
+      DROP TABLE ticket_tag_changes;
+      CREATE TABLE ticket_tag_changes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, ticket_id INTEGER NOT NULL, tag_id INTEGER NOT NULL,
+        action TEXT NOT NULL, changed_at TEXT NOT NULL);
+      INSERT INTO projects (id, name) VALUES (1, 'P');
+      INSERT INTO tickets (id, project_id, title) VALUES (1, 1, 'A');
+      INSERT INTO tags (id, project_id, prefix, value) VALUES (1, 1, 'state', 'closed');
+      INSERT INTO tag_revisions (tag_id, prefix, value, revised_at) VALUES (1, 'state', 'done', '2026-01-02T00:00:00.000Z');
+      INSERT INTO ticket_tag_changes (ticket_id, tag_id, action, changed_at) VALUES
+        (1, 1, 'added', '2026-01-01T00:00:00.000Z'),
+        (1, 1, 'removed', '2026-01-03T00:00:00.000Z');
+      PRAGMA user_version = 2;`);
+
+    await migrate(db);
+    const rows = await db.all<{ value: string }>("SELECT value FROM ticket_tag_changes ORDER BY id");
+    assert.deepEqual(rows.map((r) => r.value), ["done", "closed"]);
   });
 });

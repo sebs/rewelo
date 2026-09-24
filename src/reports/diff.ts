@@ -118,10 +118,9 @@ export async function getProjectDiff(
     prefix: string;
     value: string;
   }>(
-    `SELECT c.ticket_id, t.title AS ticket_title, c.action, tg.prefix, tg.value
+    `SELECT c.ticket_id, t.title AS ticket_title, c.action, c.prefix, c.value
      FROM ticket_tag_changes c
      JOIN tickets t ON t.id = c.ticket_id
-     JOIN tags tg ON tg.id = c.tag_id
      WHERE t.project_id = ? AND c.changed_at >= ?
      ORDER BY c.ticket_id, c.id`,
     projectId,

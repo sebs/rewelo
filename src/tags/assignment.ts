@@ -63,9 +63,11 @@ export async function assignTag(
       row.tag_id
     );
     await db.run(
-      `INSERT INTO ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'removed')`,
+      `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action) VALUES (?, ?, ?, ?, 'removed')`,
       ticketId,
-      row.tag_id
+      row.tag_id,
+      row.prefix,
+      row.value
     );
   }
 
@@ -75,7 +77,8 @@ export async function assignTag(
     tagId
   );
   await db.run(
-    `INSERT INTO ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'added')`,
+    `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action)
+     SELECT ?, id, prefix, value, 'added' FROM tags WHERE id = ?`,
     ticketId,
     tagId
   );
@@ -100,7 +103,8 @@ export async function removeTag(
     tagId
   );
   await db.run(
-    `INSERT INTO ticket_tag_changes (ticket_id, tag_id, action) VALUES (?, ?, 'removed')`,
+    `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action)
+     SELECT ?, id, prefix, value, 'removed' FROM tags WHERE id = ?`,
     ticketId,
     tagId
   );
