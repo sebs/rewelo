@@ -101,9 +101,15 @@ Feature: MCP Server
     Then the error response should contain a user-facing message
     And the error response should not contain SQL statements, stack traces, or file paths
 
+  Scenario: A burst of tool calls is paced
+    When a client sends 150 requests at once
+    Then the first 100 should start at once and the rest a second later
+    And none of them should fail
+
   Scenario: Rate limiting on MCP tool calls
-    When a client sends 1000 requests within 1 second
-    Then the server should reject excess requests with a rate limit error
+    When a client sends 2000 requests within 1 second
+    Then the server should reject the requests that would wait more than 10 seconds
+    And the rate limit error should say when to try again
 
   Scenario: Oversized request payload is rejected
     When a client sends a request with a 10 MB description field

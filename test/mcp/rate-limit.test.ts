@@ -11,9 +11,29 @@ describe("MCP rate limiting and payload size", () => {
     await cleanup();
   });
 
-  it("rejects requests when rate limit is exceeded", async () => {
-    // Very low limit for testing: 5 requests per second
+  it("paces a burst of calls instead of rejecting it", async () => {
     const mcpServer = createMcpServer(":memory:", { maxRequestsPerSecond: 5 });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: "test-client", version: "1.0.0" });
+    await mcpServer.connect(serverTransport);
+    await client.connect(clientTransport);
+    cleanup = async () => {
+      await client.close();
+      await mcpServer.close();
+    };
+
+    const started = Date.now();
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => client.callTool({ name: "project_list", arguments: {} }))
+    );
+    assert.equal(results.filter((r) => r.isError).length, 0);
+    // The last 3 had to wait for the first second to pass
+    assert.ok(Date.now() - started >= 900);
+  });
+
+  it("rejects requests when rate limit is exceeded", async () => {
+    // Very low limit for testing: 5 requests per second, no waiting
+    const mcpServer = createMcpServer(":memory:", { maxRequestsPerSecond: 5, maxRateLimitWaitMs: 0 });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     client = new Client({ name: "test-client", version: "1.0.0" });
     await mcpServer.connect(serverTransport);
@@ -34,7 +54,7 @@ describe("MCP rate limiting and payload size", () => {
     const errors = results.filter((r) => r.isError);
     assert.ok(errors.length > 0);
     const errorText = (errors[0].content as any)[0].text;
-    assert.ok(errorText.includes("Rate limit exceeded"));
+    assert.match(errorText, /Rate limit exceeded \(5 calls per second\)\. Try again in 1 s\./);
   });
 
   it("rejects oversized import payload", async () => {

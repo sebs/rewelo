@@ -102,19 +102,33 @@ const fibonacciScore = z.union([
 
 const MAX_PAYLOAD_BYTES = 1_000_000; // 1 MB per tool call argument
 
+// At most maxRequests calls start per window. A burst over that waits for its
+// slot instead of failing: a client that sends many calls at once (pipelined)
+// got most of them rejected. Only a backlog longer than maxWaitMs is refused.
 class RateLimiter {
-  private timestamps: number[] = [];
+  // Start times given out, in order; some may lie in the future
+  private slots: number[] = [];
   constructor(
     private maxRequests: number,
-    private windowMs: number
+    private windowMs: number,
+    private maxWaitMs: number
   ) {}
 
-  check(): boolean {
+  async acquire(): Promise<void> {
     const now = Date.now();
-    this.timestamps = this.timestamps.filter((t) => now - t < this.windowMs);
-    if (this.timestamps.length >= this.maxRequests) return false;
-    this.timestamps.push(now);
-    return true;
+    while (this.slots.length > 0 && this.slots[0] <= now - this.windowMs) this.slots.shift();
+    const start =
+      this.slots.length < this.maxRequests
+        ? now
+        : Math.max(now, this.slots[this.slots.length - this.maxRequests] + this.windowMs);
+    const wait = start - now;
+    if (wait > this.maxWaitMs) {
+      throw new AppError(
+        `Rate limit exceeded (${this.maxRequests} calls per second). Try again in ${Math.ceil((wait - this.maxWaitMs) / 1000)} s.`
+      );
+    }
+    this.slots.push(start);
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
   }
 }
 
@@ -146,9 +160,12 @@ function safe(fn: (args: any) => any) {
   };
 }
 
-export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond?: number }): McpServer {
+export function createMcpServer(
+  dbPath: string,
+  options?: { maxRequestsPerSecond?: number; maxRateLimitWaitMs?: number }
+): McpServer {
   const validDbPath = validateDbPath(dbPath);
-  const rateLimiter = new RateLimiter(options?.maxRequestsPerSecond ?? 100, 1000);
+  const rateLimiter = new RateLimiter(options?.maxRequestsPerSecond ?? 100, 1000, options?.maxRateLimitWaitMs ?? 10_000);
 
   const server = new McpServer(
     { name: "rewelo", version: VERSION },
@@ -196,9 +213,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
   let queue: Promise<unknown> = Promise.resolve();
 
   async function withDb<T>(fn: (db: DB) => Promise<T>): Promise<T> {
-    if (!rateLimiter.check()) {
-      throw new AppError("Rate limit exceeded. Try again shortly.");
-    }
+    await rateLimiter.acquire();
     const db = await openSharedDb();
     const run = queue.then(() => fn(db));
     queue = run.catch(() => {});

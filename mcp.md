@@ -238,7 +238,7 @@ Result:
 | `The database is locked by another process. Try again later` | Another `rw` process has held the write lock for more than 30 seconds (for example a very large import). Retry when it has finished; reading is not blocked. |
 | `The database uses schema version …, but this rewelo supports up to version …` | The database was upgraded by a newer rewelo. Upgrade the server. |
 | `The database file is not a rewelo database` | `--db` / `RW_DB_PATH` points at another application's SQLite file. |
-| `Rate limit exceeded. Try again shortly.` | More than 100 tool calls in one second. |
+| `Rate limit exceeded (100 calls per second). Try again in N s.` | Tool calls start at most 100 per second; calls beyond that wait their turn, and a call that would wait more than 10 seconds is refused. |
 | `Request payload too large` | A tool call's text arguments may total at most 1 MB; split an import into several calls. |
 | `The result is too large` | Results are limited to 5 MB. Page through `ticket_list` with `limit` and `offset` (it returns 100 tickets by default), and export or render big projects with the `rw` CLI, which writes files. |
 
