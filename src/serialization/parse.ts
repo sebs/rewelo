@@ -252,8 +252,12 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
 
 // Imported history has to be one that could have happened: otherwise lead
 // and cycle times come out negative or nonsensical.
+// Clocks of the exporting and importing machines differ a little: a fresh
+// backup restored on a machine a few seconds behind must still import
+const CLOCK_SKEW_MS = 5 * 60_000;
+
 function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
-  const now = new Date().toISOString();
+  const now = new Date(Date.now() + CLOCK_SKEW_MS).toISOString();
   const created = history.createdAt;
   if (created !== undefined && created > now) throw new ValidationError("createdAt is in the future");
   const check = (at: string, when: string) => {

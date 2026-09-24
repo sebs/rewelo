@@ -245,4 +245,11 @@ describe("round-trip", () => {
       /Ticket 1: revision 1: title must be a non-empty string/
     );
   });
+
+  it("JSON import tolerates history a few seconds ahead of this machine's clock", async () => {
+    const soon = new Date(Date.now() + 3000).toISOString();
+    const tagChanges = [{ action: "added", prefix: "state", value: "done", changed_at: soon }];
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Fresh", tags: [{ prefix: "state", value: "done" }], tagChanges }] }));
+    assert.equal((await listTickets(db, projectId)).length, 1);
+  });
 });
