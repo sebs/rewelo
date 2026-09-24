@@ -91,4 +91,9 @@ describe("concurrent CLI writes", () => {
     const relations = JSON.parse(runCli(["--db", db, "--json", "relation", "list-all", "--project", "C"]).stdout);
     assert.equal(relations.length, 1);
   });
+
+  it("sets weights from several processes at once without errors", async () => {
+    const codes = await inParallel(6, (i) => ["--db", db, "config", "weights", "--project", "C", "--set", "--w1", String(i + 1)]);
+    assert.deepEqual(codes, [0, 0, 0, 0, 0, 0]);
+  });
 });

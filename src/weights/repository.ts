@@ -38,20 +38,11 @@ export async function setWeights(
 ): Promise<WeightConfig> {
   validateWeights(w1, w2, w3, w4);
 
-  const existing = await db.all(
-    `SELECT 1 FROM weight_configs WHERE project_id = ?`,
-    projectId
-  );
-
-  if (existing.length > 0) {
-    await db.run(
-      `DELETE FROM weight_configs WHERE project_id = ?`,
-      projectId
-    );
-  }
-
+  // One upsert: select, delete and insert let parallel writers fail on the
+  // unique project_id and readers see the defaults in between
   await db.run(
-    `INSERT INTO weight_configs (project_id, w1, w2, w3, w4) VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO weight_configs (project_id, w1, w2, w3, w4) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (project_id) DO UPDATE SET w1 = excluded.w1, w2 = excluded.w2, w3 = excluded.w3, w4 = excluded.w4`,
     projectId,
     w1,
     w2,
