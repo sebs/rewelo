@@ -76,14 +76,21 @@ export function parseTickets(
       throw new ValidationError(`${errorPrefix} ${i + 1}: title is required`);
     }
 
-    // Missing scores default to 1, as in CSV import and ticket create
-    const score = (v: unknown) => (v === undefined || v === null ? 1 : Number(v));
-    const benefit = score(t.benefit);
-    const penalty = score(t.penalty);
-    const estimate = score(t.estimate);
-    const risk = score(t.risk);
-
+    // Missing scores default to 1, as in CSV import and ticket create.
+    // Anything else must be a JSON number: Number() would read true as 1,
+    // "5" and [3] as numbers and "0x5" as 5.
+    let benefit: number, penalty: number, estimate: number, risk: number;
     try {
+      const score = (field: string) => {
+        const v = t[field];
+        if (v === undefined || v === null) return 1;
+        if (typeof v !== "number") throw new ValidationError(`${field} must be a number, got ${JSON.stringify(v)}`);
+        return v;
+      };
+      benefit = score("benefit");
+      penalty = score("penalty");
+      estimate = score("estimate");
+      risk = score("risk");
       assertFibonacci(benefit, "benefit");
       assertFibonacci(penalty, "penalty");
       assertFibonacci(estimate, "estimate");

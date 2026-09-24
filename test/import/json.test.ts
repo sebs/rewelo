@@ -205,7 +205,7 @@ describe("JSON import", () => {
   });
 
   it("still rejects scores that are present but not numbers", async () => {
-    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", benefit: "lots" }] })), /Ticket 1: benefit must be a Fibonacci value/);
+    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", benefit: "lots" }] })), /Ticket 1: benefit must be a number, got "lots"/);
   });
 
   it("accepts a UTF-8 byte order mark", async () => {
@@ -217,5 +217,16 @@ describe("JSON import", () => {
     const bad = (t: Record<string, string>) => JSON.stringify({ tickets: [t] });
     await assert.rejects(importJson(db, projectId, bad({ title: "a\u001b[31m" })), /Ticket 1: Ticket title must not contain control characters/);
     await assert.rejects(importJson(db, projectId, bad({ title: "ok", description: "a\u001b[31m" })), /control characters/);
+  });
+
+  it("rejects scores that are not JSON numbers instead of coercing them", async () => {
+    for (const benefit of [true, "5", [3], " 2 ", "0x5"]) {
+      await assert.rejects(
+        importJson(db, projectId, JSON.stringify({ tickets: [{ title: "T", benefit }] })),
+        /Ticket 1: benefit must be a number/,
+        JSON.stringify(benefit)
+      );
+    }
+    assert.equal((await listTickets(db, projectId)).length, 0);
   });
 });
