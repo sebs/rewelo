@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -84,5 +84,14 @@ describe("rw calc (CLI)", () => {
     const out = rw("calc", "weights", "--project", "W").stdout;
     assert.match(out, /X +\| +0\.08 /);
     assert.match(out, /Y +\| +0\.53 /);
+  });
+
+  it("calc weights --csv writes numbers, not the table's <0.01", () => {
+    rw("project", "create", "Big");
+    const csv = join(dir, "big.csv");
+    writeFileSync(csv, "title\n" + Array.from({ length: 250 }, (_, i) => `T${i}`).join("\n"));
+    rw("import", "csv", csv, "--project", "Big");
+    const lines = rw("--csv", "calc", "weights", "--project", "Big").stdout.trim().split("\n");
+    assert.equal(lines[1], "T0,0.004,0.004,0.004,0.004");
   });
 });

@@ -1028,7 +1028,9 @@ calcCmd
 
       // Two decimals, without claiming a non-zero share is 0
       // round2 rounds halves up (0.075 -> 0.08); toFixed alone gave 0.07
-      const share = (x: number) => (x > 0 && x < 0.005 ? "<0.01" : round2(x).toFixed(2));
+      // CSV is for machines: the full value, never "<0.01"
+      const share = (x: number) =>
+        opts.csv ? String(x) : x > 0 && x < 0.005 ? "<0.01" : round2(x).toFixed(2);
       if (opts.json) {
         console.log(JSON.stringify(results));
       } else if (results.length === 0 && !opts.csv) {
