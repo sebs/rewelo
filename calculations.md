@@ -67,6 +67,10 @@ Relative Risk = Risk / Sum of all Risks
 - Shows what share of total risk this story represents (a fraction between 0 and 1)
 - Identifies stories with disproportionate risk compared to others
 
+Relative weights are reported to four significant digits, so small shares in
+large backlogs don't round to 0. Tables show two decimals, and `<0.01` for a
+share that is not zero but smaller than that.
+
 ### Weighted Calculations
 
 The tool also supports weighted calculations where each factor can be given different importance:

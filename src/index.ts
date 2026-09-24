@@ -1018,6 +1018,8 @@ calcCmd
         relativeRisk: t.relativeRisk,
       }));
 
+      // Two decimals, without claiming a non-zero share is 0
+      const share = (x: number) => (x > 0 && x < 0.005 ? "<0.01" : x.toFixed(2));
       if (opts.json) {
         console.log(JSON.stringify(results));
       } else if (results.length === 0 && !opts.csv) {
@@ -1027,8 +1029,8 @@ calcCmd
           formatTable(
             ["Title", "Rel.Benefit", "Rel.Penalty", "Rel.Estimate", "Rel.Risk"],
             results.map((r) => [
-              r.title, r.relativeBenefit.toFixed(2), r.relativePenalty.toFixed(2),
-              r.relativeEstimate.toFixed(2), r.relativeRisk.toFixed(2),
+              r.title, share(r.relativeBenefit), share(r.relativePenalty),
+              share(r.relativeEstimate), share(r.relativeRisk),
             ])
           )
         );

@@ -12,9 +12,11 @@ export interface RelativeWeights {
   relativeRisk: number;
 }
 
+// Four significant digits rather than two decimals: in a backlog of a few
+// hundred tickets each share is below 0.005 and would round to 0.
 function safeRatio(value: number, total: number): number {
   if (total === 0) return 0;
-  return Math.round((value / total) * 100) / 100;
+  return Number((value / total).toPrecision(4));
 }
 
 function totals(all: Scoreable[]): Scoreable {

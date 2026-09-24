@@ -14,9 +14,9 @@ describe("relative weight calculations", () => {
   ];
 
   it("calculates relative benefit", () => {
-    assert.equal(calculateRelativeWeights(stories[0], stories).relativeBenefit, 0.53);
-    assert.equal(calculateRelativeWeights(stories[1], stories).relativeBenefit, 0.13);
-    assert.equal(calculateRelativeWeights(stories[2], stories).relativeBenefit, 0.33);
+    assert.equal(calculateRelativeWeights(stories[0], stories).relativeBenefit, 0.5333);
+    assert.equal(calculateRelativeWeights(stories[1], stories).relativeBenefit, 0.1333);
+    assert.equal(calculateRelativeWeights(stories[2], stories).relativeBenefit, 0.3333);
   });
 
   it("calculates relative penalty", () => {
@@ -33,8 +33,8 @@ describe("relative weight calculations", () => {
       { benefit: 3, penalty: 2, estimate: 13, risk: 1 },
       { benefit: 5, penalty: 3, estimate: 8, risk: 2 },
     ];
-    assert.equal(calculateRelativeWeights(s[0], s).relativeEstimate, 0.62);
-    assert.equal(calculateRelativeWeights(s[1], s).relativeEstimate, 0.38);
+    assert.equal(calculateRelativeWeights(s[0], s).relativeEstimate, 0.619);
+    assert.equal(calculateRelativeWeights(s[1], s).relativeEstimate, 0.381);
   });
 
   it("calculates relative risk", () => {
@@ -42,8 +42,8 @@ describe("relative weight calculations", () => {
       { benefit: 3, penalty: 2, estimate: 5, risk: 13 },
       { benefit: 5, penalty: 3, estimate: 3, risk: 8 },
     ];
-    assert.equal(calculateRelativeWeights(s[0], s).relativeRisk, 0.62);
-    assert.equal(calculateRelativeWeights(s[1], s).relativeRisk, 0.38);
+    assert.equal(calculateRelativeWeights(s[0], s).relativeRisk, 0.619);
+    assert.equal(calculateRelativeWeights(s[1], s).relativeRisk, 0.381);
   });
 
   it("single ticket has all relative weights = 1.0", () => {
@@ -71,5 +71,10 @@ describe("relative weight calculations", () => {
     const started = Date.now();
     calculateAllRelativeWeights(many);
     assert.ok(Date.now() - started < 1000, "linear in the number of tickets");
+  });
+
+  it("keeps small shares in large backlogs instead of rounding them to 0", () => {
+    const many = Array.from({ length: 20_000 }, () => ({ benefit: 5, penalty: 1, estimate: 1, risk: 1 }));
+    assert.equal(calculateAllRelativeWeights(many)[0].relativeBenefit, 0.00005);
   });
 });
