@@ -112,7 +112,10 @@ class RateLimiter {
   constructor(
     private maxRequests: number,
     private windowMs: number,
-    private maxWaitMs: number
+    private maxWaitMs: number,
+    // Aborted when the client goes away: calls still waiting then don't run,
+    // as their answers could no longer be sent (they used to run unanswered)
+    private signal?: AbortSignal
   ) {}
 
   async acquire(): Promise<void> {
@@ -129,7 +132,17 @@ class RateLimiter {
       );
     }
     this.slots.push(start);
-    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    if (wait > 0) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(done, wait);
+        function done() {
+          clearTimeout(timer);
+          resolve();
+        }
+        this.signal?.addEventListener("abort", done, { once: true });
+      });
+    }
+    if (this.signal?.aborted) throw new AppError("The client disconnected before this call's turn.");
   }
 }
 
@@ -163,10 +176,10 @@ function safe(fn: (args: any) => any) {
 
 export function createMcpServer(
   dbPath: string,
-  options?: { maxRequestsPerSecond?: number; maxRateLimitWaitMs?: number }
+  options?: { maxRequestsPerSecond?: number; maxRateLimitWaitMs?: number; signal?: AbortSignal }
 ): McpServer {
   const validDbPath = validateDbPath(dbPath);
-  const rateLimiter = new RateLimiter(options?.maxRequestsPerSecond ?? 100, 1000, options?.maxRateLimitWaitMs ?? 10_000);
+  const rateLimiter = new RateLimiter(options?.maxRequestsPerSecond ?? 100, 1000, options?.maxRateLimitWaitMs ?? 10_000, options?.signal);
 
   const server = new McpServer(
     { name: "rewelo", version: VERSION },
@@ -952,10 +965,14 @@ export function createMcpServer(
 }
 
 export async function startMcpServer(dbPath: string): Promise<void> {
-  const server = createMcpServer(dbPath);
+  // The transport closes when stdin ends: the client is gone
+  const disconnected = new AbortController();
+  process.stdin.once("end", () => disconnected.abort());
+  const server = createMcpServer(dbPath, { signal: disconnected.signal });
   const transport = new StdioServerTransport();
 
   const shutdown = async () => {
+    disconnected.abort();
     await server.close();
     process.exit(0);
   };

@@ -2,6 +2,10 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DB } from "../../src/db/connection.js";
 
 describe("MCP rate limiting and payload size", () => {
   let client: Client;
@@ -29,6 +33,38 @@ describe("MCP rate limiting and payload size", () => {
     assert.equal(results.filter((r) => r.isError).length, 0);
     // The last 3 had to wait for the first second to pass
     assert.ok(Date.now() - started >= 900);
+  });
+
+  it("doesn't run calls still waiting for their turn once the client is gone", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-gone-"));
+    const path = join(dir, "gone.db");
+    const disconnected = new AbortController();
+    const mcpServer = createMcpServer(path, { maxRequestsPerSecond: 2, signal: disconnected.signal });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: "test-client", version: "1.0.0" });
+    await mcpServer.connect(serverTransport);
+    await client.connect(clientTransport);
+    cleanup = async () => {
+      await client.close();
+      await mcpServer.close();
+      rmSync(dir, { recursive: true, force: true });
+    };
+
+    const calls = Array.from({ length: 4 }, (_, i) =>
+      client.callTool({ name: "project_create", arguments: { name: `P${i}` } })
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    disconnected.abort();
+    const results = await Promise.all(calls);
+    assert.deepEqual(results.map((r) => Boolean(r.isError)), [false, false, true, true]);
+    assert.match((results[3].content as any)[0].text, /client disconnected/);
+
+    const db = await DB.open(path);
+    try {
+      assert.equal((await db.all("SELECT 1 FROM projects")).length, 2);
+    } finally {
+      await db.close();
+    }
   });
 
   it("rejects requests when rate limit is exceeded", async () => {
