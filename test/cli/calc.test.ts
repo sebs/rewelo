@@ -75,4 +75,14 @@ describe("rw calc (CLI)", () => {
     assert.ok(weights("--set", "--w1", "2.5").stdout.includes("w1=2.5"));
     assert.ok(weights("--set", "--w1", ".5").stdout.includes("w1=0.5"));
   });
+
+  it("calc weights rounds halves up in the table", () => {
+    rw("project", "create", "W");
+    for (const [title, benefit] of [["X", "3"], ["Y", "21"], ["Z", "13"], ["V", "3"]]) {
+      rw("ticket", "create", "--project", "W", "--title", title, "--benefit", benefit);
+    }
+    const out = rw("calc", "weights", "--project", "W").stdout;
+    assert.match(out, /X +\| +0\.08 /);
+    assert.match(out, /Y +\| +0\.53 /);
+  });
 });

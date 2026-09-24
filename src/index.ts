@@ -25,7 +25,7 @@ import {
 import { assertOneValuePerPrefix, assignTag, removeTag, listTicketsByTag } from "./tags/assignment.js";
 import { getTagChangeLog } from "./tags/audit.js";
 import { listRevisions, listProjectRevisions } from "./revisions/repository.js";
-import { byPriority, exactPriority, priority } from "./calculations/priority.js";
+import { byPriority, exactPriority, priority, round2 } from "./calculations/priority.js";
 import {
   calculateAllRelativeWeights,
 } from "./calculations/relative-weights.js";
@@ -1027,7 +1027,8 @@ calcCmd
       }));
 
       // Two decimals, without claiming a non-zero share is 0
-      const share = (x: number) => (x > 0 && x < 0.005 ? "<0.01" : x.toFixed(2));
+      // round2 rounds halves up (0.075 -> 0.08); toFixed alone gave 0.07
+      const share = (x: number) => (x > 0 && x < 0.005 ? "<0.01" : round2(x).toFixed(2));
       if (opts.json) {
         console.log(JSON.stringify(results));
       } else if (results.length === 0 && !opts.csv) {
