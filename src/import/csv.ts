@@ -7,6 +7,10 @@ import { ValidationError, parseTagPair, validateTagPrefix, validateTagValue, val
 import type { TagPair } from "../serialization/export-project.js";
 
 const MAX_ROWS = 100_000;
+
+// Columns written by `rw export csv`; value, cost and priority
+// (--with-calculations) are derived from the scores and ignored.
+const KNOWN_COLUMNS = ["title", "description", "benefit", "penalty", "estimate", "risk", "tags", "value", "cost", "priority"];
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 interface CsvRow {
@@ -89,6 +93,18 @@ function parseRows(csv: string): CsvRow[] {
   if (!headers.includes("title")) {
     throw new ValidationError("Missing required CSV column: title");
   }
+  // A misspelt column (benfit) would otherwise be dropped silently, and its
+  // scores default to 1
+  const unknown = headers.filter((h) => !KNOWN_COLUMNS.includes(h));
+  if (unknown.length > 0) {
+    throw new ValidationError(
+      `Unknown CSV column${unknown.length > 1 ? "s" : ""}: ${unknown.map((h) => `"${h}"`).join(", ")}. Known columns: ${KNOWN_COLUMNS.join(", ")}`
+    );
+  }
+  const duplicate = headers.find((h, i) => headers.indexOf(h) !== i);
+  if (duplicate !== undefined) {
+    throw new ValidationError(`Duplicate CSV column: "${duplicate}"`);
+  }
 
   if (records.length - 1 > MAX_ROWS) {
     throw new ValidationError(`CSV exceeds maximum of ${MAX_ROWS} rows`);
@@ -97,6 +113,9 @@ function parseRows(csv: string): CsvRow[] {
   const rows: CsvRow[] = [];
   for (let i = 1; i < records.length; i++) {
     const fields = records[i];
+    if (fields.length > headers.length) {
+      throw new ValidationError(`Row ${i}: ${fields.length} fields but only ${headers.length} columns`);
+    }
     // Keep free text exactly as written; trim only structured cells
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => {

@@ -182,4 +182,18 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
     assert.deepEqual((await listTickets(db, projectId)).map((t) => t.title), ["padded"]);
     await assert.rejects(importCsv(db, projectId, "title\n" + "x".repeat(501)), /Row 1: Ticket title must not exceed/);
   });
+
+  it("rejects unknown, duplicate and extra columns instead of dropping them", async () => {
+    await assert.rejects(importCsv(db, projectId, "title,benefit,benfit\nA,5,8"), /Unknown CSV column: "benfit"/);
+    await assert.rejects(importCsv(db, projectId, "title,benefit,benefit\nA,5,8"), /Duplicate CSV column: "benefit"/);
+    await assert.rejects(importCsv(db, projectId, "title,benefit\nZ,5,extra"), /Row 1: 3 fields but only 2 columns/);
+    assert.equal((await listTickets(db, projectId)).length, 0);
+  });
+
+  it("accepts the calculated columns written by export --with-calculations", async () => {
+    await createTicket(db, { projectId, title: "Calc", benefit: 5 });
+    const csv = await exportCsv(db, projectId, { withCalculations: true });
+    const target = await createProject(db, "Calc target");
+    assert.deepEqual(await importCsv(db, target.id, csv), { imported: 1 });
+  });
 });
