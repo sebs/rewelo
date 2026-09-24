@@ -12,13 +12,17 @@ These examples use the backlog from [`fixtures/stories.csv`](fixtures/stories.cs
 
 > **Prompt you can paste into Claude Code:**
 >
-> *Create a new rewelo project called "prio-tool". Then read the file `fixtures/stories.csv` and import its contents using the rewelo `import_csv` tool.*
+> *Create a new rewelo project called "prio-tool". Then read the file `fixtures/stories.csv` and import the stories with the rewelo `import_csv` tool: give each story a short title, use its text as the description and its feature as a `feature:` tag.*
 
-Behind the scenes, Claude will call:
+The spreadsheet's columns (`story_id`, `feature_id`, `text`, …) are not the ones `import_csv` reads (`title`, `description`, `benefit`, `penalty`, `estimate`, `risk`, `tags`), so Claude converts the rows first. Behind the scenes, Claude will call:
 
 ```
 mcp tool: project_create  { "name": "prio-tool" }
-mcp tool: import_csv      { "project": "prio-tool", "csv": "<contents of fixtures/stories.csv>" }
+mcp tool: import_csv      { "project": "prio-tool", "csv":
+  "title,description,benefit,penalty,estimate,risk,tags
+   Auto-calculate priority scores,\"As a User, I want the system to automatically calculate priority scores …\",8,5,5,3,feature:feature-1
+   API access,\"As a Developer, I want API access to the prioritization system, …\",8,5,5,3,feature:feature-7
+   …" }
 → { "imported": 40 }
 ```
 
@@ -26,7 +30,7 @@ mcp tool: import_csv      { "project": "prio-tool", "csv": "<contents of fixture
 
 > **Prompt you can paste into Claude Code:**
 >
-> *Read fixtures/dependencies.csv and set those in mpc rw accordingly*
+> *Read fixtures/dependencies.csv and create those relations in rewelo*
 
 Behind the scenes, Claude will map story IDs to ticket titles and call `relation_create` for each row:
 
