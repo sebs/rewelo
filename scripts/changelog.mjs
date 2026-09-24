@@ -3,7 +3,7 @@
  * Generate a changelog entry from git log between the previous tag and HEAD (or a given tag).
  *
  * Usage:
- *   node scripts/changelog.mjs              # previous tag → HEAD
+ *   node scripts/changelog.mjs              # latest tag → HEAD, as "Unreleased"
  *   node scripts/changelog.mjs v0.3.5       # previous tag → v0.3.5
  *
  * Commits are grouped by conventional-commit prefix (feat, fix, etc.).
@@ -13,16 +13,22 @@
 import { execSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 
-const tag = process.argv[2] ?? execSync("git describe --tags --abbrev=0").toString().trim();
-const version = tag.replace(/^v/, "");
-const vTag = tag.startsWith("v") ? tag : `v${tag}`;
-
-// Find the previous tag
 const tags = execSync("git tag --sort=-version:refname").toString().trim().split("\n").filter(Boolean);
-const currentIdx = tags.indexOf(vTag);
-const previousTag = currentIdx >= 0 && currentIdx < tags.length - 1 ? tags[currentIdx + 1] : "";
 
-const range = previousTag ? `${previousTag}..${vTag}` : vTag;
+let version;
+let range;
+if (process.argv[2] === undefined) {
+  // What has happened since the latest release
+  version = "Unreleased";
+  range = tags.length > 0 ? `${tags[0]}..HEAD` : "HEAD";
+} else {
+  const tag = process.argv[2];
+  version = tag.replace(/^v/, "");
+  const vTag = tag.startsWith("v") ? tag : `v${tag}`;
+  const currentIdx = tags.indexOf(vTag);
+  const previousTag = currentIdx >= 0 && currentIdx < tags.length - 1 ? tags[currentIdx + 1] : "";
+  range = previousTag ? `${previousTag}..${vTag}` : vTag;
+}
 const log = execSync(`git log ${range} --pretty=format:"%s" --no-merges`).toString().trim();
 
 if (!log) {
