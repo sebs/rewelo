@@ -362,7 +362,8 @@ projectCmd
       } else if (opts.quiet) {
         revisions.forEach((r) => console.log(`${r.revised_at}\t${r.ticket_title}`));
       } else if (revisions.length === 0 && !opts.csv) {
-        console.log("No revisions found.");
+        // --limit 0 shows nothing, which is not the same as having nothing
+        console.log(cmdOpts.limit === 0 ? "No revisions shown (--limit 0)." : "No revisions found.");
       } else {
         console.log(
           formatTable(
@@ -1435,7 +1436,7 @@ reportCmd
       } else if (opts.quiet) {
         events.forEach((e) => console.log(`${e.timestamp}\t${e.type}\t${e.ticketTitle}`));
       } else if (events.length === 0 && !opts.csv) {
-        console.log("No events found.");
+        console.log(cmdOpts.limit === 0 ? "No events shown (--limit 0)." : "No events found.");
       } else {
         const detail = (e: (typeof events)[0]) => (typeof e.detail === "object" ? JSON.stringify(e.detail) : String(e.detail));
         if (opts.csv) {

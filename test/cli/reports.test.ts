@@ -72,4 +72,11 @@ describe("rw report (CLI)", () => {
     assert.equal(out("--quiet", "project", "diff", "--since", since), "new\tA\t2.00\ntag_added\tA\tstate:wip\n");
     assert.equal(out("--quiet", "config", "weights"), "1.5\t1.5\t1.5\t1.5\n");
   });
+
+  it("says --limit 0 showed nothing rather than that nothing exists", () => {
+    rw("ticket", "create", "--project", "P", "--title", "A");
+    rw("ticket", "update", "--project", "P", "--title", "A", "--benefit", "3");
+    assert.equal(rw("project", "history", "--project", "P", "--limit", "0").stdout, "No revisions shown (--limit 0).\n");
+    assert.equal(rw("report", "event-log", "--project", "P", "--limit", "0").stdout, "No events shown (--limit 0).\n");
+  });
 });
