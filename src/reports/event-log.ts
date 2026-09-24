@@ -57,7 +57,7 @@ export async function getEventLog(
         'ticket_updated' AS type,
         r.ticket_id,
         t.title AS ticket_title,
-        json_object('prev_title', r.title,
+        json_object('prev_title', r.title, 'prev_description', r.description,
                      'prev_benefit', r.benefit, 'prev_penalty', r.penalty,
                      'prev_estimate', r.estimate, 'prev_risk', r.risk) AS detail
       FROM ticket_revisions r

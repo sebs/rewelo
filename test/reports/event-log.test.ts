@@ -105,6 +105,14 @@ describe("event log", () => {
     assert.deepEqual(added!.detail, { prefix: "state", value: "done" });
   });
 
+  it("shows the previous description in ticket_updated events", async () => {
+    const t = await createTicket(db, { projectId, title: "Desc", description: "old" });
+    await updateTicket(db, projectId, t.id, { description: "new" });
+
+    const updated = (await getEventLog(db, projectId)).find((e) => e.type === "ticket_updated");
+    assert.equal(updated!.detail.prev_description, "old");
+  });
+
   it("reports deleted tickets", async () => {
     const t = await createTicket(db, { projectId, title: "Gone" });
     await deleteTicket(db, projectId, t.id);
