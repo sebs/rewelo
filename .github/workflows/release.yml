@@ -10,10 +10,6 @@ permissions:
   id-token: write
   attestations: write
 
-env:
-  # softprops/action-gh-release has no Node 24 release yet
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -27,7 +23,7 @@ jobs:
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 26
-          cache: npm
+          package-manager-cache: false
 
       - run: npm ci
 
@@ -101,11 +97,14 @@ jobs:
           node scripts/changelog.mjs "$GITHUB_REF_NAME" | tee release-notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
-        with:
-          body_path: release-notes.md
-          files: |
-            rewelo-*.tgz
-            rewelo-mcp-*-oci.tar.gz
-            sbom.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+            rewelo-*.tgz \
+            rewelo-mcp-*-oci.tar.gz \
+            sbom.json \
             CHANGELOG.md
