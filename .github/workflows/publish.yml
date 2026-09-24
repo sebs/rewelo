@@ -66,6 +66,10 @@ jobs:
       - name: Test
         run: npm test
 
-      # prepack builds dist/ before the tarball is made
+      # prepack builds dist/ before the tarball is made. npm refuses to put a
+      # prerelease (0.7.0-beta.1) on "latest", so those go to "next".
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: |
+          dist_tag=latest
+          case "$VERSION" in *-*) dist_tag=next ;; esac
+          npm publish --provenance --access public --tag "$dist_tag"
