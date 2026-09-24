@@ -217,4 +217,9 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
     assert.equal((await listTickets(db, projectId)).length, 0);
     assert.deepEqual(await importCsv(db, projectId, 'title,description\nOk, "quoted, fine"'), { imported: 1 });
   });
+
+  it("rejects a Latin-1 file instead of storing replacement characters", async () => {
+    const latin1 = Buffer.from("title,description\nPlain,Men\xfc f\xfcr Caf\xe9\n", "latin1").toString("utf-8");
+    await assert.rejects(importCsv(db, projectId, latin1), /Row 1: Ticket description is not valid UTF-8/);
+  });
 });

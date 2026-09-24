@@ -123,6 +123,10 @@ export function validateTicketDescription(
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(description)) {
     throw new ValidationError("Ticket description must not contain control characters");
   }
+  // As for titles: invalid UTF-8 (e.g. a Latin-1 CSV) decodes to U+FFFD
+  if (description.includes("\uFFFD")) {
+    throw new ValidationError("Ticket description is not valid UTF-8 (it contains the replacement character \uFFFD); save the file as UTF-8");
+  }
   const normalized = normalize(description);
   if (normalized.length > MAX_TICKET_DESCRIPTION) {
     throw new ValidationError(
