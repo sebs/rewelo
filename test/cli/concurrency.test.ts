@@ -38,4 +38,13 @@ describe("concurrent CLI writes", () => {
     const list = JSON.parse(runCli(["--db", db, "--json", "ticket", "list", "--project", "C"]).stdout);
     assert.equal(list.total, 1);
   });
+
+  it("keeps one value per prefix when several processes assign at once", async () => {
+    runCli(["--db", db, "ticket", "create", "--project", "C", "--title", "T"]);
+    await inParallel(8, (i) => ["--db", db, "tag", "assign", `state:v${i}`, "--project", "C", "--ticket", "T"]);
+    const held = Array.from({ length: 8 }, (_, i) =>
+      runCli(["--db", db, "--quiet", "ticket", "list", "--project", "C", "--tag", `state:v${i}`]).stdout.trim()
+    ).filter(Boolean);
+    assert.deepEqual(held, ["T"]);
+  });
 });

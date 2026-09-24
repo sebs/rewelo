@@ -693,24 +693,29 @@ tagCmd
         if (!resolved.some((r) => r.id === ticket.id)) resolved.push({ title: ticket.title, id: ticket.id });
       }
       const results: { ticket: string; tag: string; status: string; replaced?: string[] }[] = [];
-      for (const { title: ticketTitle, id } of resolved) {
-        for (const t of parsedTags) {
-          let tag = await getTag(db, project.id, t.prefix, t.value);
-          if (!tag) tag = await createTag(db, project.id, t.prefix, t.value);
-          const { assigned, replaced } = await assignTag(db, id, tag.id);
-          results.push({
-            ticket: ticketTitle,
-            tag: `${t.prefix}:${t.value}`,
-            status: assigned ? "assigned" : "already_assigned",
-            ...(replaced.length > 0 ? { replaced } : {}),
-          });
-          if (opts.json || opts.quiet) continue;
-          const note = replaced.length > 0 ? ` (replaced ${replaced.map((r) => `"${r}"`).join(", ")})` : "";
-          const label = `${t.prefix}:${t.value}`;
-          console.log(assigned ? `Assigned "${label}" to "${ticketTitle}"${note}` : `Tag "${label}" already assigned to "${ticketTitle}"`);
+      // All or nothing, and no other process creating the same tag in between
+      await db.transaction(async () => {
+        for (const { title: ticketTitle, id } of resolved) {
+          for (const t of parsedTags) {
+            let tag = await getTag(db, project.id, t.prefix, t.value);
+            if (!tag) tag = await createTag(db, project.id, t.prefix, t.value);
+            const { assigned, replaced } = await assignTag(db, id, tag.id);
+            results.push({
+              ticket: ticketTitle,
+              tag: `${t.prefix}:${t.value}`,
+              status: assigned ? "assigned" : "already_assigned",
+              ...(replaced.length > 0 ? { replaced } : {}),
+            });
+          }
+        }
+      });
+      if (opts.json) console.log(JSON.stringify(results));
+      else if (!opts.quiet) {
+        for (const r of results) {
+          const note = r.replaced ? ` (replaced ${r.replaced.map((x) => `"${x}"`).join(", ")})` : "";
+          console.log(r.status === "assigned" ? `Assigned "${r.tag}" to "${r.ticket}"${note}` : `Tag "${r.tag}" already assigned to "${r.ticket}"`);
         }
       }
-      if (opts.json) console.log(JSON.stringify(results));
     });
   });
 
