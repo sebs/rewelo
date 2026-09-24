@@ -9,9 +9,11 @@ export function cost(estimate: number, risk: number): number {
 /**
  * Round to two decimals, half up. The float error has to go first: 20.5/20
  * is stored as 1.0249999999999999, which Math.round would take to 1.02.
+ * Fifteen significant digits drop that noise (doubles carry ~15.9) but keep
+ * real digits: twelve turned 0.124999999999999 into 0.125 and then 0.13.
  */
 export function round2(x: number): number {
-  return Math.round(Number((x * 100).toPrecision(12))) / 100;
+  return Math.round(Number((x * 100).toPrecision(15))) / 100;
 }
 
 /** value / cost, unrounded: use it to sort and filter */
