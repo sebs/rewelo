@@ -38,6 +38,7 @@ Priority = Value / Cost
 - Higher values indicate more valuable features relative to their cost
 - This value is used for ranking features in the prioritized list
 - Formatted to 2 decimal places for display purposes
+- Sorting and thresholds (`--min-priority`, `minPriority`, `report health --threshold`) use the exact ratio, not the rounded value: 21/13 = 1.615… shows as 1.62 but is below a threshold of 1.62 (while 2/26 = 0.077, shown as 0.08, doesn't reach 0.08)
 
 ### Relative Weight Calculations
 

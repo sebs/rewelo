@@ -127,7 +127,7 @@ Score parameters (`benefit`, `penalty`, `estimate`, `risk`) must be Fibonacci va
 - **Tag intersection**: `tags: ["state:backlog", "team:backend"]` — only tickets matching all tags
 - **Exclude tags**: `excludeTags: ["state:done"]` — hide completed items
 - **Title search**: `search: "login"` — case-insensitive substring match
-- **Score thresholds**: `minPriority`, `minValue`, `maxCost` — filter by calculated fields
+- **Score thresholds**: `minPriority`, `minValue`, `maxCost` — filter by calculated fields. `minPriority` compares the exact value / cost, not the rounded `priority` returned: a ticket returned with 1.62 (21/13 = 1.615…) is below `minPriority: 1.62`
 - **Pagination**: `limit` + `offset` — response includes `{ total, offset, items }` for paging
 
 The legacy `tag` parameter (single string) is still supported alongside the new `tags` array.

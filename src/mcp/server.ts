@@ -376,7 +376,7 @@ export function createMcpServer(
       sort: z.string().optional().describe("Sort descending by: priority, benefit, penalty, estimate, risk, value, cost"),
       limit: z.number().int().nonnegative().optional().describe("Max number of results to return (default 100; total gives the full count)"),
       offset: z.number().int().nonnegative().optional().describe("Skip first N results (for pagination)"),
-      minPriority: z.number().optional().describe("Minimum priority threshold"),
+      minPriority: z.number().optional().describe("Minimum priority, compared with the exact value/cost (21/13 = 1.615 is below 1.62, though returned as 1.62)"),
       minValue: z.number().optional().describe("Minimum value (benefit+penalty) threshold"),
       maxCost: z.number().optional().describe("Maximum cost (estimate+risk) threshold"),
     },
@@ -811,7 +811,7 @@ export function createMcpServer(
     "Assess backlog health: high/low priority ratio, open ticket count, total cost. highToLowRatio is null when all tickets are high priority.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
-      threshold: z.number().optional().describe("High priority threshold"),
+      threshold: z.number().optional().describe("High priority threshold (default 1.5), compared with the exact value/cost, not the rounded priority"),
     },
     safe(({ project, threshold }) =>
       withProject(resolveProject(project), (db, proj) => getBacklogHealth(db, proj.id, threshold ?? 1.5))

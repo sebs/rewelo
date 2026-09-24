@@ -97,6 +97,8 @@ rw ticket list --project Acme --max-cost 5       # quick wins
 rw ticket list --project Acme --min-value 10      # high-value items
 ```
 
+`--min-priority` (like `report health --threshold`) compares the exact value / cost, not the two decimals shown: a ticket shown with 1.62 (21/13 = 1.615…) is below `--min-priority 1.62`.
+
 JSON output includes `{ total, offset, items }` for pagination. `ticket list` also supports `--csv` output. `ticket history` shows the revision log for a ticket, oldest first; `--limit` and `--offset` page through it.
 
 ### tag

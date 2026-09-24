@@ -551,7 +551,7 @@ ticketCmd
   .option("--sort <field>", "sort by: priority, value, cost, benefit, penalty, estimate, risk")
   .option("--limit <n>", "max number of results", parseNonNegativeIntOption)
   .option("--offset <n>", "skip first N results", parseNonNegativeIntOption, 0)
-  .option("--min-priority <n>", "minimum priority threshold", parseFloatOption)
+  .option("--min-priority <n>", "minimum priority (the exact value / cost, not the two decimals shown)", parseFloatOption)
   .option("--min-value <n>", "minimum value (benefit+penalty) threshold", parseFloatOption)
   .option("--max-cost <n>", "maximum cost (estimate+risk) threshold", parseFloatOption)
   .action(async (cmdOpts: any, cmd: Command) => {
@@ -1442,7 +1442,7 @@ reportCmd
   .command("health")
   .description("backlog health report")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
-  .option("--threshold <n>", "high priority threshold", parseFloatOption, 1.5)
+  .option("--threshold <n>", "high priority threshold (the exact value / cost, not the two decimals shown)", parseFloatOption, 1.5)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
