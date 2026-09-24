@@ -37,6 +37,7 @@ export async function getEventLog(
       SELECT
         t.created_at AS ts,
         'ticket_created' AS type,
+        0 AS rank, t.id AS seq,
         t.id AS ticket_id,
         t.title AS ticket_title,
         -- Scores at creation: revisions hold the state *before* each update,
@@ -55,6 +56,7 @@ export async function getEventLog(
       SELECT
         r.revised_at AS ts,
         'ticket_updated' AS type,
+        1 AS rank, r.id AS seq,
         r.ticket_id,
         t.title AS ticket_title,
         json_object('prev_title', r.title, 'prev_description', r.description,
@@ -69,6 +71,7 @@ export async function getEventLog(
       SELECT
         c.changed_at AS ts,
         CASE WHEN c.action = 'added' THEN 'tag_added' ELSE 'tag_removed' END AS type,
+        1 AS rank, c.id AS seq,
         c.ticket_id,
         t.title AS ticket_title,
         json_object('prefix', c.prefix, 'value', c.value) AS detail
@@ -81,13 +84,17 @@ export async function getEventLog(
       SELECT
         d.deleted_at AS ts,
         'ticket_deleted' AS type,
+        2 AS rank, d.id AS seq,
         d.ticket_id,
         d.title AS ticket_title,
         json_object() AS detail
       FROM ticket_deletions d
       WHERE d.project_id = ?${sinceClause.replace("ts", "d.deleted_at")}
     ) events
-    ORDER BY ts DESC, ticket_id DESC
+    -- Timestamps have millisecond resolution, so break ties by the order the
+    -- rows were written: creation first, deletion last, and within one table
+    -- by id (assigning state:done removes state:wip after adding it).
+    ORDER BY ts DESC, rank DESC, seq DESC
   `;
 
   // Add projectId for each UNION branch

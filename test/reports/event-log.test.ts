@@ -113,6 +113,19 @@ describe("event log", () => {
     assert.equal(updated!.detail.prev_description, "old");
   });
 
+  it("orders events written in the same millisecond by when they were written", async () => {
+    const t = await createTicket(db, { projectId, title: "Tie" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    const done = await createTag(db, projectId, "state", "done");
+    await assignTag(db, t.id, wip.id);
+    await assignTag(db, t.id, done.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-01T00:00:00.000Z'");
+    await db.run("UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z'");
+
+    const events = (await getEventLog(db, projectId)).map((e) => `${e.type} ${(e.detail as any).value ?? ""}`.trim());
+    assert.deepEqual(events, ["tag_added done", "tag_removed wip", "tag_added wip", "ticket_created"]);
+  });
+
   it("reports deleted tickets", async () => {
     const t = await createTicket(db, { projectId, title: "Gone" });
     await deleteTicket(db, projectId, t.id);
