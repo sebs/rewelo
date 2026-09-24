@@ -129,8 +129,11 @@ export function validateImportPath(filePath: string, allowed: string[] = [".json
     throw new ValidationError("Import file does not exist or is not accessible");
   }
 
-  const ext = extname(real).toLowerCase();
-  if (!allowed.includes(ext)) {
+  // Both the path as typed and a symlink's target must have an allowed
+  // extension: the target check keeps links to e.g. /etc/hosts out, and the
+  // typed one keeps "data.txt" from being read as CSV through a link
+  const exts = [extname(resolved), extname(real)].map((e) => e.toLowerCase());
+  if (!exts.every((ext) => allowed.includes(ext))) {
     throw new ValidationError(
       `Import file must have one of these extensions: ${allowed.join(", ")}`
     );

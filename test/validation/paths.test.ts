@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { validateDbPath, validateExportPath } from "../../src/validation/paths.js";
+import { validateDbPath, validateExportPath, validateImportPath } from "../../src/validation/paths.js";
 import { ValidationError } from "../../src/validation/strings.js";
 
 describe("validateDbPath", () => {
@@ -121,3 +121,17 @@ describe("validateExportPath", () => {
     });
   });
 });
+
+describe("validateImportPath", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rw-import-"));
+  after(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("checks the extension of the path as typed as well as of a symlink's target", () => {
+    writeFileSync(join(dir, "data.csv"), "title\nA\n");
+    symlinkSync(join(dir, "data.csv"), join(dir, "link.txt"));
+    symlinkSync(join(dir, "data.csv"), join(dir, "link.csv"));
+    assert.throws(() => validateImportPath(join(dir, "link.txt"), [".csv"]), /extensions: \.csv/);
+    assert.ok(validateImportPath(join(dir, "link.csv"), [".csv"]).endsWith("data.csv"));
+  });
+});
+
