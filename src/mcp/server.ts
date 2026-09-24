@@ -717,7 +717,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "event_log",
-    "Get a unified event stream combining ticket creates, updates, and tag changes. Newest first. Use 'since' to poll incrementally.",
+    "Get a unified event stream combining ticket creates, updates, deletes, and tag changes. Newest first. Use 'since' to poll incrementally.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       since: z.string().optional().describe("Only events after this ISO timestamp"),

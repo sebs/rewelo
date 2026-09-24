@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { createTicket, updateTicket } from "../../src/tickets/repository.js";
+import { createTicket, updateTicket, deleteTicket } from "../../src/tickets/repository.js";
 import { createTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
@@ -103,5 +103,14 @@ describe("event log", () => {
 
     const added = (await getEventLog(db, projectId)).find((e) => e.type === "tag_added");
     assert.deepEqual(added!.detail, { prefix: "state", value: "done" });
+  });
+
+  it("reports deleted tickets", async () => {
+    const t = await createTicket(db, { projectId, title: "Gone" });
+    await deleteTicket(db, projectId, t.id);
+
+    const [latest] = await getEventLog(db, projectId);
+    assert.equal(latest.type, "ticket_deleted");
+    assert.equal(latest.ticketTitle, "Gone");
   });
 });

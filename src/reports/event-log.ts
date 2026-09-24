@@ -3,7 +3,7 @@ import { normalizeSince } from "../validation/timestamps.js";
 
 export interface ProjectEvent {
   timestamp: string;
-  type: "ticket_created" | "ticket_updated" | "tag_added" | "tag_removed";
+  type: "ticket_created" | "ticket_updated" | "ticket_deleted" | "tag_added" | "tag_removed";
   ticketId: number;
   ticketTitle: string;
   detail: Record<string, unknown>;
@@ -23,10 +23,12 @@ export async function getEventLog(
     params.push(since);
   }
 
-  // Union three event sources into one chronological stream:
+  // Union four event sources into one chronological stream:
   // 1. Ticket creations (from tickets table)
   // 2. Score/title changes (from ticket_revisions — the revision is the BEFORE snapshot)
   // 3. Tag changes (from ticket_tag_changes)
+  // 4. Ticket deletions (from ticket_deletions; the ticket's own history is
+  //    deleted with it, so this is the only trace it leaves)
   const sql = `
     SELECT * FROM (
       SELECT
@@ -70,15 +72,26 @@ export async function getEventLog(
       FROM ticket_tag_changes c
       JOIN tickets t ON t.id = c.ticket_id
       WHERE t.project_id = ?${sinceClause.replace("ts", "c.changed_at")}
+
+      UNION ALL
+
+      SELECT
+        d.deleted_at AS ts,
+        'ticket_deleted' AS type,
+        d.ticket_id,
+        d.title AS ticket_title,
+        json_object() AS detail
+      FROM ticket_deletions d
+      WHERE d.project_id = ?${sinceClause.replace("ts", "d.deleted_at")}
     ) events
     ORDER BY ts DESC, ticket_id DESC
   `;
 
   // Add projectId for each UNION branch
-  params.push(projectId);
-  if (since) params.push(since);
-  params.push(projectId);
-  if (since) params.push(since);
+  for (let branch = 1; branch < 4; branch++) {
+    params.push(projectId);
+    if (since) params.push(since);
+  }
 
   if (limit !== undefined) {
     params.push(limit);
