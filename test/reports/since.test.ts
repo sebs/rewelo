@@ -92,6 +92,13 @@ describe("since filters", () => {
     assert.deepEqual(await listProjectRevisions(db, projectId, revision.revised_at), []);
   });
 
+  it("reads a date-time without an offset as UTC, like a plain date", async () => {
+    const at = async (since: string) => (await getProjectDiff(db, projectId, since)).since;
+    assert.equal(await at("2026-03-10"), "2026-03-10T00:00:00.000Z");
+    assert.equal(await at("2026-03-10T00:00"), "2026-03-10T00:00:00.000Z");
+    assert.equal(await at("2026-03-10 00:00:00"), "2026-03-10T00:00:00.000Z");
+  });
+
   it("reports the normalised since in the diff", async () => {
     assert.equal((await getProjectDiff(db, projectId, "2026-03-10T09:00:00+02:00")).since, "2026-03-10T07:00:00.000Z");
   });
