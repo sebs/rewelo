@@ -192,6 +192,19 @@ describe("relations repository", () => {
     assert.equal((relA.filter((r) => r.direction === "outgoing")).length, 2);
   });
 
+  it("shows relations another ticket holds as incoming, and symmetric ones as both", async () => {
+    await createRelation(db, projectId, ticketA, ticketB, "blocks");
+    await createRelation(db, projectId, ticketC, ticketA, "blocks");
+    await createRelation(db, projectId, ticketC, ticketA, "relates-to");
+
+    const view = (await listRelations(db, projectId, ticketA)).map((r) => [r.relation_type, r.direction, r.ticket_id]);
+    assert.deepEqual(view.sort(), [
+      ["blocks", "outgoing", ticketB],
+      ["is-blocked-by", "incoming", ticketC],
+      ["relates-to", "both", ticketC],
+    ].sort());
+  });
+
   // -- Symmetric dedup --
 
   it("symmetric relation (A,B) and (B,A) are the same", async () => {

@@ -16,7 +16,8 @@ export interface RelationView {
   relation_type: string;
   ticket_id: number;
   ticket_title: string;
-  direction: "outgoing" | "incoming";
+  /** incoming: the other ticket is the relation's source; both: symmetric */
+  direction: "outgoing" | "incoming" | "both";
 }
 
 export async function createRelation(
@@ -229,16 +230,21 @@ export async function listRelations(
     for (const row of titleRows) titleMap.set(row.id, row.title);
   }
 
+  // Every asymmetric relation is stored twice, each row with its ticket as
+  // source: the forward name (blocks) marks the ticket that holds the
+  // relation, the inverse name (is-blocked-by) the one it points at. Symmetric
+  // rows are stored in id order, which says nothing about direction.
+  const forward = new Set(forwardTypeNames());
+  const symmetric = new Set(symTypes);
   const result: RelationView[] = [];
   for (const r of rows) {
-    const isSource = r.source_id === ticketId;
-    const otherId = isSource ? r.target_id : r.source_id;
+    const otherId = r.source_id === ticketId ? r.target_id : r.source_id;
     result.push({
       id: r.id,
       relation_type: r.relation_type,
       ticket_id: otherId,
       ticket_title: titleMap.get(otherId) ?? `#${otherId}`,
-      direction: isSource ? "outgoing" : "incoming",
+      direction: symmetric.has(r.relation_type) ? "both" : forward.has(r.relation_type) ? "outgoing" : "incoming",
     });
   }
 
