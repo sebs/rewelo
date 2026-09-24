@@ -62,6 +62,7 @@ import { upsertTicket } from "./tickets/repository.js";
 import { writeFileSync, readFileSync } from "fs";
 import { loadConfig } from "./config.js";
 import { VERSION } from "./version.generated.js";
+import { displayWidth } from "./display-width.js";
 
 const DEFAULT_DB = "./relative-weight.db";
 
@@ -112,18 +113,6 @@ async function withProject<T>(
     }
     return fn(db, project);
   });
-}
-
-// Terminal columns a string occupies: wide East Asian characters and emoji
-// take two, combining marks none. padEnd counts UTF-16 units instead, which
-// misaligned tables containing e.g. Japanese titles.
-const WIDE = /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{1F300}-\u{1F64F}\u{1F900}-\u{1F9FF}\u{20000}-\u{3FFFD}]/u;
-const ZERO_WIDTH = /[\p{Mn}\p{Me}\u200B-\u200F]/u;
-
-function displayWidth(s: string): number {
-  let width = 0;
-  for (const ch of s) width += ZERO_WIDTH.test(ch) ? 0 : WIDE.test(ch) ? 2 : 1;
-  return width;
 }
 
 function formatTable(headers: string[], rows: unknown[][]): string {
