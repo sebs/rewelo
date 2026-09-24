@@ -32,4 +32,10 @@ describe("site Markdown renderer", () => {
     assert.deepEqual(ids("> ## Foo\n\n## Foo"), ["foo", "foo-1"]);
     assert.deepEqual(ids("## ???\n## ???"), ["section", "section-1"]);
   });
+
+  it("builds heading ids the way GitHub does", () => {
+    assert.match(render("## ticket_create"), / id="ticket_create"/);
+    assert.match(render("## Foo ##"), /<h2 id="foo"><a class="anchor" href="#foo">Foo<\/a><\/h2>/);
+    assert.match(render("## Café & Co."), / id="café--co"/);
+  });
 });
