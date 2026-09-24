@@ -7,7 +7,7 @@ import { createTicket, listTickets, updateTicket } from "../../src/tickets/repos
 import { getTicketTimes } from "../../src/calculations/time.js";
 import { listRevisions } from "../../src/revisions/repository.js";
 import { getTagChangeLog } from "../../src/tags/audit.js";
-import { createTag } from "../../src/tags/repository.js";
+import { createTag, listTags, renameTag } from "../../src/tags/repository.js";
 import { assignTag, getTicketTags } from "../../src/tags/assignment.js";
 import { exportCsv } from "../../src/export/csv.js";
 import { exportJson } from "../../src/export/json.js";
@@ -140,5 +140,24 @@ describe("round-trip", () => {
       importJson(db, projectId, JSON.stringify({ tickets: [{ title: "X", tagChanges: [{ action: "moved", prefix: "a", value: "b", changed_at: "2026-01-01" }] }] })),
       /Ticket 1: tag change 1: action must be/
     );
+  });
+
+  it("JSON round-trip with history keeps lead times and tags when a tag was renamed", async () => {
+    const t = await createTicket(db, { projectId, title: "Renamed" });
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "wip")).id);
+    const complete = await createTag(db, projectId, "state", "complete");
+    await assignTag(db, t.id, complete.id);
+    await renameTag(db, projectId, complete.id, "state", "done");
+
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+
+    const [copy] = await listTickets(db, target.id);
+    const times = await getTicketTimes(db, copy.id);
+    assert.equal(times.leadTimeDays, 0);
+    assert.equal(times.cycleTimeDays, 0);
+    assert.deepEqual((await listTags(db, target.id)).map((tag) => tag.value), ["done", "wip"]);
+    assert.deepEqual((await getTagChangeLog(db, copy.id)).map((c) => `${c.action} ${c.value}`), ["added wip", "removed wip", "added complete"]);
   });
 });

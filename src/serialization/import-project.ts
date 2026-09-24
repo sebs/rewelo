@@ -22,8 +22,11 @@ export interface ImportableRevision {
 
 export interface ImportableTagChange {
   action: "added" | "removed";
+  /** The tag's name at the time of the change */
   prefix: string;
   value: string;
+  /** The tag's name at export time, if it has been renamed since */
+  tag?: TagPair;
   changed_at: string;
 }
 
@@ -140,9 +143,12 @@ async function restoreHistory(db: DB, projectId: number, ticketId: number, histo
     // Replace the changes logged just now by assigning the current tags
     await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
     for (const c of history.tagChanges) {
-      let tag = await getTag(db, projectId, c.prefix, c.value);
+      // Link the change to the tag as it is named now, so lead and cycle
+      // times (which follow the tag, not its old name) come out the same
+      const { prefix, value } = c.tag ?? c;
+      let tag = await getTag(db, projectId, prefix, value);
       if (!tag) {
-        tag = await createTag(db, projectId, c.prefix, c.value);
+        tag = await createTag(db, projectId, prefix, value);
         tagsCreated++;
       }
       await db.run(

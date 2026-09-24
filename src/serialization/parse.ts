@@ -221,8 +221,9 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
       if (c.action !== "added" && c.action !== "removed") {
         throw new ValidationError(`${at}: action must be "added" or "removed"`);
       }
-      const [tag] = parseTags([{ prefix: c.prefix, value: c.value }], `${at}: tag`)!;
-      return { action: c.action, ...tag, changed_at: timestamp(c.changed_at, `${at} changed_at`) };
+      const [historic] = parseTags([{ prefix: c.prefix, value: c.value }], `${at}: tag`)!;
+      const current = c.tag === undefined ? undefined : parseTags([c.tag], `${at}: current tag`)![0];
+      return { action: c.action, ...historic, ...(current ? { tag: current } : {}), changed_at: timestamp(c.changed_at, `${at} changed_at`) };
     });
   }
   return history;
