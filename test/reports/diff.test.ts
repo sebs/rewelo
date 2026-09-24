@@ -4,7 +4,7 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject, deleteProject } from "../../src/projects/repository.js";
 import { createTicket, deleteTicket, updateTicket } from "../../src/tickets/repository.js";
-import { createTag } from "../../src/tags/repository.js";
+import { createTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
 import { getProjectDiff } from "../../src/reports/diff.js";
@@ -155,5 +155,15 @@ describe("project diff", () => {
     await deleteTicket(db, projectId, t.id);
     assert.equal(await deleteProject(db, "Diff"), true);
     assert.deepEqual(await db.all("SELECT * FROM ticket_deletions"), []);
+  });
+
+  it("reports an added tag under its current name after a rename", async () => {
+    const t = await createTicket(db, { projectId, title: "A" });
+    const old = await createTag(db, projectId, "team", "old");
+    const before = await now();
+    await assignTag(db, t.id, old.id);
+    await renameTag(db, projectId, old.id, "team", "new");
+
+    assert.deepEqual((await getProjectDiff(db, projectId, before)).tagChanges[0].added, ["team:new"]);
   });
 });

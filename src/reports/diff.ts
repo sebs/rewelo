@@ -119,10 +119,14 @@ export async function getProjectDiff(
     action: string;
     prefix: string;
     value: string;
+    current_prefix: string | null;
+    current_value: string | null;
   }>(
-    `SELECT c.ticket_id, t.title AS ticket_title, c.tag_id, c.action, c.prefix, c.value
+    `SELECT c.ticket_id, t.title AS ticket_title, c.tag_id, c.action, c.prefix, c.value,
+            tg.prefix AS current_prefix, tg.value AS current_value
      FROM ticket_tag_changes c
      JOIN tickets t ON t.id = c.ticket_id
+     LEFT JOIN tags tg ON tg.id = c.tag_id
      WHERE t.project_id = ? AND c.changed_at >= ?
      ORDER BY c.ticket_id, c.id`,
     projectId,
@@ -149,7 +153,9 @@ export async function getProjectDiff(
       entry = { ticketId: first.ticket_id, ticketTitle: first.ticket_title, added: [], removed: [] };
       tagDiffMap.set(first.ticket_id, entry);
     }
-    if (hasIt) entry.added.push(`${last.prefix}:${last.value}`);
+    // An added tag is on the ticket now, under its current name (it may have
+    // been renamed since); a removed one under the name it had
+    if (hasIt) entry.added.push(`${last.current_prefix ?? last.prefix}:${last.current_value ?? last.value}`);
     else entry.removed.push(`${first.prefix}:${first.value}`);
   }
 
