@@ -33,4 +33,4 @@ The following are in scope:
 - All database queries use parameterised statements
 - Input validation on all user-facing boundaries (CLI arguments, MCP tool parameters)
 - Error messages are sanitised to never expose SQL, file paths, or stack traces
-- The Docker container runs as a non-root user with dropped capabilities, a read-only filesystem, and memory limits
+- The Docker image runs as a non-root user and keeps its database and SQLite's temporary files on the `/data` volume, so it works with a read-only root filesystem. Dropped capabilities, the read-only filesystem and the memory limit are `docker run` options: use `--cap-drop=ALL --read-only --memory=256m`, as in the configuration in [mcp.md](mcp.md)

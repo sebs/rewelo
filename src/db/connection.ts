@@ -16,7 +16,9 @@ const STORAGE_ERRORS: Record<number, string> = {
   5: "The database is locked by another process. Try again later",
   6: "The database is locked by another process. Try again later",
   8: "The database file is read-only",
+  10: "Disk I/O error: the database or one of SQLite's temporary files could not be written (is the file system read-only or full?)",
   11: "The database file is corrupted or is not a SQLite database",
+  13: "The disk is full",
   14: "Cannot open the database file (the path must be a file in an existing, accessible directory)",
   26: "The database file is corrupted or is not a SQLite database",
 };

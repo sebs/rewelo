@@ -36,6 +36,9 @@ RUN mkdir -p /data && chown rw:rw /data
 
 # Environment
 ENV RW_DB_PATH=/data/relative-weight.db
+# Large transactions spill to temporary files; with --read-only the default
+# temp directory is not writable, so keep them on the data volume
+ENV SQLITE_TMPDIR=/data
 ENV NODE_ENV=production
 # Heap below the documented 256 MB container limit (mcp.md), leaving room for
 # SQLite and buffers: with 512 the kernel killed the process before the heap
