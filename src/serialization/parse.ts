@@ -120,6 +120,7 @@ export function parseTickets(
     let history: ImportableHistory | undefined;
     try {
       history = parseHistory(t);
+      if (history) checkHistory(history, tags ?? []);
     } catch (e) {
       throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
     }
@@ -227,4 +228,38 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
     });
   }
   return history;
+}
+
+// Imported history has to be one that could have happened: otherwise lead
+// and cycle times come out negative or nonsensical.
+function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
+  const now = new Date().toISOString();
+  const created = history.createdAt;
+  if (created !== undefined && created > now) throw new ValidationError("createdAt is in the future");
+  const check = (at: string, when: string) => {
+    if (when > now) throw new ValidationError(`${at} is in the future`);
+    if (created !== undefined && when < created) throw new ValidationError(`${at} is before createdAt`);
+  };
+  history.revisions?.forEach((r, j) => check(`revision ${j + 1} revised_at`, r.revised_at));
+  if (history.tagChanges) {
+    const held = new Set<string>();
+    let previous = "";
+    history.tagChanges.forEach((c, j) => {
+      const at = `tag change ${j + 1}`;
+      check(`${at} changed_at`, c.changed_at);
+      if (c.changed_at < previous) throw new ValidationError(`${at} is earlier than the change before it`);
+      previous = c.changed_at;
+      const { prefix, value } = c.tag ?? c;
+      const key = `${prefix}:${value}`;
+      if (c.action === "added" ? held.has(key) : !held.has(key)) {
+        throw new ValidationError(`${at}: ${key} is ${c.action} but ${c.action === "added" ? "was already there" : "was not there"}`);
+      }
+      if (c.action === "added") held.add(key);
+      else held.delete(key);
+    });
+    const expected = new Set(tags.map((t) => `${t.prefix}:${t.value}`));
+    if (held.size !== expected.size || [...held].some((k) => !expected.has(k))) {
+      throw new ValidationError("tagChanges do not end in the ticket's tags");
+    }
+  }
 }

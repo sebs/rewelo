@@ -186,4 +186,21 @@ describe("round-trip", () => {
       /Relation 1: A ticket cannot relate to itself/
     );
   });
+
+  it("JSON import rejects history that could not have happened", async () => {
+    const ticket = (extra: Record<string, unknown>) =>
+      JSON.stringify({ tickets: [{ title: "F", tags: [{ prefix: "state", value: "done" }], ...extra }] });
+    const done = (changed_at: string) => ({ action: "added", prefix: "state", value: "done", changed_at });
+    const cases: [Record<string, unknown>, RegExp][] = [
+      [{ createdAt: "2026-06-01T00:00:00Z", tagChanges: [done("2026-01-01T00:00:00Z")] }, /tag change 1 changed_at is before createdAt/],
+      [{ createdAt: "2999-01-01T00:00:00Z" }, /createdAt is in the future/],
+      [{ tagChanges: [done("2026-02-01T00:00:00Z"), { ...done("2026-01-01T00:00:00Z"), action: "removed" }] }, /tag change 2 is earlier/],
+      [{ tagChanges: [{ action: "added", prefix: "state", value: "x", changed_at: "2026-01-01T00:00:00Z" }] }, /do not end in the ticket's tags/],
+      [{ tagChanges: [{ ...done("2026-01-01T00:00:00Z"), action: "removed" }] }, /state:done is removed but was not there/],
+    ];
+    for (const [extra, message] of cases) {
+      await assert.rejects(importJson(db, projectId, ticket(extra)), message, JSON.stringify(extra));
+    }
+    assert.equal((await listTickets(db, projectId)).length, 0);
+  });
 });
