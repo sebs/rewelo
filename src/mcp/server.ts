@@ -544,7 +544,7 @@ export function createMcpServer(
 
   tool(
     "tag_assign",
-    "Assign existing tags to tickets. Prerequisite: create tags first with tag_create. Supports batch: single or multiple tags × single or multiple tickets in one call. A ticket holds one value per prefix: assigning state:done replaces state:wip (reported as 'replaced'), and requesting two values of one prefix is an error.",
+    "Assign tags to tickets, creating tags that don't exist yet (marked tagCreated), as rw tag assign does. Supports batch: single or multiple tags × single or multiple tickets in one call. A ticket holds one value per prefix: assigning state:done replaces state:wip (reported as 'replaced'), and requesting two values of one prefix is an error.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       ticket: z.string().optional().describe("Ticket title (single)"),
@@ -572,22 +572,25 @@ export function createMcpServer(
       assertOneValuePerPrefix(validatedTags);
 
       return withProject(resolveProject(project), async (db, proj) => {
-        // Resolve everything first, then assign in one transaction, so a
-        // missing ticket or tag aborts the whole batch instead of half of it.
+        // Resolve the tickets first, then create and assign in one
+        // transaction, so a missing ticket aborts the whole batch instead of
+        // half of it (and leaves no new tags behind)
         const tickets: { title: string; id: number }[] = [];
         for (const title of new Set(allTickets)) {
           const ticket = await resolveTicket(db, proj.id, title);
           if (!tickets.some((t) => t.id === ticket.id)) tickets.push({ title: ticket.title, id: ticket.id });
         }
-        const tags: { label: string; id: number }[] = [];
-        for (const t of validatedTags) {
-          const tag = await getTag(db, proj.id, t.prefix, t.value);
-          if (!tag) throw new AppError(`Tag "${t.prefix}:${t.value}" not found. Create it first with tag_create.`);
-          if (!tags.some((known) => known.id === tag.id)) tags.push({ label: `${t.prefix}:${t.value}`, id: tag.id });
-        }
 
         return db.transaction(async () => {
-          const out: { ticket: string; tag: string; status: "assigned" | "already_assigned"; replaced?: string[] }[] = [];
+          // Created like rw tag assign and the imports do: requiring
+          // tag_create first made the documented examples fail
+          const tags: { label: string; id: number; created: boolean }[] = [];
+          for (const t of validatedTags) {
+            const existing = await getTag(db, proj.id, t.prefix, t.value);
+            const tag = existing ?? (await createTag(db, proj.id, t.prefix, t.value));
+            if (!tags.some((known) => known.id === tag.id)) tags.push({ label: `${t.prefix}:${t.value}`, id: tag.id, created: !existing });
+          }
+          const out: { ticket: string; tag: string; status: "assigned" | "already_assigned"; replaced?: string[]; tagCreated?: true }[] = [];
           for (const ticket of tickets) {
             for (const tag of tags) {
               const { assigned, replaced } = await assignTag(db, ticket.id, tag.id);
@@ -596,6 +599,7 @@ export function createMcpServer(
                 tag: tag.label,
                 status: assigned ? "assigned" : "already_assigned",
                 ...(replaced.length > 0 ? { replaced } : {}),
+                ...(tag.created && ticket === tickets[0] ? { tagCreated: true as const } : {}),
               });
             }
           }

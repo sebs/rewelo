@@ -394,7 +394,7 @@ describe("MCP server", () => {
     ]);
   });
 
-  it("tag_assign applies nothing when any ticket or tag in the batch is missing", async () => {
+  it("tag_assign applies and creates nothing when any ticket in the batch is missing", async () => {
     await client.callTool({ name: "project_create", arguments: { name: "Batch" } });
     for (const title of ["A", "B"]) {
       await client.callTool({ name: "ticket_create", arguments: { project: "Batch", title } });
@@ -408,9 +408,11 @@ describe("MCP server", () => {
       return JSON.parse((r.content as any)[0].text).items.map((t: { title: string }) => t.title);
     };
 
-    const missingTag = await assign({ ticket: "A", tags: [{ prefix: "state", value: "wip" }, { prefix: "zzz", value: "x" }] });
-    assert.equal(missingTag.isError, true);
+    const newTag = await assign({ tickets: ["A", "nope"], tags: [{ prefix: "state", value: "wip" }, { prefix: "zzz", value: "x" }] });
+    assert.equal(newTag.isError, true);
     assert.deepEqual(await tagged("state:wip"), []);
+    const tagList = await client.callTool({ name: "tag_list", arguments: { project: "Batch" } });
+    assert.doesNotMatch((tagList.content as any)[0].text, /zzz/);
 
     const missingTicket = await assign({ tickets: ["A", "nope"], prefix: "team", value: "core" });
     assert.equal(missingTicket.isError, true);
@@ -540,7 +542,17 @@ describe("MCP server", () => {
       name: "tag_assign",
       arguments: { project: "L", tickets: Array(130_000).fill("A"), prefix: "a", value: "b" },
     });
-    assert.match((r.content as any)[0].text, /Tag "a:b" not found/);
+    assert.deepEqual(JSON.parse((r.content as any)[0].text), [{ ticket: "A", tag: "a:b", status: "assigned", tagCreated: true }]);
+  });
+
+  it("tag_assign creates tags that don't exist yet, as rw tag assign does", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "New" } });
+    for (const title of ["A", "B"]) await client.callTool({ name: "ticket_create", arguments: { project: "New", title } });
+    const r = await client.callTool({ name: "tag_assign", arguments: { project: "New", tickets: ["A", "B"], prefix: "state", value: "wip" } });
+    assert.deepEqual(JSON.parse((r.content as any)[0].text), [
+      { ticket: "A", tag: "state:wip", status: "assigned", tagCreated: true },
+      { ticket: "B", tag: "state:wip", status: "assigned" },
+    ]);
   });
 
   it("tag_assign rejects a prefix without a value even when tags are given", async () => {
