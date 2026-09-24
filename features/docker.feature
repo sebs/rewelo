@@ -47,7 +47,12 @@ Feature: Docker
 
   Scenario: Database path environment variable is validated
     When I run the container with "RW_DB_PATH=/etc/passwd"
-    Then the tool should reject the path as outside the allowed data directory
+    Then the tool should reject the path because it is not a ".db" file
+
+  Scenario: A database outside the data volume cannot be written
+    When I run the container with "RW_DB_PATH=/etc/rewelo.db"
+    Then the tool should fail because the root filesystem is read-only
+    And no file should be created outside "/data"
 
   Scenario: Container resource limits are respected
     When I run the container with memory limit of 256 MB
