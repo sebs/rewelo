@@ -73,4 +73,20 @@ describe("database locking", () => {
     const names = (await listProjects(db)).map((p) => p.name).sort();
     assert.deepEqual(names, ["holder", "in-tx"]);
   });
+
+  it("keeps reading while another process holds the write lock", async () => {
+    dir = mkdtempSync(join(tmpdir(), "rw-lock-"));
+    const path = join(dir, "lock.db");
+    db = await DB.open(path);
+    await migrate(db);
+    await createProject(db, "existing");
+    const [mode] = await db.all<{ journal_mode: string }>("PRAGMA journal_mode");
+    assert.equal(mode.journal_mode, "wal");
+
+    holder = await holdWriteLock(path, 2000);
+    const started = Date.now();
+    const names = (await listProjects(db)).map((p) => p.name);
+    assert.ok(Date.now() - started < 1000, "the read did not wait for the writer");
+    assert.deepEqual(names, ["existing"]);
+  });
 });

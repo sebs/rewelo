@@ -138,7 +138,7 @@ export async function migrate(db: DB): Promise<void> {
         `The database uses schema version ${version}, but this rewelo supports up to version ${SCHEMA_VERSION}. Upgrade rewelo to open it.`
       );
     }
-    if (version === SCHEMA_VERSION) return;
+    if (version === SCHEMA_VERSION) return enableWal(db);
   }
 
   // Decide under the write lock: a concurrent process may be creating the
@@ -172,6 +172,20 @@ export async function migrate(db: DB): Promise<void> {
     }
     await db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   });
+  await enableWal(db);
+}
+
+// Write-ahead logging lets commands read while another process writes (a
+// large import used to lock even project list out). The mode is stored in the
+// file, so this is only done for our own databases, once they are known to be
+// ours; a read-only or busy file simply keeps its mode.
+async function enableWal(db: DB): Promise<void> {
+  try {
+    const [row] = await db.all<{ journal_mode: string }>("PRAGMA journal_mode");
+    if (row.journal_mode === "delete") await db.exec("PRAGMA journal_mode = WAL");
+  } catch {
+    // keep the current mode
+  }
 }
 
 async function collapseStoredTitles(db: DB): Promise<void> {

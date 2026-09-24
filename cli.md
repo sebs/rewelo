@@ -22,6 +22,8 @@ The CLI is available as `rw` (via `npm link`) or directly with `node dist/index.
 | `--no-color` | Disable colour output        |
 | `--version`  | Show version                 |
 
+The database uses SQLite's write-ahead log, so commands can read while another `rw` process writes; `<name>.db-wal` and `<name>.db-shm` files appear next to the database while it is in use. Back up with `rw export json`, or copy the `.db` file while no `rw` process runs.
+
 ## Commands
 
 ### project

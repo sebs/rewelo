@@ -6,7 +6,9 @@ export interface Row {
   [key: string]: unknown;
 }
 
-const BUSY_TIMEOUT_MS = 5000;
+// Long enough to wait for another process's large import (writes take turns;
+// reads don't wait at all in WAL mode)
+const BUSY_TIMEOUT_MS = 30_000;
 
 // SQLite primary result codes that mean "the file is the problem", mapped
 // to messages the user can act on (instead of a generic internal error).

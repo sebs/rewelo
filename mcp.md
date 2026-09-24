@@ -214,7 +214,7 @@ Result:
 | `Tool … not found` | The client talks to an older build. Call `server_version` (or run `rw --version`) and restart the MCP server after upgrading. |
 | `No project specified and no .rewelo.json config found` | Pass `project`, or add a `.rewelo.json` with `{"project": "<name>"}` in the server's working directory or a parent. |
 | `Project not found` | Check the name with `project_list`; names are matched exactly (after trimming). |
-| `The database is locked by another process. Try again later` | Another `rw` process holds the write lock for more than 5 seconds (for example a large import). Retry when it has finished. |
+| `The database is locked by another process. Try again later` | Another `rw` process has held the write lock for more than 30 seconds (for example a very large import). Retry when it has finished; reading is not blocked. |
 | `The database uses schema version …, but this rewelo supports up to version …` | The database was upgraded by a newer rewelo. Upgrade the server. |
 | `The database file is not a rewelo database` | `--db` / `RW_DB_PATH` points at another application's SQLite file. |
 | `Rate limit exceeded. Try again shortly.` | More than 100 tool calls in one second. |
