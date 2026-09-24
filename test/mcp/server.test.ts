@@ -664,4 +664,11 @@ describe("MCP server", () => {
     );
     assert.ok(unknown.length < 1100, `${unknown.length} characters`);
   });
+
+  it("names the allowed scores when one is invalid", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Scores" } });
+    const r = await client.callTool({ name: "ticket_create", arguments: { project: "Scores", title: "Z", benefit: 4 } });
+    assert.equal(r.isError, true);
+    assert.match((r.content as any)[0].text, /benefit: must be a Fibonacci value \(1, 2, 3, 5, 8, 13, 21\), got 4/);
+  });
 });

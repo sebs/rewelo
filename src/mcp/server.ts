@@ -121,10 +121,11 @@ function capErrors(message: any): any {
   return message;
 }
 
-const fibonacciScore = z.union([
-  z.literal(1), z.literal(2), z.literal(3),
-  z.literal(5), z.literal(8), z.literal(13), z.literal(21),
-]);
+// The same message as the CLI's, not zod's bare "Invalid input"
+const fibonacciScore = z.union(
+  [z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(8), z.literal(13), z.literal(21)],
+  { error: (issue) => `must be a Fibonacci value (1, 2, 3, 5, 8, 13, 21), got ${JSON.stringify(issue.input)}` }
+);
 
 const MAX_PAYLOAD_BYTES = 1_000_000; // 1 MB per tool call argument
 
