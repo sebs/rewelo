@@ -156,6 +156,9 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
   it("rejects non-integer and non-numeric scores instead of truncating them", async () => {
     await assert.rejects(importCsv(db, projectId, "title,benefit\nF,5.9"), /benefit must be a Fibonacci value .*got 5\.9/);
     await assert.rejects(importCsv(db, projectId, "title,estimate\nF,3abc"), /estimate must be a number, got "3abc"/);
+    for (const raw of ["0x5", "1e0", "+3", "-1"]) {
+      await assert.rejects(importCsv(db, projectId, `title,benefit\nF,${raw}`), /benefit must be a number/, raw);
+    }
     assert.equal((await listTickets(db, projectId)).length, 0);
   });
 

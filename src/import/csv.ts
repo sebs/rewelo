@@ -78,13 +78,14 @@ function parseCsv(csv: string): string[][] {
   return records;
 }
 
-// Empty cells default to 1. Anything else must be a whole number: parseInt
-// would silently turn "5.9" into 5 and "3abc" into 3.
+// Empty cells default to 1. Anything else must be written as a whole number:
+// parseInt would silently turn "5.9" into 5 and "3abc" into 3, and Number
+// reads "0x5", "1e0" and "+3" as numbers too.
 function parseScore(raw: string | undefined, field: string): number {
   if (!raw) return 1;
-  const n = Number(raw);
-  if (Number.isNaN(n)) throw new ValidationError(`${field} must be a number, got "${raw}"`);
-  return n;
+  if (/^\d+\.\d+$/.test(raw)) return Number(raw); // reported as not Fibonacci
+  if (!/^\d+$/.test(raw)) throw new ValidationError(`${field} must be a number, got "${raw}"`);
+  return Number(raw);
 }
 
 function parseRows(csv: string): CsvRow[] {
