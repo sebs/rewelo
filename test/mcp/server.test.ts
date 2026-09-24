@@ -621,4 +621,13 @@ describe("MCP server", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("truncates a long error message without splitting an emoji", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Emoji" } });
+    const result = await client.callTool({ name: "ticket_list", arguments: { project: "Emoji", tag: "😀".repeat(600) } });
+    const text = (result.content as any)[0].text as string;
+    assert.equal(result.isError, true);
+    assert.match(text, /… \(truncated\)$/);
+    assert.doesNotMatch(text, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+  });
 });

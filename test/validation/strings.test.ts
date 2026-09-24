@@ -7,7 +7,17 @@ import {
   validateTagPrefix,
   validateTagValue,
   ValidationError,
+  truncate,
 } from "../../src/validation/strings.js";
+
+describe("truncate", () => {
+  it("never cuts an emoji in half", () => {
+    assert.equal(truncate("ab", 5), "ab");
+    assert.equal(truncate("a😀b", 3), "a😀");
+    assert.equal(truncate("a😀b", 2), "a");
+    assert.doesNotMatch(truncate("😀".repeat(10), 7), /[\uD800-\uDBFF]$/);
+  });
+});
 
 describe("validateProjectName", () => {
   it("accepts valid names", () => {

@@ -30,6 +30,15 @@ export function collapseSpaces(s: string): string {
   return s.replace(/[ \u00A0\u2000-\u200A\u202F\u205F]+/g, " ");
 }
 
+/**
+ * The first `max` UTF-16 units of s (the unit lengths are counted in), minus
+ * a lone high surrogate at the end: a plain slice can cut an emoji in half.
+ */
+export function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max).replace(/[\uD800-\uDBFF]$/, "");
+}
+
 export class AppError extends Error {
   constructor(message: string) {
     super(message);

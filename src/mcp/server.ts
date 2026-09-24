@@ -55,6 +55,7 @@ import { getEventLog } from "../reports/event-log.js";
 import { getProjectDiff } from "../reports/diff.js";
 import {
   AppError,
+  truncate,
   validateProjectName,
   validateTicketTitle,
   validateTicketDescription,
@@ -86,7 +87,7 @@ function textResult(data: unknown): { content: Array<{ type: "text"; text: strin
 function errorResult(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
   // Messages quote input (e.g. a ticket title); never echo a huge one back
   const message = sanitizeError(err);
-  const text = message.length > MAX_ERROR_LENGTH ? `${message.slice(0, MAX_ERROR_LENGTH)}… (truncated)` : message;
+  const text = message.length > MAX_ERROR_LENGTH ? `${truncate(message, MAX_ERROR_LENGTH)}… (truncated)` : message;
   return {
     content: [{ type: "text" as const, text }],
     isError: true,
