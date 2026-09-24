@@ -49,6 +49,27 @@ describe("global output flags (CLI)", () => {
     assert.equal(rw("--quiet", "config", "weights", "--project", "P", "--reset").stdout, "");
   });
 
+  it("--quiet silences commands that change data and shortens lists", () => {
+    const t = "A, with comma";
+    rw("ticket", "create", "--project", "P", "--title", "B");
+    const quiet = (...args: string[]) => rw("--quiet", ...args).stdout;
+    assert.equal(quiet("ticket", "update", "--project", "P", "--title", t, "--benefit", "2"), "");
+    assert.equal(quiet("tag", "create", "--project", "P", "team:x"), "");
+    assert.equal(quiet("tag", "assign", "team:x", "--project", "P", "--ticket", t), "");
+    assert.equal(quiet("tag", "list", "--project", "P"), "team:x\n");
+    assert.equal(quiet("tag", "log", "--project", "P", "--ticket", t), "added\tteam:x\n");
+    assert.equal(quiet("tag", "rename", "--project", "P", "--prefix", "team", "--old", "x", "--new", "y"), "");
+    assert.equal(quiet("tag", "remove", "team:y", "--project", "P", "--ticket", t), "");
+    assert.equal(quiet("relation", "create", "--project", "P", "--source", t, "--type", "blocks", "--target", "B"), "");
+    assert.equal(quiet("relation", "list-all", "--project", "P"), `${t}\tblocks\tB\n`);
+    assert.equal(quiet("relation", "list", "--project", "P", "--ticket", "B"), `is-blocked-by\t${t}\n`);
+    assert.equal(quiet("relation", "remove", "--project", "P", "--source", t, "--type", "blocks", "--target", "B"), "");
+    assert.match(quiet("ticket", "history", "--project", "P", "--title", t), /^\d{4}-\d\d-\d\dT[\d:.]+Z\n$/);
+    assert.match(quiet("project", "history", "--project", "P"), /^\d{4}-\d\d-\d\dT[\d:.]+Z\tA, with comma\n$/);
+    assert.equal(quiet("ticket", "delete", "--project", "P", "--title", "B"), "");
+    assert.equal(quiet("project", "delete", "P", "--force"), "");
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);

@@ -288,7 +288,7 @@ projectCmd
       const deleted = await deleteProject(db, name);
       if (deleted) {
         if (opts.json) console.log(JSON.stringify({ deleted: true, name }));
-        else console.log(`Deleted project "${name}"`);
+        else if (!opts.quiet) console.log(`Deleted project "${name}"`);
       } else {
         console.error(`Project "${name}" not found`);
         process.exit(1);
@@ -308,6 +308,8 @@ projectCmd
       const revisions = await listProjectRevisions(db, project.id, cmdOpts.since, cmdOpts.limit);
       if (opts.json) {
         console.log(JSON.stringify(revisions));
+      } else if (opts.quiet) {
+        revisions.forEach((r) => console.log(`${r.revised_at}\t${r.ticket_title}`));
       } else if (revisions.length === 0) {
         console.log("No revisions found.");
       } else {
@@ -533,6 +535,8 @@ ticketCmd
         updated.risk !== ticket.risk;
       if (opts.json) {
         console.log(JSON.stringify(updated));
+      } else if (opts.quiet) {
+        // nothing to report
       } else if (!changed) {
         console.log(`No changes to "${updated.title}"`);
       } else {
@@ -556,7 +560,7 @@ ticketCmd
       }
       await deleteTicket(db, project.id, ticket.id);
       if (opts.json) console.log(JSON.stringify({ deleted: true, title: ticket.title }));
-      else console.log(`Deleted ticket "${cmdOpts.title}"`);
+      else if (!opts.quiet) console.log(`Deleted ticket "${cmdOpts.title}"`);
     });
   });
 
@@ -576,6 +580,8 @@ ticketCmd
       const revisions = await listRevisions(db, ticket.id);
       if (opts.json) {
         console.log(JSON.stringify(revisions));
+      } else if (opts.quiet) {
+        revisions.forEach((r) => console.log(r.revised_at));
       } else if (revisions.length === 0) {
         console.log("No revisions found.");
       } else {
@@ -647,7 +653,7 @@ tagCmd
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const tag = await createTag(db, project.id, prefix, value);
       if (opts.json) console.log(JSON.stringify(tag));
-      else console.log(`Created tag "${prefix}:${value}"`);
+      else if (!opts.quiet) console.log(`Created tag "${prefix}:${value}"`);
     });
   });
 
@@ -686,7 +692,7 @@ tagCmd
             status: assigned ? "assigned" : "already_assigned",
             ...(replaced.length > 0 ? { replaced } : {}),
           });
-          if (opts.json) continue;
+          if (opts.json || opts.quiet) continue;
           const note = replaced.length > 0 ? ` (replaced ${replaced.map((r) => `"${r}"`).join(", ")})` : "";
           console.log(assigned ? `Assigned "${t.raw}" to "${ticketTitle}"${note}` : `Tag "${t.raw}" already assigned to "${ticketTitle}"`);
         }
@@ -711,7 +717,7 @@ tagCmd
       const tag = await getTag(db, project.id, prefix, value);
       if (!tag) { console.error(`Tag "${tagStr}" not found`); process.exit(1); }
       const removed = await removeTag(db, ticket.id, tag.id);
-      console.log(removed ? `Removed "${tagStr}" from "${cmdOpts.ticket}"` : `Tag "${tagStr}" was not assigned`);
+      if (!opts.quiet) console.log(removed ? `Removed "${tagStr}" from "${cmdOpts.ticket}"` : `Tag "${tagStr}" was not assigned`);
     });
   });
 
@@ -727,6 +733,8 @@ tagCmd
         console.log(JSON.stringify(tags));
       } else if (opts.csv) {
         console.log([["prefix", "value"], ...tags.map((t) => [t.prefix, t.value])].map(csvRow).join("\n"));
+      } else if (opts.quiet) {
+        tags.forEach((t) => console.log(`${t.prefix}:${t.value}`));
       } else if (tags.length === 0) {
         console.log("No tags found.");
       } else {
@@ -763,6 +771,8 @@ tagCmd
       const renamed = await renameTag(db, project.id, tag.id, prefix, newValue);
       if (opts.json) {
         console.log(JSON.stringify(renamed));
+      } else if (opts.quiet) {
+        // nothing to report
       } else if (oldValue === newValue) {
         console.log(`No changes to "${prefix}:${oldValue}"`);
       } else {
@@ -784,6 +794,8 @@ tagCmd
       const log = await getTagChangeLog(db, ticket.id);
       if (opts.json) {
         console.log(JSON.stringify(log));
+      } else if (opts.quiet) {
+        log.forEach((e) => console.log(`${e.action}\t${e.prefix}:${e.value}`));
       } else if (log.length === 0) {
         console.log("No tag changes recorded.");
       } else {
@@ -820,7 +832,7 @@ relationCmd
       const relation = await createRelation(db, project.id, source.id, target.id, cmdOpts.type);
       if (opts.json) {
         console.log(JSON.stringify(relation));
-      } else {
+      } else if (!opts.quiet) {
         console.log(`Created: "${cmdOpts.source}" ${cmdOpts.type} "${cmdOpts.target}"`);
       }
     });
@@ -843,7 +855,7 @@ relationCmd
       await removeRelation(db, project.id, source.id, target.id, cmdOpts.type);
       if (opts.json) {
         console.log(JSON.stringify({ removed: true }));
-      } else {
+      } else if (!opts.quiet) {
         console.log(`Removed: "${cmdOpts.source}" ${cmdOpts.type} "${cmdOpts.target}"`);
       }
     });
@@ -862,6 +874,8 @@ relationCmd
       const relations = await listRelations(db, project.id, ticket.id);
       if (opts.json) {
         console.log(JSON.stringify(relations));
+      } else if (opts.quiet) {
+        relations.forEach((r) => console.log(`${r.relation_type}\t${r.ticket_title}`));
       } else if (relations.length === 0) {
         console.log("No relations found.");
       } else {
@@ -885,6 +899,8 @@ relationCmd
       const relations = await listProjectRelations(db, project.id);
       if (opts.json) {
         console.log(JSON.stringify(relations));
+      } else if (opts.quiet) {
+        relations.forEach((r) => console.log(`${r.source_title}\t${r.relation_type}\t${r.target_title}`));
       } else if (relations.length === 0) {
         console.log("No relations found.");
       } else {

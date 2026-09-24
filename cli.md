@@ -18,7 +18,7 @@ The CLI is available as `rw` (via `npm link`) or directly with `node dist/index.
 | `--db <path>`| Path to SQLite file, must end in `.db` (default: `./relative-weight.db`) |
 | `--json`     | Output as JSON               |
 | `--csv`      | Output as CSV (where supported) |
-| `--quiet`    | Minimal output               |
+| `--quiet`    | Minimal output: commands that change data print nothing (create prints the new UUID), lists print one item per line |
 | `--no-color` | Disable colour output        |
 | `--version`  | Show version                 |
 
