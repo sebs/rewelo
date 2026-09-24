@@ -37,5 +37,12 @@ export function normalizeSince(since: string): string {
       `Invalid timestamp "${since}". Use an ISO date or date-time, e.g. 2026-03-10 or 2026-03-10T09:00:00Z`
     );
   }
-  return new Date(ms).toISOString();
+  const utc = new Date(ms).toISOString();
+  // Stored timestamps compare as strings, which only works for four-digit
+  // years: 9999-12-31T23:00-05:00 is +010000-01-01T04:00Z, which sorts
+  // before every 2026 timestamp
+  if (!/^\d{4}-/.test(utc)) {
+    throw new ValidationError(`Timestamp "${since}" is outside the years 0000 to 9999 (in UTC)`);
+  }
+  return utc;
 }

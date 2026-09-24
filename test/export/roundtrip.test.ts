@@ -264,4 +264,11 @@ describe("round-trip", () => {
     assert.equal(t.created_at, "2024-01-01T00:00:00.000Z");
     assert.equal((await getTicketTimes(db, t.id)).leadTimeDays, 9);
   });
+
+  it("rejects imported history in year 10000", async () => {
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Far", createdAt: "9999-12-31T23:00:00-05:00" }] })),
+      /Ticket 1: createdAt must be an ISO timestamp/
+    );
+  });
 });

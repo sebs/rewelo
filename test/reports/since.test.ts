@@ -139,4 +139,9 @@ describe("since filters", () => {
     const diff = await getProjectDiff(db, projectId, newest.timestamp);
     assert.deepEqual([diff.newTickets, diff.updatedTickets, diff.tagChanges, diff.deletedTickets], [[], [], [], []]);
   });
+
+  it("rejects timestamps that fall outside four-digit years in UTC", async () => {
+    await assert.rejects(getEventLog(db, projectId, "9999-12-31T23:00:00-05:00"), /outside the years 0000 to 9999/);
+    await getEventLog(db, projectId, "9999-12-31T18:00:00-05:00");
+  });
 });
