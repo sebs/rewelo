@@ -102,4 +102,14 @@ describe("dashboard report", () => {
     assert.match(html, /<abbr title="Benefit">B<\/abbr>/);
     assert.doesNotMatch(html, /#888;|#8880/);
   });
+
+  it("doesn't call a backlog empty when --limit 0 hides its rows", async () => {
+    const a = await createTicket(db, { projectId, title: "A" });
+    const b = await createTicket(db, { projectId, title: "B" });
+    await createRelation(db, projectId, a.id, b.id, "blocks");
+    const html = await renderDashboard(db, projectId, "DashTest", { limit: 0 });
+    assert.doesNotMatch(html, /No tickets yet|No relations defined/);
+    assert.match(html, /Showing 0 of 2 open tickets/);
+    assert.match(html, /Showing 0 of 1 relation;/);
+  });
 });

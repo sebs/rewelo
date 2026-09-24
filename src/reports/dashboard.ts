@@ -84,8 +84,9 @@ export async function renderDashboard(
         <td class="n strong">${t.priority.toFixed(2)}</td>
       </tr>`
       )
-      .join("") ||
-    `<tr><td colspan="8" class="empty">No tickets yet.</td></tr>`;
+      .join("") +
+    // Only when there are none: with --limit 0 the note below says how many
+    (rows.length === 0 ? `<tr><td colspan="8" class="empty">No tickets yet.</td></tr>` : "");
 
   const distRows = distribution
     .map(
@@ -112,8 +113,8 @@ export async function renderDashboard(
             r.relation_type
           )}</td><td>${esc(r.target_title)}</td></tr>`
       )
-      .join("") ||
-    `<tr><td colspan="3" class="empty">No relations defined.</td></tr>`;
+      .join("") +
+    (relations.length === 0 ? `<tr><td colspan="3" class="empty">No relations defined.</td></tr>` : "");
 
   // Says what a capped table leaves out
   const more = (shown: number, total: number, what: string) =>
