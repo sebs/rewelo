@@ -157,18 +157,24 @@ export async function getTicketTags(db: DB, ticketId: number): Promise<Tag[]> {
 
 /** Every tag held by the tickets of a project, by ticket id, in one query */
 export async function getProjectTicketTags(db: DB, projectId: number): Promise<Map<number, Tag[]>> {
-  const rows = await db.all<Tag & { ticket_id: number }>(
-    `SELECT tt.ticket_id, t.* FROM ticket_tags tt
+  // The project's tags once, shared by every ticket that holds them: a full
+  // tag row per assignment (200,000 for 100,000 tickets) ran the 192 MB
+  // heap out of memory
+  const tags = new Map(
+    (await db.all<Tag>(`SELECT * FROM tags WHERE project_id = ? ORDER BY prefix, value`, projectId)).map((t) => [t.id, t])
+  );
+  const rows = await db.all<{ ticket_id: number; tag_id: number }>(
+    `SELECT tt.ticket_id, tt.tag_id FROM ticket_tags tt
      JOIN tags t ON t.id = tt.tag_id
      WHERE t.project_id = ?
      ORDER BY t.prefix, t.value`,
     projectId
   );
   const byTicket = new Map<number, Tag[]>();
-  for (const { ticket_id, ...tag } of rows) {
-    const list = byTicket.get(ticket_id) ?? [];
-    list.push(tag as Tag);
-    byTicket.set(ticket_id, list);
+  for (const { ticket_id, tag_id } of rows) {
+    const list = byTicket.get(ticket_id);
+    if (list) list.push(tags.get(tag_id)!);
+    else byTicket.set(ticket_id, [tags.get(tag_id)!]);
   }
   return byTicket;
 }

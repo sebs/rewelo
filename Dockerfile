@@ -44,7 +44,8 @@ ENV SQLITE_TMPDIR=/data
 ENV NODE_ENV=production
 # Heap below the documented 256 MB container limit (mcp.md), leaving room for
 # SQLite and buffers: with 512 the kernel killed the process before the heap
-# limit was ever reached. Imports up to the 50 MB limit fit.
+# limit was ever reached. A project at the import limits (50 MB, 100,000
+# tickets) imports, reports and exports within it (checked with --memory=256m).
 ENV NODE_OPTIONS="--max-old-space-size=192"
 
 # OCI image label. A label can't read package.json as the builder stage does:

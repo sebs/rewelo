@@ -29,7 +29,7 @@ export async function getBacklogHealth(
   projectId: number,
   highThreshold: number = 1.5
 ): Promise<BacklogHealth> {
-  const tickets = await listTickets(db, projectId);
+  const tickets = await listTickets(db, projectId, { withDescription: false });
 
   const doneIds = await doneTicketIds(db, projectId);
 

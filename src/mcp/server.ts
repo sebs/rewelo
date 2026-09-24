@@ -36,7 +36,7 @@ import { exactWeightedPriority, weightedPriority } from "../calculations/weighte
 import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
 import { getProjectTimes, timesReport } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
-import { exportJson } from "../export/json.js";
+import { writeJsonExport } from "../export/json.js";
 import { importCsv } from "../import/csv.js";
 import { importJsonAsProject } from "../import/json.js";
 import {
@@ -76,13 +76,12 @@ const DEFAULT_TICKET_LIMIT = 100;
 function textResult(data: unknown): { content: Array<{ type: "text"; text: string }> } {
   const text = typeof data === "string" ? data : JSON.stringify(data);
   const bytes = Buffer.byteLength(text, "utf-8");
-  if (bytes > MAX_RESULT_BYTES) {
-    throw new AppError(
-      `The result is too large (${(bytes / 1_000_000).toFixed(1)} MB, max ${MAX_RESULT_BYTES / 1_000_000} MB). Narrow it (limit, offset, filters), or use the rw CLI, which writes exports and dashboards to files.`
-    );
-  }
+  if (bytes > MAX_RESULT_BYTES) throw new AppError(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
   return { content: [{ type: "text" as const, text }] };
 }
+
+const tooLarge = (size: string) =>
+  `The result is too large (${size}, max ${MAX_RESULT_BYTES / 1_000_000} MB). Narrow it (limit, offset, filters), or use the rw CLI, which writes exports and dashboards to files.`;
 
 function errorResult(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
   // Messages quote input (e.g. a ticket title); never echo a huge one back
@@ -737,7 +736,7 @@ export function createMcpServer(
     },
     safe(({ project, tag, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) =>
       withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id, tag !== undefined ? { includeTags: [parseTag(tag)] } : undefined);
+        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
         const config = await getWeights(db, proj.id);
         const w1 = uw1 ?? config.w1;
         const w2 = uw2 ?? config.w2;
@@ -767,7 +766,7 @@ export function createMcpServer(
     },
     safe(({ project, tag }) =>
       withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id, tag !== undefined ? { includeTags: [parseTag(tag)] } : undefined);
+        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
         return calculateAllRelativeWeights(tickets).map((t) => ({
           title: t.title,
           relativeBenefit: t.relativeBenefit,
@@ -911,7 +910,20 @@ export function createMcpServer(
       withHistory: z.boolean().optional().describe("Include revisions and audit log"),
     },
     safe(({ project, withHistory }) =>
-      withProject(resolveProject(project), (db, proj) => exportJson(db, proj.id, { withHistory }))
+      withProject(resolveProject(project), async (db, proj) => {
+        // Built piece by piece and given up past the result limit: the whole
+        // export of a big project in memory killed the server (heap out of
+        // memory), only for the result to be refused as too large
+        let text = "";
+        await writeJsonExport(db, proj.id, { withHistory, indent: false }, async (chunks) => {
+          for await (const chunk of chunks) {
+            text += chunk;
+            // UTF-16 units, at most the bytes: over this is over in bytes too
+            if (text.length > MAX_RESULT_BYTES) throw new AppError(tooLarge(`over ${MAX_RESULT_BYTES / 1_000_000} MB`));
+          }
+        });
+        return text;
+      })
     )
   );
 

@@ -17,7 +17,7 @@ export async function getProjectSummary(
   projectId: number,
   topN: number = 5
 ): Promise<ProjectSummary> {
-  const tickets = await listTickets(db, projectId);
+  const tickets = await listTickets(db, projectId, { withDescription: false });
 
   const byState: Record<string, number> = {};
   let withoutState = 0;

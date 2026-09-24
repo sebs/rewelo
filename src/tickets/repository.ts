@@ -99,9 +99,18 @@ export async function listTickets(
     includeTags?: TagFilter[];
     excludeTags?: TagFilter[];
     search?: string;
+    /**
+     * false leaves descriptions out (null): reports and calculations don't
+     * show them, and 100,000 of them ran the 192 MB heap out of memory
+     */
+    withDescription?: boolean;
   }
 ): Promise<Ticket[]> {
-  let sql = `SELECT t.* FROM tickets t WHERE t.project_id = ?`;
+  const columns =
+    options?.withDescription === false
+      ? "t.id, t.ticket_uuid, t.project_id, t.title, NULL AS description, t.benefit, t.penalty, t.estimate, t.risk, t.created_at, t.updated_at"
+      : "t.*";
+  let sql = `SELECT ${columns} FROM tickets t WHERE t.project_id = ?`;
   const params: unknown[] = [projectId];
 
   // One flat subquery per direction, whatever the number of tags: an

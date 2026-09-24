@@ -14,7 +14,7 @@ export async function groupByTagPrefix(
   projectId: number,
   prefix: string
 ): Promise<TagGroup[]> {
-  const tickets = await listTickets(db, projectId);
+  const tickets = await listTickets(db, projectId, { withDescription: false });
   const groups: Record<string, { count: number; sumPriority: number }> = {};
 
   const tagsByTicket = await getProjectTicketTags(db, projectId);

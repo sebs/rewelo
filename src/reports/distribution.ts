@@ -11,7 +11,7 @@ export async function getDistribution(
   db: DB,
   projectId: number
 ): Promise<DimensionDistribution[]> {
-  const tickets = await listTickets(db, projectId);
+  const tickets = await listTickets(db, projectId, { withDescription: false });
 
   const dimensions: Array<{ name: string; key: "benefit" | "penalty" | "estimate" | "risk" }> = [
     { name: "benefit", key: "benefit" },

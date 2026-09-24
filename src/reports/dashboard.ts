@@ -47,7 +47,7 @@ export async function renderDashboard(
   projectName: string,
   options: DashboardOptions = {}
 ): Promise<string> {
-  const tickets = await listTickets(db, projectId);
+  const tickets = await listTickets(db, projectId, { withDescription: false });
   // The ranking is what to do next: open tickets only, as the health cards count
   const done = await doneTicketIds(db, projectId);
   const rows = tickets

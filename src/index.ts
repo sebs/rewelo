@@ -47,7 +47,8 @@ import {
 import { validateDbPath, validateExportPath, validateImportPath } from "./validation/paths.js";
 import { describeFsError, sanitizeError } from "./validation/errors.js";
 import { csvRow, exportCsv } from "./export/csv.js";
-import { exportJson } from "./export/json.js";
+import { writeJsonExport } from "./export/json.js";
+import { toFile, toStdout } from "./export/json-stream.js";
 import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "./import/csv.js";
 import { importJsonAsProject } from "./import/json.js";
 import { MAX_JSON_SIZE_BYTES } from "./serialization/parse.js";
@@ -1159,7 +1160,7 @@ calcCmd
     await withProject(opts, cmdOpts.project, async (db, project) => {
       // Several --tag options narrow the scope together, as in ticket list
       const includeTags = (cmdOpts.tag as string[]).map((s) => parseTag(s));
-      const tickets = await listTickets(db, project.id, includeTags.length > 0 ? { includeTags } : undefined);
+      const tickets = await listTickets(db, project.id, { includeTags, withDescription: false });
 
       const results = calculateAllRelativeWeights(tickets).map((t) => ({
         title: t.title,
@@ -1207,7 +1208,7 @@ calcCmd
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const includeTags = (cmdOpts.tag as string[]).map((s) => parseTag(s));
-      const tickets = await listTickets(db, project.id, includeTags.length > 0 ? { includeTags } : undefined);
+      const tickets = await listTickets(db, project.id, { includeTags, withDescription: false });
       const config = await getWeights(db, project.id);
       const w1 = cmdOpts.w1 ?? config.w1;
       const w2 = cmdOpts.w2 ?? config.w2;
@@ -1278,16 +1279,16 @@ exportCmd
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const data = await exportJson(db, project.id, {
-        withHistory: cmdOpts.withHistory,
-      });
-      const output = JSON.stringify(data, null, 2);
+      const options = { withHistory: cmdOpts.withHistory };
       if (cmdOpts.output) {
         const outPath = validateExportPath(cmdOpts.output, [".json"]);
-        writeFileSync(outPath, output, "utf-8");
+        await writeJsonExport(db, project.id, options, toFile(outPath)).catch((err) => {
+          // File errors name the path; errors reading the database pass on
+          throw (err as NodeJS.ErrnoException).syscall ? describeFsError(err, "write", outPath) : err;
+        });
         reportWritten(opts, outPath, `Exported to ${outPath}`);
       } else {
-        console.log(output);
+        await writeJsonExport(db, project.id, options, toStdout);
       }
     });
   });
