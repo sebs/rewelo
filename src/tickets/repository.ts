@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Fibonacci, assertFibonacci } from "../db/types.js";
-import { AppError, ValidationError, normalizeName } from "../validation/strings.js";
+import { AppError, ValidationError, collapseSpaces, normalizeName } from "../validation/strings.js";
 import { getTicketTags } from "../tags/assignment.js";
 
 export interface Ticket {
@@ -143,10 +143,15 @@ export async function getTicketByTitle(
   projectId: number,
   title: string
 ): Promise<Ticket | undefined> {
+  // Titles are stored with collapsed spaces; tickets created before that may
+  // still carry the exact form, which is preferred when both exist
+  const exact = normalizeName(title);
   const rows = await db.all<Ticket>(
-    `SELECT * FROM tickets WHERE project_id = ? AND title = ?`,
+    `SELECT * FROM tickets WHERE project_id = ? AND title IN (?, ?) ORDER BY title = ? DESC LIMIT 1`,
     projectId,
-    normalizeName(title)
+    exact,
+    collapseSpaces(exact),
+    exact
   );
   return rows[0];
 }

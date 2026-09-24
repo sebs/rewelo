@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
+import { validateTicketTitle } from "../../src/validation/strings.js";
 import { createProject } from "../../src/projects/repository.js";
 import {
   createTicket,
@@ -232,5 +233,13 @@ describe("tickets repository", () => {
       (await listTickets(db, projectId, { search })).map((t) => t.title);
     assert.deepEqual(await titles("cafe\u0301"), ["Caf\u00e9 login"]);
     assert.deepEqual(await titles(" login "), ["Caf\u00e9 login"]);
+  });
+
+  it("treats titles differing only in space characters as the same title", async () => {
+    await createTicket(db, { projectId, title: validateTicketTitle("a b") });
+    for (const lookalike of ["a\u00A0b", "a  b", "a\u2009b"]) {
+      await assert.rejects(createTicket(db, { projectId, title: validateTicketTitle(lookalike) }), /already exists/);
+      assert.equal((await getTicketByTitle(db, projectId, lookalike))?.title, "a b");
+    }
   });
 });

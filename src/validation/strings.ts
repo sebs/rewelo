@@ -22,6 +22,14 @@ export function normalizeName(s: string): string {
   return normalize(s.trim());
 }
 
+/**
+ * Runs of spaces, including no-break and other typographic spaces, as one
+ * plain space: "a b", "a\u00A0b" and "a  b" look the same in every table.
+ */
+export function collapseSpaces(s: string): string {
+  return s.replace(/[ \u00A0\u2000-\u200A\u202F\u205F]+/g, " ");
+}
+
 export class AppError extends Error {
   constructor(message: string) {
     super(message);
@@ -83,7 +91,7 @@ export function validateTicketTitle(title: string): string {
   if (/[\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/.test(title)) {
     throw new ValidationError("Ticket title must not contain invisible or text-direction characters");
   }
-  const normalized = normalize(title.trim());
+  const normalized = collapseSpaces(normalize(title.trim()));
   if (normalized.length > MAX_TICKET_TITLE) {
     throw new ValidationError(
       `Ticket title must not exceed ${MAX_TICKET_TITLE} characters`
