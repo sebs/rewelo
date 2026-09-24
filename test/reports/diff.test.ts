@@ -56,17 +56,30 @@ describe("project diff", () => {
     assert.equal(benefitChange!.to, 13);
   });
 
-  it("detects tag additions and removals", async () => {
+  it("detects tag additions and removals as net changes", async () => {
+    const t = await createTicket(db, { projectId, title: "Tagged" });
+    const wip = await createTag(db, projectId, "state", "wip");
+    const done = await createTag(db, projectId, "state", "done");
+    const team = await createTag(db, projectId, "team", "x");
+    await assignTag(db, t.id, team.id);
+    await new Promise((r) => setTimeout(r, 5));
+    const before = new Date().toISOString();
+    await assignTag(db, t.id, wip.id);
+    await assignTag(db, t.id, done.id); // replaces wip
+    await removeTag(db, t.id, team.id);
+
+    const diff = await getProjectDiff(db, projectId, before);
+    assert.deepEqual(diff.tagChanges, [{ ticketId: t.id, ticketTitle: "Tagged", added: ["state:done"], removed: ["team:x"] }]);
+  });
+
+  it("leaves out tags that were assigned and removed again", async () => {
     const t = await createTicket(db, { projectId, title: "Tagged" });
     const tag = await createTag(db, projectId, "state", "wip");
     const before = new Date().toISOString();
     await assignTag(db, t.id, tag.id);
     await removeTag(db, t.id, tag.id);
 
-    const diff = await getProjectDiff(db, projectId, before);
-    assert.equal(diff.tagChanges.length, 1);
-    assert.ok(diff.tagChanges[0].added.includes("state:wip"));
-    assert.ok(diff.tagChanges[0].removed.includes("state:wip"));
+    assert.deepEqual((await getProjectDiff(db, projectId, before)).tagChanges, []);
   });
 
   it("ignores changes before the since timestamp", async () => {

@@ -114,11 +114,12 @@ export async function getProjectDiff(
   const tagChangeRows = await db.all<{
     ticket_id: number;
     ticket_title: string;
+    tag_id: number;
     action: string;
     prefix: string;
     value: string;
   }>(
-    `SELECT c.ticket_id, t.title AS ticket_title, c.action, c.prefix, c.value
+    `SELECT c.ticket_id, t.title AS ticket_title, c.tag_id, c.action, c.prefix, c.value
      FROM ticket_tag_changes c
      JOIN tickets t ON t.id = c.ticket_id
      WHERE t.project_id = ? AND c.changed_at >= ?
@@ -127,16 +128,28 @@ export async function getProjectDiff(
     sinceUtc
   );
 
-  const tagDiffMap = new Map<number, TagDiff>();
+  // Report the net change per tag: the first change tells whether the ticket
+  // had the tag at `since`, the last whether it has it now. Assigning and
+  // removing a tag in between cancels out.
+  const perTag = new Map<string, { first: typeof tagChangeRows[0]; last: typeof tagChangeRows[0] }>();
   for (const r of tagChangeRows) {
-    let entry = tagDiffMap.get(r.ticket_id);
+    const key = `${r.ticket_id}/${r.tag_id}`;
+    const seen = perTag.get(key);
+    if (seen) seen.last = r;
+    else perTag.set(key, { first: r, last: r });
+  }
+  const tagDiffMap = new Map<number, TagDiff>();
+  for (const { first, last } of perTag.values()) {
+    const hadIt = first.action === "removed";
+    const hasIt = last.action === "added";
+    if (hadIt === hasIt) continue;
+    let entry = tagDiffMap.get(first.ticket_id);
     if (!entry) {
-      entry = { ticketId: r.ticket_id, ticketTitle: r.ticket_title, added: [], removed: [] };
-      tagDiffMap.set(r.ticket_id, entry);
+      entry = { ticketId: first.ticket_id, ticketTitle: first.ticket_title, added: [], removed: [] };
+      tagDiffMap.set(first.ticket_id, entry);
     }
-    const label = `${r.prefix}:${r.value}`;
-    if (r.action === "added") entry.added.push(label);
-    else entry.removed.push(label);
+    if (hasIt) entry.added.push(`${last.prefix}:${last.value}`);
+    else entry.removed.push(`${first.prefix}:${first.value}`);
   }
 
   // 4. Tickets deleted since the timestamp
