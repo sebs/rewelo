@@ -74,6 +74,8 @@ export async function renameTag(
 ): Promise<Tag> {
   const current = await getTagById(db, projectId, tagId);
   if (!current) throw new AppError("Tag not found");
+  // Renaming to the same name is a no-op, not a clash with itself
+  if (current.prefix === newPrefix && current.value === newValue) return current;
 
   const conflict = await getTag(db, projectId, newPrefix, newValue);
   if (conflict) {

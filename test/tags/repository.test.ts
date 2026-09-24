@@ -83,6 +83,13 @@ describe("tags repository", () => {
     assert.equal((revisions[0] as any).value, "login");
   });
 
+  it("treats a rename to the same name as a no-op instead of a clash", async () => {
+    const tag = await createTag(db, projectId, "feature", "login");
+    const renamed = await renameTag(db, projectId, tag.id, "feature", "login");
+    assert.equal(renamed.value, "login");
+    assert.deepEqual(await db.all("SELECT * FROM tag_revisions WHERE tag_id = ?", tag.id), []);
+  });
+
   it("deletes a tag", async () => {
     const tag = await createTag(db, projectId, "state", "backlog");
     const deleted = await deleteTag(db, projectId, tag.id);

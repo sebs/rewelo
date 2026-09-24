@@ -763,6 +763,8 @@ tagCmd
       const renamed = await renameTag(db, project.id, tag.id, prefix, newValue);
       if (opts.json) {
         console.log(JSON.stringify(renamed));
+      } else if (oldValue === newValue) {
+        console.log(`No changes to "${prefix}:${oldValue}"`);
       } else {
         console.log(`Renamed "${prefix}:${oldValue}" to "${prefix}:${newValue}"`);
       }
