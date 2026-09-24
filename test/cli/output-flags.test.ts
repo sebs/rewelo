@@ -80,7 +80,7 @@ describe("global output flags (CLI)", () => {
     assert.equal(csv("relation", "list", "--project", "P", "--ticket", t), "Type,Direction,Ticket\n");
     assert.equal(csv("tag", "log", "--project", "P", "--ticket", t), "Action,Tag,Changed At\n");
     assert.equal(csv("ticket", "history", "--project", "P", "--title", t), "#,Title,B,P,E,R,Tags,Revised At\n");
-    assert.equal(csv("report", "times", "--project", "P"), "Title,Lead Time,Cycle Time\n");
+    assert.equal(csv("report", "times", "--project", "P"), 'Title,Lead Time,Cycle Time\n"A, with comma",,\n');
     assert.equal(csv("config", "weights", "--project", "P"), "w1,w2,w3,w4\n1.5,1.5,1.5,1.5\n");
     assert.equal(csv("report", "event-log", "--project", "P").split("\n")[0], "Timestamp,Type,Ticket,Detail");
 

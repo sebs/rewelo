@@ -42,4 +42,12 @@ describe("rw report (CLI)", () => {
     rw("tag", "assign", "state:done", "--project", "P", "--ticket", "Done");
     assert.equal(rw("--csv", "report", "times", "--project", "P").stdout, "Title,Lead Time,Cycle Time\nDone,0d,\n");
   });
+
+  it("report times lists open tickets in the table and CSV too, as in --json", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Done");
+    rw("ticket", "create", "--project", "P", "--title", "Open");
+    rw("tag", "assign", "state:done", "--project", "P", "--ticket", "Done");
+    assert.equal(rw("--csv", "report", "times", "--project", "P").stdout, "Title,Lead Time,Cycle Time\nDone,0d,\nOpen,,\n");
+    assert.match(rw("report", "times", "--project", "P").stdout, /Open +\| -/);
+  });
 });

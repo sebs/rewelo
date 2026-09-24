@@ -1350,16 +1350,16 @@ reportCmd
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const tickets = await listTickets(db, project.id);
       const times = await Promise.all(tickets.map((t) => getTicketTimes(db, t.id)));
-      const withDone = times.filter((t) => t.leadTimeDays !== undefined);
       const avg = averageLeadTime(times);
       if (opts.json) {
         console.log(JSON.stringify(timesReport(times)));
-      } else if (withDone.length === 0 && !opts.csv) {
-        console.log("No completed tickets found.");
+      } else if (times.length === 0 && !opts.csv) {
+        console.log("No tickets found.");
       } else {
         // An empty CSV field, not "-" (which the formula guard turns into '-)
         const none = opts.csv ? "" : "-";
-        const rows = withDone.map((t) => {
+        // Every ticket, as in --json: open ones without times
+        const rows = times.map((t) => {
           const ticket = tickets.find((tk) => tk.id === t.ticketId);
           return [
             ticket?.title || String(t.ticketId),
@@ -1369,6 +1369,7 @@ reportCmd
         });
         console.log(formatTable(["Title", "Lead Time", "Cycle Time"], rows));
         const avgCycle = averageCycleTime(times);
+        if (avg === undefined && !opts.csv) console.log("\nNo completed tickets yet.");
         if (avg !== undefined && !opts.csv) console.log(`\nAverage lead time: ${avg}d`);
         if (avgCycle !== undefined && !opts.csv) console.log(`Average cycle time: ${avgCycle}d`);
       }
