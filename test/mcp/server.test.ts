@@ -504,4 +504,11 @@ describe("MCP server", () => {
     assert.equal(r.isError, true);
     assert.match((r.content as any)[0].text, /Project not found/);
   });
+
+  it("ticket_history rejects a fractional id in the schema", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "H" } });
+    const r = await client.callTool({ name: "ticket_history", arguments: { project: "H", id: 2.5 } });
+    assert.equal(r.isError, true);
+    assert.doesNotMatch((r.content as any)[0].text, /not found/);
+  });
 });

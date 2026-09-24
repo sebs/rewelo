@@ -406,7 +406,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       title: z.string().optional().describe("Ticket title (provide title or id)"),
-      id: z.number().optional().describe("Ticket numeric ID (provide title or id)"),
+      id: z.number().int().positive().optional().describe("Ticket numeric ID (provide title or id)"),
     },
     safe(({ project, title, id }) =>
       withProject(resolveProject(project), async (db, proj) => {
