@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { getTicketTags } from "../tags/assignment.js";
+import { getProjectTicketTags } from "../tags/assignment.js";
 import { exactPriority, round2 } from "../calculations/priority.js";
 
 export interface TagGroup {
@@ -17,8 +17,9 @@ export async function groupByTagPrefix(
   const tickets = await listTickets(db, projectId);
   const groups: Record<string, { count: number; sumPriority: number }> = {};
 
+  const tagsByTicket = await getProjectTicketTags(db, projectId);
   for (const t of tickets) {
-    const tags = await getTicketTags(db, t.id);
+    const tags = tagsByTicket.get(t.id) ?? [];
     const matching = tags.filter((tg) => tg.prefix === prefix);
     const prio = exactPriority(t.benefit, t.penalty, t.estimate, t.risk);
 

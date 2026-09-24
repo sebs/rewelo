@@ -146,6 +146,24 @@ export async function getTicketTags(db: DB, ticketId: number): Promise<Tag[]> {
   );
 }
 
+/** Every tag held by the tickets of a project, by ticket id, in one query */
+export async function getProjectTicketTags(db: DB, projectId: number): Promise<Map<number, Tag[]>> {
+  const rows = await db.all<Tag & { ticket_id: number }>(
+    `SELECT tt.ticket_id, t.* FROM ticket_tags tt
+     JOIN tags t ON t.id = tt.tag_id
+     WHERE t.project_id = ?
+     ORDER BY t.prefix, t.value`,
+    projectId
+  );
+  const byTicket = new Map<number, Tag[]>();
+  for (const { ticket_id, ...tag } of rows) {
+    const list = byTicket.get(ticket_id) ?? [];
+    list.push(tag as Tag);
+    byTicket.set(ticket_id, list);
+  }
+  return byTicket;
+}
+
 export async function listTicketsByTag(
   db: DB,
   projectId: number,

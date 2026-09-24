@@ -1,4 +1,4 @@
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
 import { AppError, collapseSpaces } from "../validation/strings.js";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -68,15 +68,29 @@ export class DB {
     sqlite(() => this.db.exec(sql));
   }
 
+  // Prepared statements, reused: preparing the same SQL for every row of a
+  // loop dominated per-ticket work. Bounded, as some SQL is built per call.
+  private statements = new Map<string, StatementSync>();
+
+  private prepare(sql: string): StatementSync {
+    let statement = this.statements.get(sql);
+    if (!statement) {
+      statement = this.db.prepare(sql);
+      if (this.statements.size >= 200) this.statements.delete(this.statements.keys().next().value!);
+      this.statements.set(sql, statement);
+    }
+    return statement;
+  }
+
   async all<T = Row>(
     sql: string,
     ...params: unknown[]
   ): Promise<T[]> {
-    return sqlite(() => this.db.prepare(sql).all(...(params as SQLInputValue[])) as T[]);
+    return sqlite(() => this.prepare(sql).all(...(params as SQLInputValue[])) as T[]);
   }
 
   async run(sql: string, ...params: unknown[]): Promise<void> {
-    sqlite(() => this.db.prepare(sql).run(...(params as SQLInputValue[])));
+    sqlite(() => this.prepare(sql).run(...(params as SQLInputValue[])));
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {

@@ -32,7 +32,7 @@ import {
 } from "./calculations/relative-weights.js";
 import { exactWeightedPriority, weightedPriority } from "./calculations/weighted-priority.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "./weights/repository.js";
-import { getTicketTimes, averageLeadTime, averageCycleTime, timesReport } from "./calculations/time.js";
+import { getProjectTimes, averageLeadTime, averageCycleTime, timesReport } from "./calculations/time.js";
 import {
   validateProjectName,
   validateTicketTitle,
@@ -1441,8 +1441,7 @@ reportCmd
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const tickets = await listTickets(db, project.id);
-      const times = await Promise.all(tickets.map((t) => getTicketTimes(db, t.id)));
+      const times = await getProjectTimes(db, project.id);
       const avg = averageLeadTime(times);
       if (opts.json) {
         console.log(JSON.stringify(timesReport(times)));

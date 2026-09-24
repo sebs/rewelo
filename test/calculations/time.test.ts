@@ -6,7 +6,7 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createTag, deleteTag, getTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
-import { getTicketTimes, averageLeadTime } from "../../src/calculations/time.js";
+import { getTicketTimes, getProjectTimes, averageLeadTime } from "../../src/calculations/time.js";
 
 describe("lead and cycle time", () => {
   let db: DB;
@@ -168,5 +168,26 @@ describe("lead and cycle time", () => {
     await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
     await deleteTag(db, projectId, wip.id);
     assert.equal((await getTicketTimes(db, t.id)).cycleTimeDays, 0);
+  });
+
+  it("computes the same times for a whole project at once", async () => {
+    const wip = await createTag(db, projectId, "state", "wip");
+    const done = await createTag(db, projectId, "state", "done");
+    const tickets = [];
+    for (const title of ["open", "working", "finished", "reopened"]) tickets.push(await createTicket(db, { projectId, title }));
+    await assignTag(db, tickets[1].id, wip.id);
+    await assignTag(db, tickets[2].id, wip.id);
+    await assignTag(db, tickets[2].id, done.id);
+    await assignTag(db, tickets[3].id, done.id);
+    await removeTag(db, tickets[3].id, done.id);
+    await db.run("UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z'");
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-05T00:00:00.000Z' WHERE value = 'wip'");
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-11T00:00:00.000Z' WHERE value = 'done'");
+
+    const perTicket = [];
+    for (const t of tickets) perTicket.push(await getTicketTimes(db, t.id));
+    const all = await getProjectTimes(db, projectId);
+    assert.deepEqual(all, perTicket);
+    assert.deepEqual(all.map((t) => [t.leadTimeDays, t.cycleTimeDays]), [[undefined, undefined], [undefined, undefined], [10, 6], [undefined, undefined]]);
   });
 });

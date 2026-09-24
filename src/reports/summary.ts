@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { getTicketTags } from "../tags/assignment.js";
+import { getProjectTicketTags } from "../tags/assignment.js";
 import { byPriority, priority } from "../calculations/priority.js";
 import { doneTicketIds } from "./health.js";
 
@@ -21,8 +21,9 @@ export async function getProjectSummary(
 
   const byState: Record<string, number> = {};
   let withoutState = 0;
+  const tagsByTicket = await getProjectTicketTags(db, projectId);
   for (const t of tickets) {
-    const tags = await getTicketTags(db, t.id);
+    const tags = tagsByTicket.get(t.id) ?? [];
     const stateTag = tags.find((tg) => tg.prefix === "state");
     if (stateTag) byState[stateTag.value] = (byState[stateTag.value] || 0) + 1;
     else withoutState++;
