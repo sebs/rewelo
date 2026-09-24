@@ -12,4 +12,9 @@ describe("package.json", () => {
     // matching argv created ./relative-weight.db
     assert.ok(!Object.values(pkg.bin).includes(pkg.main), "main must not be the CLI");
   });
+
+  it("builds before packing, so a tarball from a clean checkout contains dist/", () => {
+    assert.match(pkg.scripts.prepack ?? "", /npm run build/);
+    assert.ok(pkg.files.includes("dist/"));
+  });
 });
