@@ -102,11 +102,12 @@ export async function listTickets(
 
   // One flat subquery per direction, whatever the number of tags: an
   // EXISTS per tag hit SQLite's expression depth limit at about 1,000 filters.
-  // Repeated filters count once.
+  // Repeated filters count once. The tags go in as one JSON parameter: two
+  // parameters per tag hit SQLite's limit of 32,766 at 16,384 filters.
   const distinct = (tags: TagFilter[] = []) => [...new Map(tags.map((t) => [`${t.prefix}:${t.value}`, t])).values()];
   const tagList = (tags: TagFilter[]) => {
-    params.push(...tags.flatMap((t) => [t.prefix, t.value]));
-    return tags.map(() => "(?, ?)").join(", ");
+    params.push(JSON.stringify(tags.map((t) => [t.prefix, t.value])));
+    return "SELECT value ->> 0, value ->> 1 FROM json_each(?)";
   };
 
   // Intersection: the ticket has every included tag
@@ -116,7 +117,7 @@ export async function listTickets(
       AND t.id IN (
         SELECT tt.ticket_id FROM ticket_tags tt
         JOIN tags tg ON tg.id = tt.tag_id
-        WHERE (tg.prefix, tg.value) IN (VALUES ${tagList(include)})
+        WHERE (tg.prefix, tg.value) IN (${tagList(include)})
         GROUP BY tt.ticket_id
         HAVING count(*) = ?
       )`;
@@ -130,7 +131,7 @@ export async function listTickets(
       AND NOT EXISTS (
         SELECT 1 FROM ticket_tags tt
         JOIN tags tg ON tg.id = tt.tag_id
-        WHERE tt.ticket_id = t.id AND (tg.prefix, tg.value) IN (VALUES ${tagList(exclude)})
+        WHERE tt.ticket_id = t.id AND (tg.prefix, tg.value) IN (${tagList(exclude)})
       )`;
   }
 

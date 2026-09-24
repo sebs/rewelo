@@ -282,6 +282,10 @@ describe("tickets repository", () => {
     const others = Array.from({ length: 2000 }, (_, i) => ({ prefix: "a", value: `v${i}` }));
     assert.deepEqual((await listTickets(db, projectId, { excludeTags: others })).map((x) => x.title), ["Tagged"]);
     assert.deepEqual(await listTickets(db, projectId, { includeTags: [...many, { prefix: "a", value: "c" }] }), []);
+    // Past SQLite's 32,766 parameters at two per tag
+    const distinct = Array.from({ length: 20_000 }, (_, i) => ({ prefix: "a", value: `v${i}` }));
+    assert.deepEqual((await listTickets(db, projectId, { excludeTags: distinct, includeTags: distinct })).length, 0);
+    assert.deepEqual((await listTickets(db, projectId, { excludeTags: distinct })).map((x) => x.title), ["Tagged"]);
   });
 
   it("stores no description as null, whether never set or cleared", async () => {
