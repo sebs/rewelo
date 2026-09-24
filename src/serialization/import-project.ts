@@ -116,7 +116,13 @@ export async function importProjectData(
         `SELECT 1 FROM ticket_relations WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
         projectId, from, to, canonical.type
       );
-      if (exists.length === 0) await createRelation(db, projectId, source.id, target.id, r.type);
+      try {
+        if (exists.length === 0) await createRelation(db, projectId, source.id, target.id, r.type);
+      } catch (e) {
+        // e.g. a self-relation, or one contradicting an earlier relation
+        if (e instanceof ValidationError) throw new ValidationError(`Relation ${i + 1}: ${e.message}`);
+        throw e;
+      }
     }
 
     if (extras.weights) {

@@ -173,4 +173,17 @@ describe("round-trip", () => {
     await importJson(db, projectId, JSON.stringify({ tickets: [], relations }));
     assert.equal((await listProjectRelations(db, projectId)).length, 1);
   });
+
+  it("JSON import names the relation it cannot create", async () => {
+    const tickets = [{ title: "A" }, { title: "B" }];
+    const relations = [
+      { source: "A", type: "blocks", target: "B" },
+      { source: "B", type: "blocks", target: "A" },
+    ];
+    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets, relations })), /Relation 2: The reverse relation already exists/);
+    await assert.rejects(
+      importJson(db, projectId, JSON.stringify({ tickets, relations: [{ source: "A", type: "blocks", target: "A" }] })),
+      /Relation 1: A ticket cannot relate to itself/
+    );
+  });
 });
