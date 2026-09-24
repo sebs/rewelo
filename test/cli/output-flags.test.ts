@@ -107,6 +107,19 @@ describe("global output flags (CLI)", () => {
     assert.equal(out, `Assigned "state:done" to "${t}"\n`);
   });
 
+  it("export, import and dashboard honour --quiet and --json", () => {
+    const out = join(dir, "out.csv");
+    assert.equal(rw("--quiet", "export", "csv", "--project", "P", "--output", out).stdout, "");
+    assert.deepEqual(JSON.parse(rw("--json", "export", "csv", "--project", "P", "--output", out).stdout), { output: out });
+    rw("project", "create", "Q");
+    assert.equal(rw("--quiet", "import", "csv", out, "--project", "Q").stdout, "");
+    const json = join(dir, "out.json");
+    assert.equal(rw("--quiet", "export", "json", "--project", "P", "--output", json).stdout, "");
+    assert.equal(rw("--quiet", "import", "json", json, "--project", "R").stdout, "");
+    const html = join(dir, "d.html");
+    assert.deepEqual(JSON.parse(rw("--json", "report", "dashboard", "--project", "P", "--output", html).stdout), { output: html });
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);

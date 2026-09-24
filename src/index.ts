@@ -124,6 +124,13 @@ async function withProject<T>(
   });
 }
 
+// Confirmation for a command that wrote a file: JSON with the path under
+// --json, nothing under --quiet
+function reportWritten(opts: { json?: boolean; quiet?: boolean }, path: string, message: string): void {
+  if (opts.json) console.log(JSON.stringify({ output: path }));
+  else if (!opts.quiet) console.log(message);
+}
+
 function formatTable(headers: string[], rows: unknown[][]): string {
   // Coerce every cell to a string up front: some rows carry non-string values
   // (numbers, nulls), and calling String methods like padEnd on them would throw.
@@ -1102,7 +1109,7 @@ exportCmd
       if (cmdOpts.output) {
         const outPath = validateExportPath(cmdOpts.output, [".csv"]);
         writeFileSync(outPath, csv, "utf-8");
-        console.log(`Exported to ${outPath}`);
+        reportWritten(opts, outPath, `Exported to ${outPath}`);
       } else {
         process.stdout.write(csv);
       }
@@ -1125,7 +1132,7 @@ exportCmd
       if (cmdOpts.output) {
         const outPath = validateExportPath(cmdOpts.output, [".json"]);
         writeFileSync(outPath, output, "utf-8");
-        console.log(`Exported to ${outPath}`);
+        reportWritten(opts, outPath, `Exported to ${outPath}`);
       } else {
         console.log(output);
       }
@@ -1149,7 +1156,7 @@ importCmd
       const result = await importCsv(db, project.id, csv);
       if (opts.json) {
         console.log(JSON.stringify(result));
-      } else {
+      } else if (!opts.quiet) {
         console.log(`Imported ${result.imported} tickets`);
       }
     });
@@ -1167,7 +1174,7 @@ importCmd
       const result = await importJsonAsProject(db, name, json);
       if (opts.json) {
         console.log(JSON.stringify(result));
-      } else {
+      } else if (!opts.quiet) {
         if (result.projectCreated) console.log(`Created project "${name}"`);
         console.log(`Imported ${result.imported} tickets`);
       }
@@ -1351,7 +1358,7 @@ reportCmd
       });
       const outPath = validateExportPath(cmdOpts.output, [".html"]);
       writeFileSync(outPath, html, "utf-8");
-      console.log(`Dashboard written to ${outPath}`);
+      reportWritten(opts, outPath, `Dashboard written to ${outPath}`);
     });
   });
 
