@@ -225,11 +225,12 @@ describe("migrate", () => {
     await migrate(db);
     await db.exec(`
       INSERT INTO projects (id, name) VALUES (1, 'P');
-      INSERT INTO tickets (project_id, title, description) VALUES (1, 'A', ''), (1, 'B', 'text'), (1, 'C', ' ' || char(10) || ' ');
+      INSERT INTO tickets (project_id, title, description) VALUES (1, 'A', ''), (1, 'B', 'text'), (1, 'C', ' ' || char(10) || ' '),
+        (1, 'D', char(12288) || char(160) || char(8232) || char(65279));
       PRAGMA user_version = 8;`);
     await migrate(db);
     const rows = await db.all<{ description: string | null }>("SELECT description FROM tickets ORDER BY id");
-    assert.deepEqual(rows.map((r) => r.description), [null, "text", null]);
+    assert.deepEqual(rows.map((r) => r.description), [null, "text", null, null]);
   });
 
   it("refuses a database from a newer schema version", async () => {

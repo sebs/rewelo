@@ -138,7 +138,7 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
     version: 10,
     run: async (db) => {
       await retitleTickets(db, (title) => title.trim());
-      await db.run(`UPDATE tickets SET description = NULL WHERE trim(description, ' ' || char(9, 10, 13)) = ''`);
+      await db.run(`UPDATE tickets SET description = NULL WHERE is_blank(description)`);
     },
   },
 ];

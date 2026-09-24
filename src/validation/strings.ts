@@ -30,6 +30,9 @@ export function collapseSpaces(s: string): string {
   return s.replace(/[ \u00A0\u2000-\u200A\u202F\u205F]+/g, " ");
 }
 
+/** Whitespace alone (as JavaScript's trim() sees it) is no description */
+export const isBlank = (s: string): boolean => s.trim() === "";
+
 /**
  * The first `max` UTF-16 units of s (the unit lengths are counted in), minus
  * a lone high surrogate at the end: a plain slice can cut an emoji in half.

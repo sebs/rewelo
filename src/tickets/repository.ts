@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Fibonacci, assertFibonacci } from "../db/types.js";
-import { AppError, MAX_TICKET_TITLE, ValidationError, collapseSpaces, normalizeName } from "../validation/strings.js";
+import { AppError, MAX_TICKET_TITLE, ValidationError, collapseSpaces, isBlank, normalizeName } from "../validation/strings.js";
 import { getTicketTags } from "../tags/assignment.js";
 
 export interface Ticket {
@@ -50,7 +50,7 @@ function validateScores(input: {
 
 // Whitespace alone is no description: stored as null, like ""
 const blankToNull = (description: string | undefined): string | null =>
-  description === undefined || description.trim() === "" ? null : description;
+  description === undefined || isBlank(description) ? null : description;
 
 export async function createTicket(
   db: DB,

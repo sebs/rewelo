@@ -1,5 +1,5 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
-import { AppError, collapseSpaces } from "../validation/strings.js";
+import { AppError, collapseSpaces, isBlank } from "../validation/strings.js";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Row {
@@ -60,6 +60,8 @@ export class DB {
       db.function("collapse_spaces", { deterministic: true }, (s) =>
         typeof s === "string" ? collapseSpaces(s) : s
       );
+      // Blank as the app sees it (Unicode spaces too), for migrations
+      db.function("is_blank", { deterministic: true }, (s) => (typeof s === "string" && isBlank(s) ? 1 : 0));
       return new DB(db);
     });
   }
