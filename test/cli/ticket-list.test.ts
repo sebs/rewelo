@@ -95,7 +95,7 @@ describe("rw ticket list (CLI)", () => {
     assert.ok(rw("report", "group", "--project", "P", "--prefix", "State").stdout.includes("done"));
     const bad = rw("ticket", "list", "--project", "P", "--exclude-tag", "bad tag:x");
     assert.equal(bad.code, 1);
-    assert.ok(bad.stderr.includes("Tag prefix must contain only"));
+    assert.ok(bad.stderr.includes("Tag prefix must start with a lowercase letter or digit"));
   });
 
   it("sorts and filters on the exact priority, not the rounded one", () => {

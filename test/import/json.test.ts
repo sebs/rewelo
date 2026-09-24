@@ -143,9 +143,9 @@ describe("JSON import", () => {
     const bad = (tags: unknown) =>
       JSON.stringify({ tickets: [{ title: "T", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags }] });
 
-    await assert.rejects(importJson(db, projectId, bad([{ prefix: "Bad Prefix!", value: "x" }])), /Ticket 1: tag 1: Tag prefix must contain only/);
+    await assert.rejects(importJson(db, projectId, bad([{ prefix: "Bad Prefix!", value: "x" }])), /Ticket 1: tag 1: Tag prefix must start with a lowercase letter or digit/);
     await assert.rejects(importJson(db, projectId, bad([{ prefix: "a", value: "" }])), /Tag value must not be empty/);
-    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets: [], tags: [{ prefix: "a:b", value: "c" }] })), /Tag 1: Tag prefix must contain only/);
+    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets: [], tags: [{ prefix: "a:b", value: "c" }] })), /Tag 1: Tag prefix must start with a lowercase letter or digit/);
     assert.equal((await listTickets(db, projectId)).length, 0);
   });
 

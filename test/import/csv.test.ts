@@ -127,7 +127,7 @@ T,"State:WIP"`);
 
   it("rejects invalid tags with the row number", async () => {
     await assert.rejects(importCsv(db, projectId, `title,tags
-T,"bad prefix:x"`), /Row 1: Tag prefix must contain only/);
+T,"bad prefix:x"`), /Row 1: Tag prefix must start with a lowercase letter or digit/);
     await assert.rejects(importCsv(db, projectId, `title,tags
 T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
     assert.equal((await listTickets(db, projectId)).length, 0);

@@ -24,7 +24,7 @@ describe("rw import (CLI)", () => {
   it("imports a regular .csv file", () => {
     writeFileSync(join(dir, "ok.csv"), "title\nA\n");
     const r = importCsv(join(dir, "ok.csv"));
-    assert.ok(r.stdout.includes("Imported 1 tickets"));
+    assert.ok(r.stdout.includes("Imported 1 ticket\n"));
   });
 
   it("rejects a file with the wrong extension", () => {
@@ -79,7 +79,7 @@ describe("rw import json into a new project (CLI)", () => {
 
       const r = runCli(["--db", db, "import", "json", join(dir, "p.json"), "--project", "NewProject"]);
       assert.ok(r.stdout.includes('Created project "NewProject"'));
-      assert.ok(r.stdout.includes("Imported 1 tickets"));
+      assert.ok(r.stdout.includes("Imported 1 ticket\n"));
 
       const list = runCli(["--db", db, "--json", "ticket", "list", "--project", "NewProject", "--tag", "state:wip"]);
       assert.deepEqual(JSON.parse(list.stdout).items.map((t: { title: string }) => t.title), ["A"]);

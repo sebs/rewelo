@@ -157,7 +157,7 @@ export function validateTagPrefix(prefix: string): string {
   }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(normalized)) {
     throw new ValidationError(
-      "Tag prefix must contain only lowercase alphanumeric characters and hyphens"
+      "Tag prefix must start with a lowercase letter or digit and contain only lowercase letters, digits and hyphens"
     );
   }
   return normalized;
@@ -178,7 +178,7 @@ export function validateTagValue(value: string): string {
   }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(normalized)) {
     throw new ValidationError(
-      "Tag value must contain only lowercase alphanumeric characters and hyphens"
+      "Tag value must start with a lowercase letter or digit and contain only lowercase letters, digits and hyphens"
     );
   }
   return normalized;

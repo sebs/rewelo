@@ -163,7 +163,8 @@ function formatTable(headers: string[], rows: unknown[][]): string {
   const numeric = headers.map((_, i) => cells.length > 0 && cells.every((r) => /^-?\d+(\.\d+)?$/.test(r[i] ?? "")));
   const pad = (text: string, i: number) => {
     const fill = " ".repeat(Math.max(0, widths[i] - displayWidth(text)));
-    return numeric[i] ? fill + text : text + fill;
+    // No trailing spaces after a left-aligned last column
+    return numeric[i] ? fill + text : i === widths.length - 1 ? text : text + fill;
   };
   const sep = widths.map((w) => "-".repeat(w)).join(" | ");
   const head = headers.map(pad).join(" | ");
@@ -794,8 +795,9 @@ tagCmd
         let currentPrefix = "";
         for (const tag of tags) {
           if (tag.prefix !== currentPrefix) {
+            // A blank line between prefixes, not before the first
+            console.log(`${currentPrefix === "" ? "" : "\n"}${tag.prefix}:`);
             currentPrefix = tag.prefix;
-            console.log(`\n${currentPrefix}:`);
           }
           console.log(`  ${tag.value}`);
         }
@@ -1204,7 +1206,7 @@ importCmd
       if (opts.json) {
         console.log(JSON.stringify(result));
       } else if (!opts.quiet) {
-        console.log(`Imported ${result.imported} tickets`);
+        console.log(`Imported ${result.imported} ticket${result.imported === 1 ? "" : "s"}`);
       }
     });
   });
@@ -1223,7 +1225,7 @@ importCmd
         console.log(JSON.stringify(result));
       } else if (!opts.quiet) {
         if (result.projectCreated) console.log(`Created project "${name}"`);
-        console.log(`Imported ${result.imported} tickets`);
+        console.log(`Imported ${result.imported} ticket${result.imported === 1 ? "" : "s"}`);
       }
     });
   });

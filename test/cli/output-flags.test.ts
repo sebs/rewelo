@@ -129,6 +129,16 @@ describe("global output flags (CLI)", () => {
     assert.match(quiet("report", "event-log"), /^\S+\tticket_created\tA, with comma\n$/);
   });
 
+  it("prints tables and tag lists without stray whitespace", () => {
+    const table = rw("project", "list").stdout.split("\n").filter(Boolean);
+    for (const line of table) assert.equal(line, line.trimEnd());
+    rw("tag", "create", "--project", "P", "a:x");
+    rw("tag", "create", "--project", "P", "b:y");
+    assert.equal(rw("tag", "list", "--project", "P").stdout, "a:\n  x\n\nb:\n  y\n");
+    const bad = rw("tag", "create", "--project", "P", "x:-");
+    assert.ok(bad.stderr.includes("Tag value must start with a lowercase letter or digit"));
+  });
+
   it("project delete without --force and without a terminal fails clearly", () => {
     const missing = rw("project", "delete", "Nope");
     assert.equal(missing.code, 1);
