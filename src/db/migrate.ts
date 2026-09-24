@@ -70,8 +70,16 @@ function schemaPath(): string {
 }
 
 export async function migrate(db: DB): Promise<void> {
-  if ((await pragma(db, "application_id")) === APPLICATION_ID && (await pragma(db, "user_version")) >= SCHEMA_VERSION) {
-    return;
+  if ((await pragma(db, "application_id")) === APPLICATION_ID) {
+    const version = await pragma(db, "user_version");
+    // A newer rewelo may have changed the schema in ways this one would
+    // misread or damage
+    if (version > SCHEMA_VERSION) {
+      throw new AppError(
+        `The database uses schema version ${version}, but this rewelo supports up to version ${SCHEMA_VERSION}. Upgrade rewelo to open it.`
+      );
+    }
+    if (version === SCHEMA_VERSION) return;
   }
 
   // Decide under the write lock: a concurrent process may be creating the

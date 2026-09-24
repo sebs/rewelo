@@ -102,6 +102,14 @@ describe("migrate", () => {
     assert.equal(row.user_version, SCHEMA_VERSION);
   });
 
+  it("refuses a database from a newer schema version", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec(`PRAGMA user_version = ${SCHEMA_VERSION + 1}`);
+
+    await assert.rejects(migrate(db), /schema version \d+, but this rewelo supports up to version/);
+  });
+
   it("backfills tag changes with the tag's name at the time of the change", async () => {
     db = await DB.open(":memory:");
     await migrate(db);
