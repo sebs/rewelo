@@ -100,7 +100,10 @@ function parseCsv(csv: string): string[][] {
 // reads "0x5", "1e0" and "+3" as numbers too.
 function parseScore(raw: string | undefined, field: string): number {
   if (!raw) return 1;
-  if (/^\d+\.\d+$/.test(raw)) return Number(raw); // reported as not Fibonacci
+  // Plain digits only: "5.0" and "08" are not how a score is written
+  if (/^\d*\.\d*$/.test(raw) || /^0\d/.test(raw)) {
+    throw new ValidationError(`${field} must be a whole number without leading zeros, got "${raw}"`);
+  }
   if (!/^\d+$/.test(raw)) throw new ValidationError(`${field} must be a number, got "${raw}"`);
   return Number(raw);
 }
