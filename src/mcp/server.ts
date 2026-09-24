@@ -465,7 +465,9 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
       if (allTickets.length === 0) throw new AppError("Provide ticket or tickets");
 
       const allTags: { prefix: string; value: string }[] = [];
-      if (prefix && value) allTags.push({ prefix, value });
+      // Half a tag is a mistake, even when tags is given as well
+      if ((prefix === undefined) !== (value === undefined)) throw new AppError("Provide both prefix and value, or neither");
+      if (prefix !== undefined && value !== undefined) allTags.push({ prefix, value });
       if (tagList) for (const t of tagList) allTags.push(t);
       if (allTags.length === 0) throw new AppError("Provide prefix+value or tags");
 

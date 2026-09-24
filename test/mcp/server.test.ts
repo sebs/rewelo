@@ -534,4 +534,16 @@ describe("MCP server", () => {
     });
     assert.match((r.content as any)[0].text, /Tag "a:b" not found/);
   });
+
+  it("tag_assign rejects a prefix without a value even when tags are given", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "H" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "H", title: "A" } });
+    await client.callTool({ name: "tag_create", arguments: { project: "H", prefix: "x", value: "v" } });
+    const r = await client.callTool({
+      name: "tag_assign",
+      arguments: { project: "H", ticket: "A", prefix: "state", tags: [{ prefix: "x", value: "v" }] },
+    });
+    assert.equal(r.isError, true);
+    assert.match((r.content as any)[0].text, /Provide both prefix and value/);
+  });
 });
