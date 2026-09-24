@@ -109,6 +109,22 @@ describe("rw calc (CLI)", () => {
     assert.match(twice.stderr, /--w1 <n>.*already given/);
   });
 
+  it("refuses any single-value option given twice, but still collects --tag", () => {
+    rw("project", "create", "T");
+    for (const args of [
+      ["ticket", "create", "--project", "T", "--title", "D", "--title", "E"],
+      ["ticket", "create", "--project", "T", "--title", "D", "--benefit", "5", "--benefit", "8"],
+      ["--db", "x.db", "--db", "y.db", "project", "list"],
+      ["ticket", "list", "--project", "T", "--project", "U"],
+    ]) {
+      const r = rw(...args);
+      assert.equal(r.code, 1, args.join(" "));
+      assert.match(r.stderr, /already given/);
+    }
+    assert.doesNotMatch(rw("--json", "ticket", "list", "--project", "T").stdout, /"title"/);
+    assert.equal(rw("ticket", "list", "--project", "T", "--tag", "a:b", "--tag", "c:d").code, 0);
+  });
+
   it("calc priority can be scoped to tags like calc weights", () => {
     rw("project", "create", "S");
     rw("ticket", "create", "--project", "S", "--title", "In");

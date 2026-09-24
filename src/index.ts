@@ -265,13 +265,21 @@ process.stdout.on("error", (err: NodeJS.ErrnoException) => {
   throw err;
 });
 
-// For single-value options: commander keeps the last of repeated values
-// (--w1 1 --w1 2 silently used 2); refuse the repetition instead
-function once<T>(parse: (value: string) => T): (value: string, previous: T | undefined) => T {
-  return (value, previous) => {
-    if (previous !== undefined) throw new InvalidArgumentError("the option was already given");
-    return parse(value);
-  };
+// For single-value options commander keeps the last of repeated values
+// (--title D --title E created E, --w1 1 --w1 2 used 2); refuse the
+// repetition instead. Repeatable options (--tag) collect into an array.
+function refuseRepeatedOptions(cmd: Command): void {
+  for (const option of cmd.options) {
+    if (!(option.required || option.optional) || option.variadic || Array.isArray(option.defaultValue)) continue;
+    const parse = option.parseArg;
+    let given = false;
+    option.argParser((value: string, previous: unknown) => {
+      if (given) throw new InvalidArgumentError("the option was already given");
+      given = true;
+      return parse ? parse(value, previous) : value;
+    });
+  }
+  cmd.commands.forEach(refuseRepeatedOptions);
 }
 
 const program = new Command();
@@ -1063,10 +1071,10 @@ configCmd
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--set", "set the weights given with --w1..--w4 (at least one; the others keep their value)")
   .option("--reset", "reset weights to defaults")
-  .option("--w1 <n>", "benefit weight", once(parseFloatOption))
-  .option("--w2 <n>", "penalty weight", once(parseFloatOption))
-  .option("--w3 <n>", "estimate weight", once(parseFloatOption))
-  .option("--w4 <n>", "risk weight", once(parseFloatOption))
+  .option("--w1 <n>", "benefit weight", parseFloatOption)
+  .option("--w2 <n>", "penalty weight", parseFloatOption)
+  .option("--w3 <n>", "estimate weight", parseFloatOption)
+  .option("--w4 <n>", "risk weight", parseFloatOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     // Reject combinations that would otherwise be silently ignored
@@ -1172,10 +1180,10 @@ calcCmd
   .description("show weighted priorities")
   .option("--project <name>", "project name (falls back to .rewelo.json)")
   .option("--tag <prefix:value>", "only tickets with this tag (repeatable, intersection)", (val: string, prev: string[]) => [...prev, val], [] as string[])
-  .option("--w1 <n>", "benefit weight", once(parseFloatOption))
-  .option("--w2 <n>", "penalty weight", once(parseFloatOption))
-  .option("--w3 <n>", "estimate weight", once(parseFloatOption))
-  .option("--w4 <n>", "risk weight", once(parseFloatOption))
+  .option("--w1 <n>", "benefit weight", parseFloatOption)
+  .option("--w2 <n>", "penalty weight", parseFloatOption)
+  .option("--w3 <n>", "estimate weight", parseFloatOption)
+  .option("--w4 <n>", "risk weight", parseFloatOption)
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
@@ -1534,6 +1542,8 @@ program
     const { startMcpServer } = await import("./mcp/server.js");
     await startMcpServer(dbPath);
   });
+
+refuseRepeatedOptions(program);
 
 program.parseAsync().catch((err) => {
   console.error(sanitizeError(err));
