@@ -157,6 +157,7 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 | `relation_create` | Create a typed relation between tickets | `project`, `source`, `type`, `target` |
 | `relation_remove` | Remove a relation (both directions) | `project`, `source`, `type`, `target`    |
 | `relation_list`   | List all relations for a ticket    | `project`, `ticket`                       |
+| `relation_list_all` | List every relation in a project | `project`                                 |
 
 Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
 
@@ -167,6 +168,8 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 | `report_summary`  | Project summary by state           | `project`, `topN?`                        |
 | `report_times`    | Lead and cycle time report         | `project`                                 |
 | `report_health`   | Backlog health report              | `project`, `threshold?`                   |
+| `report_distribution` | Fibonacci score distribution   | `project`                                 |
+| `report_group`    | Group tickets by tag prefix        | `project`, `prefix`                       |
 | `report_dashboard`| Self-contained HTML dashboard      | `project`                                 |
 
 ### Event Log & Diff

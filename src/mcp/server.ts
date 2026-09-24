@@ -48,6 +48,9 @@ import {
 } from "../relations/repository.js";
 import { getProjectSummary } from "../reports/summary.js";
 import { getBacklogHealth } from "../reports/health.js";
+import { getDistribution } from "../reports/distribution.js";
+import { groupByTagPrefix } from "../reports/group.js";
+import { renderDashboard } from "../reports/dashboard.js";
 import { getEventLog } from "../reports/event-log.js";
 import { getProjectDiff } from "../reports/diff.js";
 import {
@@ -674,6 +677,37 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
     },
     safe(({ project, threshold }) =>
       withProject(resolveProject(project), (db, proj) => getBacklogHealth(db, proj.id, threshold ?? 1.5))
+    )
+  );
+
+  tool(
+    "report_distribution",
+    "Count how many tickets use each Fibonacci score (1-21), per dimension (benefit, penalty, estimate, risk).",
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    safe(({ project }) => withProject(resolveProject(project), (db, proj) => getDistribution(db, proj.id)))
+  );
+
+  tool(
+    "report_group",
+    "Group tickets by the values of one tag prefix (e.g. team), with ticket count and average priority per value.",
+    {
+      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      prefix: z.string().describe("Tag prefix to group by"),
+    },
+    safe(async ({ project, prefix }) => {
+      const validPrefix = validateTagPrefix(prefix);
+      return withProject(resolveProject(project), (db, proj) => groupByTagPrefix(db, proj.id, validPrefix));
+    })
+  );
+
+  tool(
+    "report_dashboard",
+    "Render a self-contained HTML dashboard (tickets, distribution, health, relations). Returns the HTML document as text.",
+    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    safe(({ project }) =>
+      withProject(resolveProject(project), (db, proj) =>
+        renderDashboard(db, proj.id, proj.name, { generatedAt: new Date().toISOString() })
+      )
     )
   );
 

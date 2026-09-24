@@ -466,4 +466,23 @@ describe("MCP server", () => {
     assert.equal(r.isError, true);
     assert.equal((r.content as any)[0].text, "Ticket title must not be empty");
   });
+
+  it("serves the dashboard, distribution and group reports documented in mcp.md", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "R" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "R", title: "A", benefit: 8 } });
+    await client.callTool({ name: "tag_create", arguments: { project: "R", prefix: "team", value: "x" } });
+    await client.callTool({ name: "tag_assign", arguments: { project: "R", ticket: "A", prefix: "team", value: "x" } });
+
+    const text = async (name: string, args: Record<string, unknown>) => {
+      const r = await client.callTool({ name, arguments: args });
+      assert.ok(!r.isError, name);
+      return (r.content as any)[0].text as string;
+    };
+    assert.match(await text("report_dashboard", { project: "R" }), /^<!doctype html>/);
+    const dist = JSON.parse(await text("report_distribution", { project: "R" }));
+    assert.equal(dist.find((d: any) => d.dimension === "benefit").counts["8"], 1);
+    assert.deepEqual(JSON.parse(await text("report_group", { project: "R", prefix: "team" })), [
+      { value: "x", ticketCount: 1, averagePriority: 4.5 },
+    ]);
+  });
 });
