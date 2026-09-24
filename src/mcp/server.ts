@@ -34,7 +34,7 @@ import {
 } from "../calculations/relative-weights.js";
 import { exactWeightedPriority, weightedPriority } from "../calculations/weighted-priority.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
-import { getTicketTimes, averageLeadTime } from "../calculations/time.js";
+import { getTicketTimes, timesReport } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
 import { exportJson } from "../export/json.js";
 import { importCsv } from "../import/csv.js";
@@ -671,13 +671,13 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "report_times",
-    "Calculate lead time (created→done) and cycle time (wip→done) per ticket, plus averages. Prerequisite: assign state:wip and state:done tags to tickets.",
+    "Calculate lead time (created→done) and cycle time (wip→done) per ticket, plus their averages (whole days; null where there is no value). Prerequisite: assign state:wip and state:done tags to tickets.",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
     safe(({ project }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const tickets = await listTickets(db, proj.id);
         const times = await Promise.all(tickets.map((t) => getTicketTimes(db, t.id)));
-        return { tickets: times, averageLeadTimeDays: averageLeadTime(times) };
+        return timesReport(times);
       })
     )
   );

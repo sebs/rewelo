@@ -26,4 +26,14 @@ describe("rw report (CLI)", () => {
     const out = rw("report", "summary", "--project", "P").stdout;
     assert.ok(out.includes("Top 2 by priority:"), out);
   });
+
+  it("report times --json has a stable shape with both averages", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Open");
+    const report = JSON.parse(rw("--json", "report", "times", "--project", "P").stdout);
+    assert.deepEqual(report, {
+      tickets: [{ ticketId: report.tickets[0].ticketId, ticketTitle: "Open", leadTimeDays: null, cycleTimeDays: null }],
+      averageLeadTimeDays: null,
+      averageCycleTimeDays: null,
+    });
+  });
 });

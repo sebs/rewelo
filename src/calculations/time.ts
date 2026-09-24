@@ -15,6 +15,7 @@ function exactDaysBetween(a: string, b: string): number {
 // Unrounded lead times, so the average is taken before rounding: averaging
 // per-ticket whole days turned 0.5 d and 0.4 d (mean 0.45) into 1.
 const exactLeadTimes = new WeakMap<TimeResult, number>();
+const exactCycleTimes = new WeakMap<TimeResult, number>();
 
 export async function getTicketTimes(
   db: DB,
@@ -54,13 +55,15 @@ export async function getTicketTimes(
   const wipAt = wipRows.length > 0 ? wipRows[0].changed_at : undefined;
 
   const lead = doneAt ? exactDaysBetween(createdAt, doneAt) : undefined;
+  const cycle = wipAt && doneAt ? exactDaysBetween(wipAt, doneAt) : undefined;
   const result: TimeResult = {
     ticketId,
     ticketTitle: ticket[0].title,
     leadTimeDays: lead !== undefined ? Math.round(lead) : undefined,
-    cycleTimeDays: wipAt && doneAt ? Math.round(exactDaysBetween(wipAt, doneAt)) : undefined,
+    cycleTimeDays: cycle !== undefined ? Math.round(cycle) : undefined,
   };
   if (lead !== undefined) exactLeadTimes.set(result, lead);
+  if (cycle !== undefined) exactCycleTimes.set(result, cycle);
   return result;
 }
 
@@ -69,4 +72,28 @@ export function averageLeadTime(times: TimeResult[]): number | undefined {
   if (valid.length === 0) return undefined;
   const sum = valid.reduce((s, t) => s + (exactLeadTimes.get(t) ?? t.leadTimeDays!), 0);
   return Math.round(sum / valid.length);
+}
+
+export function averageCycleTime(times: TimeResult[]): number | undefined {
+  const valid = times.filter((t) => t.cycleTimeDays !== undefined);
+  if (valid.length === 0) return undefined;
+  const sum = valid.reduce((s, t) => s + (exactCycleTimes.get(t) ?? t.cycleTimeDays!), 0);
+  return Math.round(sum / valid.length);
+}
+
+/**
+ * The times report as returned by rw report times --json and report_times:
+ * every field present (null when there is no value), both averages included.
+ */
+export function timesReport(times: TimeResult[]) {
+  return {
+    tickets: times.map((t) => ({
+      ticketId: t.ticketId,
+      ticketTitle: t.ticketTitle,
+      leadTimeDays: t.leadTimeDays ?? null,
+      cycleTimeDays: t.cycleTimeDays ?? null,
+    })),
+    averageLeadTimeDays: averageLeadTime(times) ?? null,
+    averageCycleTimeDays: averageCycleTime(times) ?? null,
+  };
 }

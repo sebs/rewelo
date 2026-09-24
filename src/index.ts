@@ -31,7 +31,7 @@ import {
 } from "./calculations/relative-weights.js";
 import { exactWeightedPriority, weightedPriority } from "./calculations/weighted-priority.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "./weights/repository.js";
-import { getTicketTimes, averageLeadTime } from "./calculations/time.js";
+import { getTicketTimes, averageLeadTime, averageCycleTime, timesReport } from "./calculations/time.js";
 import {
   validateProjectName,
   validateTicketTitle,
@@ -1306,7 +1306,7 @@ reportCmd
       const withDone = times.filter((t) => t.leadTimeDays !== undefined);
       const avg = averageLeadTime(times);
       if (opts.json) {
-        console.log(JSON.stringify({ tickets: times, averageLeadTimeDays: avg }));
+        console.log(JSON.stringify(timesReport(times)));
       } else if (withDone.length === 0 && !opts.csv) {
         console.log("No completed tickets found.");
       } else {
@@ -1319,7 +1319,9 @@ reportCmd
           ];
         });
         console.log(formatTable(["Title", "Lead Time", "Cycle Time"], rows));
+        const avgCycle = averageCycleTime(times);
         if (avg !== undefined && !opts.csv) console.log(`\nAverage lead time: ${avg}d`);
+        if (avgCycle !== undefined && !opts.csv) console.log(`Average cycle time: ${avgCycle}d`);
       }
     });
   });
