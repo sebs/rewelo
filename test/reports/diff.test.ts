@@ -9,11 +9,13 @@ import { assignTag, removeTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
 import { getProjectDiff } from "../../src/reports/diff.js";
 
-// A timestamp strictly after everything written so far: creation and since
-// in the same millisecond would count the ticket as new.
+// A timestamp strictly between what was written before and after it: since
+// is exclusive, and writes in the same millisecond would be ambiguous.
 async function now(): Promise<string> {
   await new Promise((r) => setTimeout(r, 2));
-  return new Date().toISOString();
+  const at = new Date().toISOString();
+  await new Promise((r) => setTimeout(r, 2));
+  return at;
 }
 
 describe("project diff", () => {

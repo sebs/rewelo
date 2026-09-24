@@ -40,11 +40,13 @@ export async function getProjectDiff(
   const now = new Date().toISOString();
   const sinceUtc = normalizeSince(since);
 
+  // Everything strictly after since, like the event log and project history:
+  // the state at since itself is the baseline.
   // 1. Tickets created since the timestamp
   const sinceMs = new Date(sinceUtc).getTime();
   const allTickets = await listTickets(db, projectId);
   const newTickets = allTickets
-    .filter((t) => new Date(t.created_at).getTime() >= sinceMs)
+    .filter((t) => new Date(t.created_at).getTime() > sinceMs)
     .map((t) => ({
       id: t.id,
       title: t.title,
@@ -65,7 +67,7 @@ export async function getProjectDiff(
     `SELECT r.ticket_id, r.title, r.description, r.benefit, r.penalty, r.estimate, r.risk, r.revised_at
      FROM ticket_revisions r
      JOIN tickets t ON t.id = r.ticket_id
-     WHERE t.project_id = ? AND r.revised_at >= ?
+     WHERE t.project_id = ? AND r.revised_at > ?
      ORDER BY r.revised_at ASC, r.id ASC`,
     projectId,
     sinceUtc
@@ -86,7 +88,7 @@ export async function getProjectDiff(
   for (const [ticketId, before] of earliestRevision) {
     const current = ticketMap.get(ticketId);
     // Deleted since, or created since (then it is only a new ticket)
-    if (!current || new Date(current.created_at).getTime() >= sinceMs) continue;
+    if (!current || new Date(current.created_at).getTime() > sinceMs) continue;
 
     const changes: FieldChange[] = [];
     const fields: Array<{ field: string; key: keyof Ticket }> = [
@@ -127,7 +129,7 @@ export async function getProjectDiff(
      FROM ticket_tag_changes c
      JOIN tickets t ON t.id = c.ticket_id
      LEFT JOIN tags tg ON tg.id = c.tag_id
-     WHERE t.project_id = ? AND c.changed_at >= ?
+     WHERE t.project_id = ? AND c.changed_at > ?
      ORDER BY c.ticket_id, c.id`,
     projectId,
     sinceUtc
@@ -162,7 +164,7 @@ export async function getProjectDiff(
   // 4. Tickets deleted since the timestamp
   const deletedTickets = await db.all<{ id: number; title: string }>(
     `SELECT ticket_id AS id, title FROM ticket_deletions
-     WHERE project_id = ? AND deleted_at >= ?
+     WHERE project_id = ? AND deleted_at > ?
      ORDER BY deleted_at, id`,
     projectId,
     sinceUtc

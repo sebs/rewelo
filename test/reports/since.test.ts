@@ -132,4 +132,11 @@ describe("since filters", () => {
     }
     assert.deepEqual(seen, ["A", "P0", "P1", "P2", "P3", "P4", "P5"]);
   });
+
+  it("project diff, like the event log, leaves out what happened exactly at since", async () => {
+    const [newest] = await getEventLog(db, projectId);
+    assert.deepEqual(await getEventLog(db, projectId, newest.timestamp), []);
+    const diff = await getProjectDiff(db, projectId, newest.timestamp);
+    assert.deepEqual([diff.newTickets, diff.updatedTickets, diff.tagChanges, diff.deletedTickets], [[], [], [], []]);
+  });
 });
