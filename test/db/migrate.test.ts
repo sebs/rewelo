@@ -206,6 +206,13 @@ describe("migrate", () => {
     await migrate(db);
     const [trimmed] = await db.all<{ title: string }>("SELECT title FROM tickets");
     assert.equal(trimmed.title, "b");
+
+    // Titles of only spaces get a placeholder, numbered like any clash
+    await db.exec(`INSERT INTO tickets (project_id, title) VALUES (1, '  '), (1, ' ');
+      UPDATE tickets SET title = '   ' WHERE title = 'b'; PRAGMA user_version = 9;`);
+    await migrate(db);
+    const blank = await db.all<{ title: string }>("SELECT title FROM tickets ORDER BY id");
+    assert.deepEqual(blank.map((r) => r.title), ["Untitled", "Untitled (2)", "Untitled (3)"]);
   });
 
   it("doesn't cut an emoji in half when shortening a title", async () => {

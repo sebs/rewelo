@@ -236,7 +236,8 @@ async function retitleTickets(db: DB, rewrite: (title: string) => string): Promi
   // inside an emoji drops its first half
   const fit = (base: string, suffix: string) => truncate(base, MAX_TICKET_TITLE - suffix.length).trimEnd() + suffix;
   for (const t of tickets) {
-    const base = rewrite(t.title);
+    // A title of only spaces would become "", which no command accepts
+    const base = rewrite(t.title) || "Untitled";
     if (base === t.title && t.title.length <= MAX_TICKET_TITLE) continue;
     let title = fit(base, "");
     for (let n = 2; taken.has(`${t.project_id}/${title}`); n++) title = fit(base, ` (${n})`);
