@@ -33,22 +33,16 @@ Feature: Version visibility
     When the project is built with "npm run build"
     Then the baked-in version constant should equal "1.2.3"
 
-  Scenario: Version matches the latest git tag
-    Given the repository has tag "v1.2.3"
-    And package.json contains version "1.2.3"
-    When the project is built
-    Then the baked-in version should equal "1.2.3"
-
-  Scenario: Build fails when git tag and package.json disagree
-    Given the repository has tag "v1.2.3"
-    But package.json contains version "1.3.0"
-    When the project is built
-    Then the build should warn about the version mismatch
+  Scenario: A release tag must match package.json
+    Given package.json contains version "1.3.0"
+    When the tag "v1.2.3" is pushed
+    Then the release workflow should fail because the tag does not match the package.json version
+    And no release should be created
 
   # -- Docker --
 
   Scenario: Docker build receives version as build arg
-    When I run "docker build --build-arg APP_VERSION=1.2.3 -t rewelo-mcp."
+    When I run "docker build --build-arg APP_VERSION=1.2.3 -t rewelo-mcp ."
     Then the image should contain the baked-in version "1.2.3"
 
   Scenario: Docker image is labelled with the version
@@ -62,5 +56,6 @@ Feature: Version visibility
     Then the serverInfo response should contain version "1.2.3"
 
   Scenario: Docker build without version arg defaults to package.json version
-    When I run "docker build -t rewelo-mcp."
+    When I run "docker build -t rewelo-mcp ."
     Then the baked-in version should fall back to the package.json version
+    But the "org.opencontainers.image.version" label should be empty, as it is only set from APP_VERSION
