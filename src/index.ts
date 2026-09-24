@@ -220,9 +220,10 @@ function parseFloatOption(value: string): number {
 }
 
 // Output piped into e.g. `head` may be closed early: stop quietly, as other
-// command-line tools do, instead of crashing with an unhandled EPIPE
+// command-line tools do, instead of crashing with an unhandled EPIPE (or
+// ENOTCONN when stdout is a socket, as for child processes Node spawns)
 process.stdout.on("error", (err: NodeJS.ErrnoException) => {
-  if (err.code === "EPIPE") process.exit(0);
+  if (err.code === "EPIPE" || err.code === "ENOTCONN") process.exit(0);
   throw err;
 });
 
