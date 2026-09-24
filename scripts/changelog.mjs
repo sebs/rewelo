@@ -19,7 +19,9 @@
 import { execSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 
-const tags = execSync("git tag --sort=-version:refname").toString().trim().split("\n").filter(Boolean);
+// Newest first, with a prerelease (v0.7.0-rc.1) before its release (v0.7.0):
+// plain version sorting puts the prerelease after it
+const tags = execSync("git -c versionsort.suffix=- tag --sort=-version:refname").toString().trim().split("\n").filter(Boolean);
 
 const labels = {
   breaking: "Breaking Changes",

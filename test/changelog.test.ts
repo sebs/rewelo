@@ -72,4 +72,14 @@ describe("scripts/changelog.mjs", () => {
     assert.match(text, /^# Changelog\n\n## 1\.1\.0\n\n- after the release\n\n## 1\.0\.0\n\n- first feature\n/);
     assert.doesNotMatch(text, /- 1\.1\.0/);
   });
+
+  it("orders a prerelease before its release", () => {
+    commit("feat: c");
+    git("tag", "v1.1.0-rc.1");
+    git("tag", "v1.1.0");
+    commit("fix: d");
+    const out = changelog();
+    assert.match(out, /- d/);
+    assert.doesNotMatch(out, /- c/);
+  });
 });
