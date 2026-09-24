@@ -56,5 +56,10 @@ Feature: Docker
 
   Scenario: Container resource limits are respected
     When I run the container with memory limit of 256 MB
-    And I attempt to import a very large dataset
-    Then the container should fail gracefully instead of being OOM-killed
+    And I attempt to import a file larger than 50 MB
+    Then the tool should refuse it before reading it, instead of being OOM-killed
+
+  Scenario: The largest allowed import fits the memory limit
+    When I run the container with memory limit of 256 MB
+    And I import a JSON file just under 50 MB
+    Then the import should succeed

@@ -37,7 +37,10 @@ RUN mkdir -p /data && chown rw:rw /data
 # Environment
 ENV RW_DB_PATH=/data/relative-weight.db
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=512"
+# Heap below the documented 256 MB container limit (mcp.md), leaving room for
+# SQLite and buffers: with 512 the kernel killed the process before the heap
+# limit was ever reached. Imports up to the 50 MB limit fit.
+ENV NODE_OPTIONS="--max-old-space-size=192"
 
 # OCI image label
 ARG APP_VERSION
