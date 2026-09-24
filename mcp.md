@@ -148,7 +148,7 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
 | `calc_priority`   | Weighted priorities for all tickets | `project`, `w1?`, `w2?`, `w3?`, `w4?`   |
-| `calc_weights`    | Relative weights as share of total (fraction 0–1) | `project`                              |
+| `calc_weights`    | Relative weights as share of total (fraction 0–1) | `project`, `tag?`                      |
 
 ### Relations
 

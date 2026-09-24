@@ -485,4 +485,17 @@ describe("MCP server", () => {
       { value: "x", ticketCount: 1, averagePriority: 4.5 },
     ]);
   });
+
+  it("calc_weights compares within a tagged subset like the CLI", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "W" } });
+    for (const title of ["A", "B", "C"]) {
+      await client.callTool({ name: "ticket_create", arguments: { project: "W", title } });
+    }
+    await client.callTool({ name: "tag_create", arguments: { project: "W", prefix: "team", value: "x" } });
+    await client.callTool({ name: "tag_assign", arguments: { project: "W", tickets: ["A", "B"], prefix: "team", value: "x" } });
+
+    const r = await client.callTool({ name: "calc_weights", arguments: { project: "W", tag: "Team:X" } });
+    const weights = JSON.parse((r.content as any)[0].text);
+    assert.deepEqual(weights.map((w: any) => [w.title, w.relativeBenefit]), [["A", 0.5], ["B", 0.5]]);
+  });
 });

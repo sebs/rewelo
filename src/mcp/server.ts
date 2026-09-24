@@ -628,11 +628,14 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
 
   tool(
     "calc_weights",
-    "Calculate each ticket's relative share of total value and cost as fractions between 0 and 1 (0.25 = 25%). Shows how one ticket compares to the whole backlog.",
-    { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
-    safe(({ project }) =>
+    "Calculate each ticket's relative share of total value and cost as fractions between 0 and 1 (0.25 = 25%). Shows how one ticket compares to the whole backlog, or to a tagged subset when tag is given.",
+    {
+      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      tag: z.string().optional().describe("Only compare tickets with this tag (prefix:value)"),
+    },
+    safe(({ project, tag }) =>
       withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id);
+        const tickets = await listTickets(db, proj.id, tag !== undefined ? { includeTags: [parseTag(tag)] } : undefined);
         const scoreables: Scoreable[] = tickets;
         return tickets.map((t) => ({ title: t.title, ...calculateRelativeWeights(t, scoreables) }));
       })
