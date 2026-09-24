@@ -240,7 +240,17 @@ projectCmd
   .option("--force", "skip confirmation")
   .action(async (name: string, cmdOpts: { force?: boolean }, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
+    // Check before asking: confirming the deletion of a missing project is pointless
+    const exists = await withDb(opts, async (db) => (await getProjectByName(db, name)) !== undefined);
+    if (!exists) {
+      console.error(`Project "${name}" not found`);
+      process.exit(1);
+    }
     if (!cmdOpts.force) {
+      if (!process.stdin.isTTY) {
+        console.error(`Refusing to delete project "${name}" without confirmation: pass --force when not running interactively`);
+        process.exit(1);
+      }
       const readline = await import("readline");
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
       const answer = await new Promise<string>((res) =>

@@ -49,4 +49,15 @@ describe("global output flags (CLI)", () => {
     expect(rw("--quiet", "config", "weights", "--project", "P", "--set", "--w1", "2").stdout).toBe("");
     expect(rw("--quiet", "config", "weights", "--project", "P", "--reset").stdout).toBe("");
   });
+
+  it("project delete without --force and without a terminal fails clearly", () => {
+    const missing = rw("project", "delete", "Nope");
+    expect(missing.code).toBe(1);
+    expect(missing.stderr).toContain('Project "Nope" not found');
+
+    const noTty = rw("project", "delete", "P");
+    expect(noTty.code).toBe(1);
+    expect(noTty.stderr).toContain("pass --force");
+    expect(rw("project", "list").stdout).toContain("P");
+  });
 });
