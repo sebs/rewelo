@@ -112,5 +112,12 @@ describe("validateExportPath", () => {
     it("rejects a missing parent directory", () => {
       assert.throws(() => validateExportPath(join(dir, "nope", "out.csv")), /directory does not exist/);
     });
+
+    it("checks the path as written, not as resolve() simplifies it", () => {
+      writeFileSync(join(dir, "file.json"), "{}");
+      assert.throws(() => validateExportPath(`${join(dir, "file.json")}/../out.json`), /directory does not exist/);
+      assert.throws(() => validateExportPath(`${join(dir, "t1.json")}/`), /not end in a slash/);
+      assert.throws(() => validateDbPath(`${join(dir, "missing")}/../a.db`), /Database directory does not exist/);
+    });
   });
 });

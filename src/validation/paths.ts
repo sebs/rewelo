@@ -7,6 +7,22 @@ import { resolve, extname, dirname } from "path";
 import { lstatSync, statSync, realpathSync } from "fs";
 import { ValidationError } from "./strings.js";
 
+// resolve() is lexical: "file.json/../x.json" and "missing/../x.db" resolve
+// to "x.json" and "x.db" although the OS would refuse them (ENOTDIR/ENOENT),
+// and "x.json/" loses its trailing slash. Check the path as written.
+function assertParentAsWritten(filePath: string, what: string): void {
+  if (/[\\/]$/.test(filePath)) {
+    throw new ValidationError(`${what} path must name a file, not end in a slash`);
+  }
+  let isDir = false;
+  try {
+    isDir = statSync(dirname(filePath)).isDirectory();
+  } catch {
+    isDir = false;
+  }
+  if (!isDir) throw new ValidationError(`${what} directory does not exist`);
+}
+
 export function validateDbPath(dbPath: string): string {
   if (dbPath === ":memory:") return dbPath;
 
@@ -29,6 +45,7 @@ export function validateDbPath(dbPath: string): string {
   if (ext !== ".db") {
     throw new ValidationError("Database file must have .db extension");
   }
+  assertParentAsWritten(dbPath, "Database");
 
   // A symlink could make us create or overwrite an arbitrary file: only
   // follow it to an existing regular .db file (security.feature).
@@ -81,15 +98,7 @@ export function validateExportPath(filePath: string, allowed: string[] = [".json
     throw new ValidationError("Export path must be a regular file");
   }
 
-  let parentIsDir = false;
-  try {
-    parentIsDir = statSync(dirname(resolved)).isDirectory();
-  } catch {
-    parentIsDir = false;
-  }
-  if (!parentIsDir) {
-    throw new ValidationError("Export directory does not exist");
-  }
+  assertParentAsWritten(filePath, "Export");
 
   return resolved;
 }
