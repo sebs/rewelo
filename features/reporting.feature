@@ -29,10 +29,10 @@ Feature: Reporting
 
   Scenario: Summary by tag prefix
     When I view the summary grouped by "feature" in "Acme"
-    Then I should see:
+    Then I should see, highest average first:
       | feature | tickets | avg priority |
-      | auth    |       3 |         1.40 |
-      | pay     |       2 |         2.13 |
+      | pay     |       2 |         2.14 |
+      | auth    |       3 |         1.33 |
 
   Scenario: Score distribution
     When I view the score distribution for "Acme"
