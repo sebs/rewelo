@@ -25,4 +25,11 @@ describe("site Markdown renderer", () => {
     assert.equal(render("[**a**](https://x.com/**b**)"), '<p><a href="https://x.com/**b**"><strong>a</strong></a></p>');
     assert.equal(render("see `**x**` and *y*"), "<p>see <code>**x**</code> and <em>y</em></p>");
   });
+
+  it("gives every heading a unique, non-empty id", () => {
+    const ids = (md: string) => [...render(md).matchAll(/ id="([^"]*)"/g)].map((m) => m[1]);
+    assert.deepEqual(ids("## Foo\n## Foo\n## Foo-1"), ["foo", "foo-1", "foo-1-1"]);
+    assert.deepEqual(ids("> ## Foo\n\n## Foo"), ["foo", "foo-1"]);
+    assert.deepEqual(ids("## ???\n## ???"), ["section", "section-1"]);
+  });
 });
