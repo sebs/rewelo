@@ -449,7 +449,7 @@ ticketCmd
       if (cmdOpts.minValue != null) filtered = filtered.filter((t) => t.value >= cmdOpts.minValue);
       if (cmdOpts.maxCost != null) filtered = filtered.filter((t) => t.cost <= cmdOpts.maxCost);
 
-      if (cmdOpts.sort) {
+      if (cmdOpts.sort !== undefined) {
         const validSortFields = ["priority", "value", "cost", "benefit", "penalty", "estimate", "risk"];
         if (!validSortFields.includes(cmdOpts.sort)) {
           throw new ValidationError(

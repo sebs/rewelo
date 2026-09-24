@@ -511,4 +511,11 @@ describe("MCP server", () => {
     assert.equal(r.isError, true);
     assert.doesNotMatch((r.content as any)[0].text, /not found/);
   });
+
+  it("ticket_list rejects an empty sort field instead of ignoring it", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "S" } });
+    const r = await client.callTool({ name: "ticket_list", arguments: { project: "S", sort: "" } });
+    assert.equal(r.isError, true);
+    assert.match((r.content as any)[0].text, /Invalid sort field ""/);
+  });
 });

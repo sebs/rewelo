@@ -317,7 +317,7 @@ export function createMcpServer(dbPath: string, options?: { maxRequestsPerSecond
         if (minValue != null) filtered = filtered.filter((t) => t.value >= minValue);
         if (maxCost != null) filtered = filtered.filter((t) => t.cost <= maxCost);
 
-        if (sort) {
+        if (sort !== undefined) {
           const validSortFields = ["priority", "benefit", "penalty", "estimate", "risk", "value", "cost"];
           if (!validSortFields.includes(sort)) {
             throw new AppError(`Invalid sort field "${sort}". Valid fields: ${validSortFields.join(", ")}`);
