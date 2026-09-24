@@ -376,8 +376,22 @@ projectCmd
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const diff = await getProjectDiff(db, project.id, cmdOpts.since);
+      // One row per change for --csv and --quiet
+      const changes: string[][] = [
+        ...diff.newTickets.map((t) => ["new", t.title, t.priority.toFixed(2)]),
+        ...diff.updatedTickets.flatMap((t) => t.changes.map((c) => ["updated", t.title, `${c.field}: ${c.from} → ${c.to}`])),
+        ...diff.deletedTickets.map((t) => ["deleted", t.title, ""]),
+        ...diff.tagChanges.flatMap((t) => [
+          ...t.added.map((tag) => ["tag_added", t.ticketTitle, tag]),
+          ...t.removed.map((tag) => ["tag_removed", t.ticketTitle, tag]),
+        ]),
+      ];
       if (opts.json) {
         console.log(JSON.stringify(diff));
+      } else if (opts.csv) {
+        console.log(formatTable(["Change", "Ticket", "Detail"], changes));
+      } else if (opts.quiet) {
+        changes.forEach((c) => console.log(c.join("\t")));
       } else {
         if (diff.newTickets.length > 0) {
           console.log(`New tickets (${diff.newTickets.length}):`);
@@ -1031,6 +1045,8 @@ configCmd
         console.log(JSON.stringify(config));
       } else if (opts.csv) {
         console.log(formatTable(["w1", "w2", "w3", "w4"], [[config.w1, config.w2, config.w3, config.w4]]));
+      } else if (opts.quiet) {
+        console.log([config.w1, config.w2, config.w3, config.w4].join("\t"));
       } else {
         console.log(`Weights for "${project.name}": w1=${config.w1} w2=${config.w2} w3=${config.w3} w4=${config.w4}`);
       }
@@ -1250,8 +1266,19 @@ reportCmd
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const summary = await getProjectSummary(db, project.id, cmdOpts.top);
+      // Section, name, value rows for --csv and --quiet
+      const rows: unknown[][] = [
+        ["total", "", summary.totalTickets],
+        ...Object.entries(summary.byState).map(([state, count]) => ["state", state, count]),
+        ...(summary.withoutState > 0 ? [["state", "", summary.withoutState]] : []),
+        ...summary.topByPriority.map((t) => ["top", t.title, t.priority.toFixed(2)]),
+      ];
       if (opts.json) {
         console.log(JSON.stringify(summary));
+      } else if (opts.csv) {
+        console.log(formatTable(["Section", "Name", "Value"], rows));
+      } else if (opts.quiet) {
+        rows.forEach((r) => console.log(r.join("\t")));
       } else {
         console.log(`Project: ${project.name}`);
         console.log(`Total tickets: ${summary.totalTickets}`);
@@ -1330,8 +1357,13 @@ reportCmd
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       const health = await getBacklogHealth(db, project.id, cmdOpts.threshold);
+      const metrics: [string, unknown][] = Object.entries(health);
       if (opts.json) {
         console.log(JSON.stringify(health));
+      } else if (opts.csv) {
+        console.log(formatTable(["Metric", "Value"], metrics));
+      } else if (opts.quiet) {
+        metrics.forEach(([name, value]) => console.log(`${name}\t${value ?? ""}`));
       } else {
         console.log(`Project: ${project.name}`);
         console.log(`Total: ${health.totalTickets} | Done: ${health.doneTickets} | Open: ${health.openTickets}`);

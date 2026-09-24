@@ -57,4 +57,19 @@ describe("rw report (CLI)", () => {
     assert.equal(rw("--quiet", "report", "group", "--project", "P", "--prefix", "state").stdout, "done\t1\t1.00\n");
     assert.equal(rw("--quiet", "report", "times", "--project", "P").stdout, "Done\t0\t\n");
   });
+
+  it("report summary, report health, project diff and config weights honour --csv and --quiet", () => {
+    const since = new Date(Date.now() - 1000).toISOString();
+    rw("ticket", "create", "--project", "P", "--title", "A", "--benefit", "3");
+    rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "A");
+    const out = (...args: string[]) => rw(...args, "--project", "P").stdout;
+
+    assert.equal(out("--csv", "report", "summary"), "Section,Name,Value\ntotal,,1\nstate,wip,1\ntop,A,2.00\n");
+    assert.equal(out("--quiet", "report", "summary"), "total\t\t1\nstate\twip\t1\ntop\tA\t2.00\n");
+    assert.match(out("--csv", "report", "health"), /^Metric,Value\ntotalTickets,1\n/);
+    assert.match(out("--quiet", "report", "health"), /^totalTickets\t1\n/);
+    assert.equal(out("--csv", "project", "diff", "--since", since), "Change,Ticket,Detail\nnew,A,2.00\ntag_added,A,state:wip\n");
+    assert.equal(out("--quiet", "project", "diff", "--since", since), "new\tA\t2.00\ntag_added\tA\tstate:wip\n");
+    assert.equal(out("--quiet", "config", "weights"), "1.5\t1.5\t1.5\t1.5\n");
+  });
 });
