@@ -108,6 +108,18 @@ async function withProject<T>(
   });
 }
 
+// Terminal columns a string occupies: wide East Asian characters and emoji
+// take two, combining marks none. padEnd counts UTF-16 units instead, which
+// misaligned tables containing e.g. Japanese titles.
+const WIDE = /[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{1F300}-\u{1F64F}\u{1F900}-\u{1F9FF}\u{20000}-\u{3FFFD}]/u;
+const ZERO_WIDTH = /[\p{Mn}\p{Me}\u200B-\u200F]/u;
+
+function displayWidth(s: string): number {
+  let width = 0;
+  for (const ch of s) width += ZERO_WIDTH.test(ch) ? 0 : WIDE.test(ch) ? 2 : 1;
+  return width;
+}
+
 function formatTable(headers: string[], rows: unknown[][]): string {
   // Coerce every cell to a string up front: some rows carry non-string values
   // (numbers, nulls), and calling String methods like padEnd on them would throw.
@@ -117,13 +129,17 @@ function formatTable(headers: string[], rows: unknown[][]): string {
   // --csv applies to every table
   if (program.opts().csv) return [headers, ...cells].map(csvRow).join("\n");
   const widths = headers.map((h, i) =>
-    cells.reduce((max, r) => Math.max(max, (r[i] || "").length), h.length)
+    cells.reduce((max, r) => Math.max(max, displayWidth(r[i] || "")), displayWidth(h))
   );
+  // Right-align columns whose cells are all numbers (output-formatting.feature)
+  const numeric = headers.map((_, i) => cells.length > 0 && cells.every((r) => /^-?\d+(\.\d+)?$/.test(r[i] ?? "")));
+  const pad = (text: string, i: number) => {
+    const fill = " ".repeat(Math.max(0, widths[i] - displayWidth(text)));
+    return numeric[i] ? fill + text : text + fill;
+  };
   const sep = widths.map((w) => "-".repeat(w)).join(" | ");
-  const head = headers.map((h, i) => h.padEnd(widths[i])).join(" | ");
-  const body = cells
-    .map((r) => r.map((c, i) => c.padEnd(widths[i])).join(" | "))
-    .join("\n");
+  const head = headers.map(pad).join(" | ");
+  const body = cells.map((r) => r.map(pad).join(" | ")).join("\n");
   return `${head}\n${sep}\n${body}`;
 }
 

@@ -60,4 +60,24 @@ describe("global output flags (CLI)", () => {
     expect(noTty.stderr).toContain("pass --force");
     expect(rw("project", "list").stdout).toContain("P");
   });
+
+  it("aligns table columns by display width and right-aligns numbers", () => {
+    rw("ticket", "create", "--project", "P", "--title", "日本語テスト", "--benefit", "13");
+    const lines = rw("ticket", "list", "--project", "P").stdout.trimEnd().split("\n");
+    // Every row puts its column separators at the same display column
+    const width = (s: string) => [...s].reduce((w, ch) => w + (/[\u3000-\u9fff]/.test(ch) ? 2 : 1), 0);
+    const pipes = (line: string) => {
+      const cols: number[] = [];
+      let col = 0;
+      for (const ch of line) {
+        if (ch === "|") cols.push(col);
+        col += width(ch);
+      }
+      return cols.join(",");
+    };
+    expect(new Set(lines.map(pipes)).size).toBe(1);
+    // Numeric columns are right-aligned: " 1 |" rather than "1  |" under "B "
+    const row = lines.find((l) => l.startsWith("A, with comma"))!;
+    expect(row).toMatch(/\|  1 \|/);
+  });
 });
