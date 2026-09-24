@@ -214,7 +214,14 @@ export async function importCsv(
   const rows = parseRows(csv);
 
   return db.transaction(async () => {
+    const firstRow = new Map<string, number>();
     for (const [i, row] of rows.entries()) {
+      // Titles are normalised by now, so "café" (NFC/NFD) or "a  b" repeat here
+      const earlier = firstRow.get(row.title);
+      if (earlier !== undefined) {
+        throw new ValidationError(`Row ${i + 1}: title "${row.title}" is the same as row ${earlier + 1}'s`);
+      }
+      firstRow.set(row.title, i);
       let ticket;
       try {
         ticket = await createTicket(db, {

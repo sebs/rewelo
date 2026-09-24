@@ -177,7 +177,7 @@ describe("JSON import", () => {
         { title: "Dup", benefit: 1, penalty: 1, estimate: 1, risk: 1 },
       ],
     });
-    await assert.rejects(importJsonAsProject(db, "Doomed", json), /already exists/);
+    await assert.rejects(importJsonAsProject(db, "Doomed", json), /is the same as ticket 1's/);
     assert.ok(!(await getProjectByName(db, "Doomed")));
   });
 
@@ -239,6 +239,6 @@ describe("JSON import", () => {
 
   it("names the ticket whose title is already taken", async () => {
     const json = JSON.stringify({ tickets: [{ title: "Dup" }, { title: "Dup" }] });
-    await assert.rejects(importJson(db, projectId, json), /Ticket 2: A ticket with title "Dup" already exists/);
+    await assert.rejects(importJson(db, projectId, json), /Ticket 2: title "Dup" is the same as ticket 1's/);
   });
 });

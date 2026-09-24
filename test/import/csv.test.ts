@@ -114,7 +114,7 @@ New2,2,`;
 Dup,5
 Dup,3`;
 
-    await assert.rejects(importCsv(db, projectId, csv), /Row 2: A ticket with title "Dup" already exists/);
+    await assert.rejects(importCsv(db, projectId, csv), /Row 2: title "Dup" is the same as row 1's/);
     assert.equal((await listTickets(db, projectId)).length, 0);
   });
 
@@ -226,5 +226,9 @@ T,"state:wip,x"`), /Row 1: Tag "x" must be in prefix:value format/);
   it("reports a quoted blank title instead of skipping it as a blank line", async () => {
     await assert.rejects(importCsv(db, projectId, 'title\n"  "\n'), /Row 1: Ticket title must not be empty/);
     assert.deepEqual(await importCsv(db, projectId, "title\nA\n\n  \nB\n"), { imported: 2 });
+  });
+
+  it("names the earlier row when titles repeat after normalisation", async () => {
+    await assert.rejects(importCsv(db, projectId, 'title\nCaf\u00e9\ncafe\u0301x\n"a b"\n"a  b"'), /Row 4: title "a b" is the same as row 3's/);
   });
 });

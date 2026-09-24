@@ -76,7 +76,14 @@ export async function importProjectData(
     // History rows of all tickets, written after the tickets in their original
     // order: the event log breaks timestamp ties by write order
     const history: PendingHistoryRow[] = [];
+    const firstTicket = new Map<string, number>();
     for (const [i, t] of tickets.entries()) {
+      // Titles are normalised by now, so "café" (NFC/NFD) or "a  b" repeat here
+      const earlier = firstTicket.get(t.title);
+      if (earlier !== undefined) {
+        throw new ValidationError(`Ticket ${i + 1}: title "${t.title}" is the same as ticket ${earlier + 1}'s`);
+      }
+      firstTicket.set(t.title, i);
       let ticket;
       try {
         ticket = await createTicket(db, {
