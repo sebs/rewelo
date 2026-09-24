@@ -184,6 +184,17 @@ function reportWritten(opts: { json?: boolean; quiet?: boolean }, path: string, 
   else if (!opts.quiet) console.log(message);
 }
 
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+const ESCAPES: Record<string, string> = { "\n": "\\n", "\r": "\\r", "\t": "\\t" };
+
+function escapeControls(cells: string[][]): void {
+  for (const row of cells) {
+    row.forEach((cell, i) => {
+      row[i] = cell.replace(CONTROL, (c) => ESCAPES[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+    });
+  }
+}
+
 function formatTable(headers: string[], rows: unknown[][]): string {
   // Coerce every cell to a string up front: some rows carry non-string values
   // (numbers, nulls), and calling String methods like padEnd on them would throw.
@@ -192,6 +203,9 @@ function formatTable(headers: string[], rows: unknown[][]): string {
   );
   // --csv applies to every table
   if (program.opts().csv) return [headers, ...cells].map(csvRow).join("\n");
+  // Text from before titles were checked (revisions from rw < 0.3.10, or an
+  // imported history) may hold line breaks, which made up rows in the table
+  escapeControls(cells);
   const widths = headers.map((h, i) =>
     cells.reduce((max, r) => Math.max(max, displayWidth(r[i] || "")), displayWidth(h))
   );

@@ -96,5 +96,31 @@ describe("rw import json into a new project (CLI)", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+});
 
+describe("rw history tables (CLI)", () => {
+  let dir: string;
+  let db: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "rw-cli-"));
+    db = join(dir, "x.db");
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("prints line breaks in an imported revision title escaped, not as rows", () => {
+    const revision = { title: "old\nB | 21 | 21", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: [], revised_at: "2025-01-02T00:00:00.000Z" };
+    writeFileSync(join(dir, "h.json"), JSON.stringify({ tickets: [{ title: "A", createdAt: "2025-01-01T00:00:00.000Z", revisions: [revision] }] }));
+    assert.equal(runCli(["--db", db, "import", "json", join(dir, "h.json"), "--project", "Q"]).code, 0);
+    for (const args of [["ticket", "history", "--project", "Q", "--title", "A"], ["project", "history", "--project", "Q"]]) {
+      const out = runCli(["--db", db, ...args]).stdout;
+      assert.equal(out.trim().split("\n").length, 3, out);
+      assert.ok(out.includes("old\\nB | 21 | 21"), out);
+    }
+    // CSV keeps the text as it is, quoted
+    assert.ok(runCli(["--db", db, "--csv", "ticket", "history", "--project", "Q", "--title", "A"]).stdout.includes('"old\nB | 21 | 21"'));
+  });
 });
