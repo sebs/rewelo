@@ -87,14 +87,39 @@ function textResult(data: unknown): { content: Array<{ type: "text"; text: strin
 function errorResult(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
   // Messages quote input (e.g. a ticket title); never echo a huge one back
   const message = sanitizeError(err);
-  const text = message.length > MAX_ERROR_LENGTH ? `${truncate(message, MAX_ERROR_LENGTH)}… (truncated)` : message;
   return {
-    content: [{ type: "text" as const, text }],
+    content: [{ type: "text" as const, text: shorten(message) }],
     isError: true,
   };
 }
 
 const MAX_ERROR_LENGTH = 1000;
+
+const shorten = (text: string) =>
+  text.length > MAX_ERROR_LENGTH ? `${truncate(text, MAX_ERROR_LENGTH)}… (truncated)` : text;
+
+// Errors the SDK makes itself (invalid arguments, unknown tools) quote the
+// input too, but don't pass through errorResult: 200,000 invalid array items
+// gave a 12 MB answer, a 3 MB tool name a 3 MB one. Shorten them on the way out.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function capErrors(message: any): any {
+  if (message?.error && typeof message.error.message === "string") {
+    return { ...message, error: { ...message.error, message: shorten(message.error.message), data: undefined } };
+  }
+  const result = message?.result;
+  if (result?.isError && Array.isArray(result.content)) {
+    return {
+      ...message,
+      result: {
+        ...result,
+        content: result.content.map((c: { type: string; text?: unknown }) =>
+          c.type === "text" && typeof c.text === "string" ? { ...c, text: shorten(c.text) } : c
+        ),
+      },
+    };
+  }
+  return message;
+}
 
 const fibonacciScore = z.union([
   z.literal(1), z.literal(2), z.literal(3),
@@ -966,6 +991,12 @@ export function createMcpServer(
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listProjectRelations(db, proj.id)))
   );
 
+  const connect = server.connect.bind(server);
+  server.connect = (transport) => {
+    const send = transport.send.bind(transport);
+    transport.send = (message, sendOptions) => send(capErrors(message), sendOptions);
+    return connect(transport);
+  };
 
   return server;
 }

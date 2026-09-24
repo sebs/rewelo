@@ -639,4 +639,17 @@ describe("MCP server", () => {
     assert.match(html, /Showing 1 of 2 open tickets; a higher <code>limit<\/code> for <code>report_dashboard<\/code> shows more/);
     assert.doesNotMatch(html, /rw report dashboard/);
   });
+
+  it("shortens the SDK's own errors, which quote the input", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Big" } });
+    const invalid = await client.callTool({ name: "tag_assign", arguments: { project: "Big", ticket: "A", tags: Array(20_000).fill(1) } });
+    assert.equal(invalid.isError, true);
+    assert.ok((invalid.content as any)[0].text.length < 1100);
+
+    const unknown = await client.callTool({ name: "x".repeat(100_000), arguments: {} }).then(
+      (r) => (r.content as any)[0].text as string,
+      (err: Error) => err.message
+    );
+    assert.ok(unknown.length < 1100, `${unknown.length} characters`);
+  });
 });
