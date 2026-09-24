@@ -152,6 +152,9 @@ describe("migrate", () => {
     await migrate(db);
     const rows = await db.all<{ title: string }>("SELECT title FROM tickets ORDER BY id");
     assert.deepEqual(rows.map((r) => r.title), ["a b", "a b (2)", "c d"]);
+    // the renames are in the tickets' history
+    const revisions = await db.all<{ title: string }>("SELECT title FROM ticket_revisions ORDER BY id");
+    assert.deepEqual(revisions.map((r) => r.title), ["a  b", "c\u00A0 d"]);
   });
 
   it("says a read-only database of an older version needs write access once", { skip: process.getuid?.() === 0 }, async () => {

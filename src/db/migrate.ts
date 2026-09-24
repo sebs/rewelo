@@ -225,7 +225,21 @@ async function retitleTickets(db: DB, rewrite: (title: string) => string): Promi
     for (let n = 2; taken.has(`${t.project_id}/${title}`); n++) title = fit(base, ` (${n})`);
     taken.delete(`${t.project_id}/${t.title}`);
     taken.add(`${t.project_id}/${title}`);
-    await db.run("UPDATE tickets SET title = ? WHERE id = ?", title, t.id);
+    // Like any rename, keep the old title in the ticket's history, so the
+    // change shows in ticket history and the event log
+    await db.run(
+      `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
+       SELECT id, title, description, benefit, penalty, estimate, risk,
+         (SELECT json_group_array(json_object('prefix', tg.prefix, 'value', tg.value))
+          FROM ticket_tags tt JOIN tags tg ON tg.id = tt.tag_id WHERE tt.ticket_id = tickets.id)
+       FROM tickets WHERE id = ?`,
+      t.id
+    );
+    await db.run(
+      "UPDATE tickets SET title = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
+      title,
+      t.id
+    );
   }
 }
 
