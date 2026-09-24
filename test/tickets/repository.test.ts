@@ -261,4 +261,9 @@ describe("tickets repository", () => {
     assert.equal((await db.all("SELECT 1 FROM ticket_revisions WHERE ticket_id = ?", t.id)).length, 1);
     assert.equal((await db.all("SELECT 1 FROM ticket_deletions")).length, 0);
   });
+
+  it("reports a project deleted since it was looked up", async () => {
+    await db.run("DELETE FROM projects WHERE id = ?", projectId);
+    await assert.rejects(createTicket(db, { projectId, title: "Too late" }), /Project not found \(it may just have been deleted\)/);
+  });
 });

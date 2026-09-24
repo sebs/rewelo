@@ -31,4 +31,8 @@ describe("sanitizeError", () => {
     assert.equal(sanitizeError(42), "An unexpected error occurred.");
     assert.equal(sanitizeError(null), "An unexpected error occurred.");
   });
+
+  it("explains foreign key failures instead of hiding them as internal errors", () => {
+    assert.match(sanitizeError(new Error("FOREIGN KEY constraint failed")), /no longer exists/);
+  });
 });

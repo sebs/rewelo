@@ -57,6 +57,11 @@ export async function createTicket(
   return db.transaction(async () => {
     validateScores(input);
 
+    // The project may have been deleted since the caller looked it up
+    if ((await db.all(`SELECT 1 FROM projects WHERE id = ?`, input.projectId)).length === 0) {
+      throw new AppError("Project not found (it may just have been deleted)");
+    }
+
     const existing = await getTicketByTitle(db, input.projectId, input.title);
     if (existing) {
       throw new ValidationError(`A ticket with title "${input.title}" already exists in this project`);

@@ -37,6 +37,10 @@ export function sanitizeError(err: unknown): string {
     if (err.message.includes("UNIQUE constraint failed")) {
       return "A record with the same unique key already exists";
     }
+    // e.g. a write racing the deletion of what it refers to
+    if (err.message.includes("FOREIGN KEY constraint failed")) {
+      return "A record this refers to no longer exists (it may just have been deleted)";
+    }
 
     // Generic database or internal errors - do not leak details
     return "An internal error occurred. Please try again.";
