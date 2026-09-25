@@ -94,6 +94,12 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data g
 
 `project` is optional everywhere it appears: without it, a tool uses the `"project"` field of the nearest `.rewelo.json`, looked up from the server's working directory upwards (for example `{"project": "Acme"}`). In the Docker setup above that directory is `/app` inside the container, where there is none: use `rw serve` [without Docker](#without-docker), started in the project's directory, or pass `project`. The server's instructions (sent on connecting) say which default project, if any, it found. A `?` marks optional parameters.
 
+### Structured results
+
+Every tool that returns data declares an `outputSchema` and returns its result twice: as `structuredContent`, typed and checked against that schema, and as the same JSON in a text block for clients that read only text. A client or script can rely on fields like `priority` and `sequence` without parsing text. On the 2025 protocol, `structuredContent` must be an object, so a list comes wrapped as `{"result": [...]}`; the text block holds the plain list.
+
+`export_csv`, `export_json` and `report_dashboard` return documents (CSV, JSON, HTML) and have no `outputSchema`: their result is the text block alone.
+
 ### Questions to the user
 
 When the client can show forms (MCP elicitation), two tools ask the user directly instead of trusting the model to:

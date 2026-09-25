@@ -67,6 +67,13 @@ Feature: MCP Server
     And "project_create" and "ticket_create" should be marked not destructive
     And "ticket_upsert" and "weight_set" should be marked idempotent
 
+  Scenario: Tools return typed results
+    When a client requests the tool list
+    Then every tool except "export_csv", "export_json" and "report_dashboard" should declare an outputSchema
+    When a client calls "ticket_list" with project "Acme"
+    Then the result should carry structuredContent matching the outputSchema
+    And a text block with the same data as JSON
+
   # -- Tool invocation --
 
   Scenario: Create a project via MCP

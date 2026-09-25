@@ -75,17 +75,24 @@ import { validateDbPath } from "../validation/paths.js";
 import { sanitizeError } from "../validation/errors.js";
 import { VERSION } from "../version.generated.js";
 import { loadConfig, type ReweloConfig } from "../config.js";
+import { outputSchemas } from "./output-schemas.js";
 
 // Results are compact JSON, and refused above this size: 30,000 tickets made
 // ticket_list 13.7 MB and export_json 19.6 MB, far more than a client can use
 const MAX_RESULT_BYTES = 5_000_000;
 const DEFAULT_TICKET_LIMIT = 100;
 
-function textResult(data: unknown): { content: Array<{ type: "text"; text: string }> } {
+// Data goes out twice: as structuredContent, checked against the tool's
+// outputSchema, and as JSON text for clients that read only the text. A
+// document (CSV, JSON export, HTML) goes out as text only.
+function textResult(data: unknown): { content: Array<{ type: "text"; text: string }>; structuredContent?: Record<string, unknown> } {
   const text = typeof data === "string" ? data : JSON.stringify(data);
   const bytes = Buffer.byteLength(text, "utf-8");
   if (bytes > MAX_RESULT_BYTES) throw new AppError(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
-  return { content: [{ type: "text" as const, text }] };
+  const content = [{ type: "text" as const, text }];
+  // An array is valid here: the SDK wraps it as {result: [...]} for the 2025
+  // protocol, whose structuredContent must be an object
+  return typeof data === "string" ? { content } : { content, structuredContent: data as Record<string, unknown> };
 }
 
 const tooLarge = (size: string) =>
@@ -276,7 +283,8 @@ export function createMcpServer(
     // took 20 MB titles and echoed them back in their errors
     // Strict: a misspelt parameter (benfit, exclude_tags) used to be dropped
     // silently, and the call succeeded without doing what was asked
-    server.registerTool(name, { description, inputSchema: z.strictObject(shape), annotations }, (args: any, ctx: ServerContext) => {
+    const outputSchema = outputSchemas[name as keyof typeof outputSchemas];
+    server.registerTool(name, { description, inputSchema: z.strictObject(shape), outputSchema, annotations }, (args: any, ctx: ServerContext) => {
       try {
         checkPayloadSize(args);
       } catch (err) {
