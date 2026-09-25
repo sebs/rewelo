@@ -4,7 +4,7 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket, listTickets, updateTicket } from "../../src/tickets/repository.js";
-import { getProjectTimes } from "../../src/calculations/time.js";
+import { getProjectTimes } from "../../src/reports/times.js";
 import { listRevisions } from "../../src/revisions/repository.js";
 import { getTagChangeLog } from "../../src/tags/audit.js";
 import { createTag, deleteTag, listTags, renameTag } from "../../src/tags/repository.js";

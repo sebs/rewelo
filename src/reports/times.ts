@@ -1,11 +1,18 @@
 import { DB } from "../db/connection.js";
 import { DONE_AT_SQL, WIP_STARTS_SQL } from "../workflow/states.js";
 
-interface TimeResult {
+export interface TimeResult {
   ticketId: number;
   ticketTitle: string;
+  /** Whole days from creation to done */
   leadTimeDays: number | undefined;
+  /** Whole days from the start of work to done */
   cycleTimeDays: number | undefined;
+  // Unrounded, so the average is taken before rounding: averaging per-ticket
+  // whole days turned 0.5 d and 0.4 d (mean 0.45) into 1. Left out, the
+  // averages use the whole days.
+  exactLeadTimeDays?: number;
+  exactCycleTimeDays?: number;
 }
 
 function exactDaysBetween(a: string, b: string): number {
@@ -15,23 +22,17 @@ function exactDaysBetween(a: string, b: string): number {
 
 // When work started and ended follows the state rules in workflow/states.ts
 
-// Unrounded lead times, so the average is taken before rounding: averaging
-// per-ticket whole days turned 0.5 d and 0.4 d (mean 0.45) into 1.
-const exactLeadTimes = new WeakMap<TimeResult, number>();
-const exactCycleTimes = new WeakMap<TimeResult, number>();
-
 function timesOf(ticket: { id: number; title: string; created_at: string }, wipAt?: string, doneAt?: string): TimeResult {
   const lead = doneAt ? exactDaysBetween(ticket.created_at, doneAt) : undefined;
   const cycle = wipAt && doneAt ? exactDaysBetween(wipAt, doneAt) : undefined;
-  const result: TimeResult = {
+  return {
     ticketId: ticket.id,
     ticketTitle: ticket.title,
     leadTimeDays: lead !== undefined ? Math.round(lead) : undefined,
     cycleTimeDays: cycle !== undefined ? Math.round(cycle) : undefined,
+    ...(lead !== undefined ? { exactLeadTimeDays: lead } : {}),
+    ...(cycle !== undefined ? { exactCycleTimeDays: cycle } : {}),
   };
-  if (lead !== undefined) exactLeadTimes.set(result, lead);
-  if (cycle !== undefined) exactCycleTimes.set(result, cycle);
-  return result;
 }
 
 /**
@@ -59,14 +60,14 @@ export async function getProjectTimes(db: DB, projectId: number): Promise<TimeRe
 export function averageLeadTime(times: TimeResult[]): number | undefined {
   const valid = times.filter((t) => t.leadTimeDays !== undefined);
   if (valid.length === 0) return undefined;
-  const sum = valid.reduce((s, t) => s + (exactLeadTimes.get(t) ?? t.leadTimeDays!), 0);
+  const sum = valid.reduce((s, t) => s + (t.exactLeadTimeDays ?? t.leadTimeDays!), 0);
   return Math.round(sum / valid.length);
 }
 
 export function averageCycleTime(times: TimeResult[]): number | undefined {
   const valid = times.filter((t) => t.cycleTimeDays !== undefined);
   if (valid.length === 0) return undefined;
-  const sum = valid.reduce((s, t) => s + (exactCycleTimes.get(t) ?? t.cycleTimeDays!), 0);
+  const sum = valid.reduce((s, t) => s + (t.exactCycleTimeDays ?? t.cycleTimeDays!), 0);
   return Math.round(sum / valid.length);
 }
 

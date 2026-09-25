@@ -12,7 +12,7 @@ import {
 } from "../../src/tickets/repository.js";
 import { createTag, getTagById } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
-import { getProjectTimes } from "../../src/calculations/time.js";
+import { getProjectTimes } from "../../src/reports/times.js";
 
 describe("multi-project isolation", () => {
   let db: DB;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getProjectTimes, timesReport } from "../../calculations/time.js";
+import { getProjectTimes, timesReport } from "../../reports/times.js";
 import { getProjectDiff } from "../../reports/diff.js";
 import { getDistribution } from "../../reports/distribution.js";
 import { getEventLog } from "../../reports/event-log.js";

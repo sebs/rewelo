@@ -10,7 +10,7 @@ import {
 } from "../../src/calculations/relative-weights.js";
 import type { Scores } from "../../src/domain/scores.js";
 import { weightedPriority } from "../../src/calculations/weighted-priority.js";
-import { averageLeadTime, getProjectTimes } from "../../src/calculations/time.js";
+import { averageLeadTime, getProjectTimes } from "../../src/reports/times.js";
 
 describe("edge cases", () => {
   let db: DB;

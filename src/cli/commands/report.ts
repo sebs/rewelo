@@ -5,7 +5,7 @@ import { getDistribution } from "../../reports/distribution.js";
 import { getBacklogHealth } from "../../reports/health.js";
 import { getEventLog } from "../../reports/event-log.js";
 import { renderDashboard } from "../../reports/dashboard.js";
-import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from "../../calculations/time.js";
+import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from "../../reports/times.js";
 import { validateExportPath } from "../../validation/paths.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { displayWidth } from "../../display-width.js";

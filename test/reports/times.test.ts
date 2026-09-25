@@ -6,7 +6,7 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createTag, deleteTag, getTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
-import { getProjectTimes, averageLeadTime } from "../../src/calculations/time.js";
+import { getProjectTimes, averageLeadTime } from "../../src/reports/times.js";
 
 describe("lead and cycle time", () => {
   let db: DB;
