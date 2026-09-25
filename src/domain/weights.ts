@@ -20,7 +20,7 @@ const MIN_NONZERO_WEIGHT = 0.01;
 export function validateWeights(weights: Weights): void {
   for (const name of ["w1", "w2", "w3", "w4"] as const) {
     const val = weights[name];
-    if (typeof val !== "number" || !Number.isFinite(val) || val < 0) {
+    if (typeof val !== "number" || Number.isNaN(val) || val < 0) {
       throw new AppError(`Weight ${name} must be a non-negative number`);
     }
     if (val > MAX_WEIGHT) {

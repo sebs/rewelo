@@ -28,6 +28,9 @@ export function parseTickets(
     const at = `${errorPrefix} ${i + 1}`;
     checkKeys(t, TICKET_KEYS, at);
     const rawTitle = t.title;
+    if (rawTitle !== undefined && rawTitle !== null && typeof rawTitle !== "string") {
+      throw new ValidationError(`${at}: title must be a string, got ${JSON.stringify(rawTitle)}`);
+    }
     if (typeof rawTitle !== "string" || rawTitle.length === 0) {
       throw new ValidationError(`${at}: title is required`);
     }

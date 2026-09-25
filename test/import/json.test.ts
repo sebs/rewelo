@@ -84,6 +84,14 @@ describe("JSON import", () => {
     assert.equal((await listTickets(db, projectId))[0].description, "caf\u00e9");
   });
 
+  it("says what is wrong with a title or weight, and takes null history keys as absent", async () => {
+    await assert.rejects(importJson(db, projectId, '{"tickets":[{"title":5}]}'), /Ticket 1: title must be a string, got 5/);
+    await assert.rejects(importJson(db, projectId, '{"tickets":[{"title":""}]}'), /Ticket 1: title is required/);
+    await assert.rejects(importJson(db, projectId, '{"tickets":[{"title":"a"}],"weights":{"w1":1e400,"w2":1,"w3":1,"w4":1}}'), /Weight w1 must not exceed 100/);
+    await importJson(db, projectId, '{"tickets":[{"title":"a","createdAt":null,"updatedAt":null,"revisions":null,"tagChanges":null}]}');
+    assert.deepEqual((await listTickets(db, projectId)).map((t) => t.title), ["a"]);
+  });
+
   it("rejects invalid JSON", async () => {
     await assert.rejects(importJson(db, projectId, "not json"), /Invalid JSON/);
   });

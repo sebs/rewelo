@@ -40,11 +40,12 @@ function list(raw: unknown, field: string): Record<string, unknown>[] {
 
 // The createdAt, revisions and tagChanges written by `export json --with-history`
 export function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined {
-  if (t.createdAt === undefined && t.updatedAt === undefined && t.revisions === undefined && t.tagChanges === undefined) return undefined;
+  // null is absent, as for description, tags, relations and weights
+  if (t.createdAt == null && t.updatedAt == null && t.revisions == null && t.tagChanges == null) return undefined;
   const history: ImportableHistory = {};
-  if (t.createdAt !== undefined) history.createdAt = timestamp(t.createdAt, "createdAt");
-  if (t.updatedAt !== undefined) history.updatedAt = timestamp(t.updatedAt, "updatedAt");
-  if (t.revisions !== undefined) {
+  if (t.createdAt != null) history.createdAt = timestamp(t.createdAt, "createdAt");
+  if (t.updatedAt != null) history.updatedAt = timestamp(t.updatedAt, "updatedAt");
+  if (t.revisions != null) {
     history.revisions = list(t.revisions, "revisions").map((r, j) => {
       const at = `revision ${j + 1}`;
       checkKeys(r, REVISION_KEYS, at);
@@ -77,7 +78,7 @@ export function parseHistory(t: Record<string, unknown>): ImportableHistory | un
       };
     });
   }
-  if (t.tagChanges !== undefined) {
+  if (t.tagChanges != null) {
     history.tagChanges = list(t.tagChanges, "tagChanges").map((c, j) => {
       const at = `tag change ${j + 1}`;
       checkKeys(c, TAG_CHANGE_KEYS, at);
