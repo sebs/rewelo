@@ -26,6 +26,13 @@ describe("calibrate", () => {
     assert.deepEqual([similar[0].benefit, similar[0].estimate], [8, 5]);
   });
 
+  it("rounds similarities half up, as every other number rw shows", () => {
+    // 23 shared words of 40: 0.575, which is 0.57499999999999996 as a double
+    const wordList = Array.from({ length: 40 }, (_, i) => `word${i}`);
+    const { similar } = calibrate([ticket(wordList.slice(0, 23).join(" "), 1, 1)], wordList.join(" "));
+    assert.equal(similar[0].similarity, 0.58);
+  });
+
   it("gives, per dimension and score, the closest ticket with that score", () => {
     const { references } = calibrate(tickets, "Login page redesign");
     assert.deepEqual(references.benefit.map((r) => [r.score, r.title]), [[2, "Dark mode"], [3, "Export CSV"], [5, "Login form validation"], [8, "Login page"]]);

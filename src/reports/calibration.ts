@@ -2,6 +2,7 @@
 // tickets most like it (possible duplicates), and for every score of every
 // dimension the existing ticket closest to it, as a reference point.
 
+import { round2 } from "../calculations/priority.js";
 import { DIMENSIONS, FIBONACCI, isFibonacci, type Dimension, type Scores } from "../domain/scores.js";
 
 export interface CalibrationTicket extends Scores {
@@ -31,8 +32,6 @@ export function similarity(a: Set<string>, b: Set<string>): number {
   for (const w of a) if (b.has(w)) shared++;
   return shared / (a.size + b.size - shared);
 }
-
-const round2 = (x: number) => Math.round(x * 100) / 100;
 
 const excerpt = (text: string | null) =>
   text === null ? null : text.length > EXCERPT_LENGTH ? `${text.slice(0, EXCERPT_LENGTH)}…` : text;
