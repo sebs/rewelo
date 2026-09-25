@@ -71,6 +71,14 @@ export function canonicalRelation(
   throw new Error("unreachable");
 }
 
+/**
+ * The (source, target) a relation is stored under: a symmetric one with the
+ * lower ticket id first, so (A, B) and (B, A) are the same relation.
+ */
+export function storedPair(sourceId: number, targetId: number, rt: RelationType): [number, number] {
+  return rt.symmetric && sourceId > targetId ? [targetId, sourceId] : [sourceId, targetId];
+}
+
 export function forwardTypeNames(): string[] {
   return RELATION_TYPES.map((rt) => rt.forward);
 }

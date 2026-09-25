@@ -2,8 +2,7 @@ import { DB } from "../db/connection.js";
 import { createTicket } from "../tickets/repository.js";
 import { ensureTag } from "../tags/repository.js";
 import { assignTag } from "../tags/assignment.js";
-import { createRelation } from "../relations/repository.js";
-import { canonicalRelation, isSymmetric } from "../relations/types.js";
+import { createRelation, relationExists } from "../relations/repository.js";
 import { setWeights } from "../weights/repository.js";
 import { getTicketByTitle } from "../tickets/repository.js";
 import { ValidationError } from "../errors.js";
@@ -119,17 +118,10 @@ export async function importProjectData(
       if (!source || !target) {
         throw new ValidationError(`Relation ${i + 1}: ticket "${source ? r.target : r.source}" not found`);
       }
-      const canonical = canonicalRelation(source.id, target.id, r.type);
-      // Symmetric relations are stored with the lower ticket id first
-      const [from, to] = isSymmetric(canonical.type) && canonical.sourceId > canonical.targetId
-        ? [canonical.targetId, canonical.sourceId]
-        : [canonical.sourceId, canonical.targetId];
-      const exists = await db.all(
-        `SELECT 1 FROM ticket_relations WHERE project_id = ? AND source_id = ? AND target_id = ? AND relation_type = ?`,
-        projectId, from, to, canonical.type
-      );
+      // A relation the project has already is kept, not an error
+      const exists = await relationExists(db, projectId, source.id, target.id, r.type);
       try {
-        if (exists.length === 0) {
+        if (!exists) {
           await createRelation(db, projectId, source.id, target.id, r.type);
           relationsCreated++;
         }
