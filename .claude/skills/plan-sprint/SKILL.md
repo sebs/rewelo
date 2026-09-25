@@ -14,7 +14,7 @@ Plan a sprint for project **$0** with a capacity of **$1** effort points (defaul
 1. Use `ticket_list` to fetch all tickets in the project
 2. Use `weight_get` to read the project's stored weight configuration
 3. Use `calc_priority` (with the project weights) to get the weighted priority ranking
-4. Filter to tickets tagged `state:backlog` (exclude `state:wip`, `state:done`)
+4. Take the open tickets: `ticket_list` with `excludeTags: ["state:wip", "state:done"]`. A ticket without a state tag is in the backlog too: new tickets have none until someone tags them
 5. Sort by weighted priority (highest first)
 
 ## Dependency analysis
