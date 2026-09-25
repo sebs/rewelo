@@ -111,9 +111,20 @@ jobs:
       - name: Publish to the MCP Registry
         if: hashFiles('server.json') != ''
         run: |
+          # The registry checks the version on npm, where a version just
+          # published can take minutes to show (0.7.1: about three)
+          for attempt in $(seq 1 40); do
+            if [ -n "$(npm view "rewelo@$VERSION" version 2>/dev/null || true)" ]; then break; fi
+            if [ "$attempt" = 40 ]; then
+              echo "::error::rewelo@$VERSION didn't show on npm within 10 minutes. Run this workflow again: the npm step skips a published version."
+              exit 1
+            fi
+            echo "rewelo@$VERSION isn't on npm yet; checking again in 15 seconds"
+            sleep 15
+          done
           ./mcp-publisher login github-oidc
-          # A version just published can take a moment to show on npm
-          for attempt in 1 2 3 4 5; do
+          # The registry may still see npm's older state for a moment
+          for attempt in 1 2 3; do
             if ./mcp-publisher publish; then exit 0; fi
             echo "Attempt $attempt failed; trying again in 30 seconds"
             sleep 30
