@@ -1,6 +1,7 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { InMemoryTransport } from "@modelcontextprotocol/client";
+import { spawn } from "node:child_process";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -118,5 +119,55 @@ describe("MCP concurrency", () => {
     await waitFor([4]);
     const list = JSON.parse(responses.get(4)!.result!.content[0].text);
     assert.deepEqual(list.items.map((t: { title: string }) => t.title), ["Other"]);
+  });
+
+  // Another process holding the write lock (e.g. a large import), for `ms`
+  function holdWriteLock(path: string, ms: number): Promise<{ exited: Promise<unknown> }> {
+    const script = `
+      const { DatabaseSync } = require("node:sqlite");
+      const db = new DatabaseSync(${JSON.stringify(path)});
+      db.exec("BEGIN IMMEDIATE");
+      process.stdout.write("locked\\n");
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ${ms});
+      db.exec("COMMIT");
+    `;
+    const child = spawn(process.execPath, ["-e", script], { stdio: ["ignore", "pipe", "inherit"] });
+    const exited = new Promise((resolve) => child.once("exit", resolve));
+    return new Promise((resolve) => child.stdout!.once("data", () => resolve({ exited })));
+  }
+
+  it("answers other calls while a write waits for another process's lock, and stops waiting when cancelled", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-"));
+    const path = join(dir, "l.db");
+    const mcpServer = createMcpServer(path);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await mcpServer.connect(serverTransport);
+    const client = new Client({ name: "t", version: "1" });
+    await client.connect(clientTransport);
+    let exited: Promise<unknown> = Promise.resolve();
+    cleanup = async () => {
+      await exited;
+      await client.close();
+      await mcpServer.close();
+      rmSync(dir, { recursive: true, force: true });
+    };
+    await client.callTool({ name: "project_create", arguments: { name: "p" } });
+
+    ({ exited } = await holdWriteLock(path, 1500));
+    const write = client.callTool({ name: "ticket_create", arguments: { project: "p", title: "Waits" } });
+    const cancelled = new AbortController();
+    const dropped = client.callTool({ name: "ticket_create", arguments: { project: "p", title: "Dropped" } }, { signal: cancelled.signal });
+    const started = Date.now();
+    const read = await client.callTool({ name: "project_list", arguments: {} });
+    assert.ok(Date.now() - started < 1000, `the read waited ${Date.now() - started} ms`);
+    assert.ok(!read.isError);
+    cancelled.abort();
+    await assert.rejects(dropped);
+
+    const written = await write;
+    assert.ok(!written.isError, JSON.stringify(written.content));
+    const list = await client.callTool({ name: "ticket_list", arguments: { project: "p" } });
+    const titles = JSON.parse((list.content as Array<{ text: string }>)[0].text).items.map((t: { title: string }) => t.title);
+    assert.deepEqual(titles, ["Waits"]);
   });
 });

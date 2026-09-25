@@ -1,8 +1,13 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { setTimeout as sleep } from "node:timers/promises";
 import { DB } from "../db/connection.js";
 import { migrate } from "../db/migrate.js";
 import { getProjectByName, Project } from "../projects/repository.js";
 import { AppError } from "../errors.js";
 import { RateLimiter } from "./limits.js";
+
+/** The tool call being run: its signal says when the client cancelled it */
+export const currentCall = new AsyncLocalStorage<AbortSignal>();
 
 /**
  * The server's one database connection, shared for its lifetime (which
@@ -14,7 +19,9 @@ export class DbSession {
   // Memoise the promise, not the result: concurrent first calls must share
   // one open + migrate instead of each opening their own connection.
   private shared: Promise<DB> | null = null;
-  private queue: Promise<unknown> = Promise.resolve();
+  // Calls take turns: the last one's turn, and how to end the current one
+  private tail: Promise<void> = Promise.resolve();
+  private endTurn: (() => void) | undefined;
 
   constructor(
     private readonly dbPath: string,
@@ -27,6 +34,7 @@ export class DbSession {
     this.shared ??= DB.open(this.dbPath)
       .then(async (db) => {
         await migrate(db);
+        await db.waitForLockWith((ms) => this.waitForLock(ms));
         this.opened(db);
         return db;
       })
@@ -47,10 +55,37 @@ export class DbSession {
   // rate limit, but waits its turn like a tool call
   queued = async <T>(fn: (db: DB) => Promise<T>): Promise<T> => {
     const db = await this.open();
-    const run = this.queue.then(() => fn(db));
-    this.queue = run.catch(() => {});
-    return run;
+    await this.takeTurn();
+    try {
+      return await fn(db);
+    } finally {
+      this.giveTurn();
+    }
   };
+
+  private async takeTurn(): Promise<void> {
+    const previous = this.tail;
+    let end!: () => void;
+    this.tail = new Promise<void>((resolve) => (end = resolve));
+    await previous;
+    this.endTurn = end;
+  }
+
+  private giveTurn(): void {
+    const end = this.endTurn;
+    this.endTurn = undefined;
+    end?.();
+  }
+
+  // A write waiting for another process's lock (a large import): the calls
+  // behind it run meanwhile (reads aren't blocked in WAL mode), and a call
+  // the client cancelled stops waiting
+  private async waitForLock(ms: number): Promise<void> {
+    this.giveTurn();
+    await sleep(ms);
+    await this.takeTurn();
+    if (currentCall.getStore()?.aborted) throw new AppError("The call was cancelled while it waited for the database lock");
+  }
 
   withProject = async <T>(name: string, fn: (db: DB, project: Project) => Promise<T>): Promise<T> =>
     this.withDb(async (db) => {

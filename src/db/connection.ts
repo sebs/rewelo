@@ -11,6 +11,10 @@ export interface Row {
 // reads don't wait at all in WAL mode)
 const BUSY_TIMEOUT_MS = 30_000;
 
+// SQLite's own wait (busy_timeout) blocks the thread; a server that waits
+// with waitForLockWith keeps it this short and waits between tries instead
+const SHORT_BUSY_TIMEOUT_MS = 50;
+
 // SQLite primary result codes that mean "the file is the problem", mapped
 // to messages the user can act on (instead of a generic internal error).
 const STORAGE_ERRORS: Record<number, string> = {
@@ -50,6 +54,7 @@ export interface TransactionObserver {
 export class DB {
   private db: DatabaseSync;
   private observers: TransactionObserver[] = [];
+  private waitForLock: ((ms: number) => Promise<void>) | undefined;
 
   private constructor(db: DatabaseSync) {
     this.db = db;
@@ -109,14 +114,39 @@ export class DB {
     this.observers.push(observer);
   }
 
+  /**
+   * Wait for another connection's write lock with `wait` between tries,
+   * instead of in SQLite, which blocks the thread: a server stays
+   * responsive (pings, cancellations, other calls) while a write waits.
+   */
+  async waitForLockWith(wait: (ms: number) => Promise<void>): Promise<void> {
+    this.waitForLock = wait;
+    await this.exec(`PRAGMA busy_timeout = ${SHORT_BUSY_TIMEOUT_MS}`);
+  }
+
+  // IMMEDIATE takes the write lock up front: a deferred transaction that
+  // reads first and writes later can deadlock against another writer, and
+  // SQLite then fails at once instead of honouring the busy timeout.
+  private async beginImmediate(): Promise<void> {
+    if (!this.waitForLock) return this.exec("BEGIN IMMEDIATE");
+    const deadline = Date.now() + BUSY_TIMEOUT_MS;
+    for (let delay = 10; ; delay = Math.min(delay * 2, 250)) {
+      try {
+        this.db.exec("BEGIN IMMEDIATE");
+        return;
+      } catch (err) {
+        const errcode = (err as { errcode?: unknown })?.errcode;
+        if (typeof errcode !== "number" || (errcode & 0xff) !== 5 || Date.now() >= deadline) throw translate(err);
+      }
+      await this.waitForLock(delay);
+    }
+  }
+
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     // Nested call: run inside the already open transaction
     if (this.db.isTransaction) return fn();
 
-    // IMMEDIATE takes the write lock up front: a deferred transaction that
-    // reads first and writes later can deadlock against another writer, and
-    // SQLite then fails at once instead of honouring the busy timeout.
-    await this.exec("BEGIN IMMEDIATE");
+    await this.beginImmediate();
     try {
       for (const o of this.observers) await o.begun?.();
       const result = await fn();
@@ -140,7 +170,7 @@ export class DB {
   async rolledBack<T>(fn: () => Promise<T>): Promise<T> {
     // A rollback here would end the caller's transaction too
     if (this.db.isTransaction) throw new Error("rolledBack can't run inside another transaction");
-    await this.exec("BEGIN IMMEDIATE");
+    await this.beginImmediate();
     try {
       return await fn();
     } finally {

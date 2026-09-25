@@ -9,7 +9,7 @@ import { loadConfig, type ReweloConfig } from "../config.js";
 import { outputSchemas } from "./output-schemas.js";
 import { capErrors, errorResult, safe } from "./results.js";
 import { checkPayloadSize, RateLimiter } from "./limits.js";
-import { DbSession } from "./session.js";
+import { currentCall, DbSession } from "./session.js";
 import { Channel } from "./live/channel.js";
 import { ChangeWatcher } from "./live/watcher.js";
 import type { McpContext } from "./toolkit.js";
@@ -103,7 +103,7 @@ export function createMcpServer(
         } catch (err) {
           return errorResult(err);
         }
-        return run(args, call);
+        return currentCall.run(call.mcpReq.signal, () => run(args, call));
       });
     },
     withDb: session.withDb,
