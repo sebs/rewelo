@@ -13,7 +13,7 @@ Analyze flow metrics for project **$0**.
 
 1. Use `ticket_list` to get all tickets
 2. Use `report_times` for each ticket's lead and cycle time in whole days
-3. Use `event_log` for the state transitions themselves: its `tag_added` and `tag_removed` events with prefix `state` carry their timestamps, which stage durations and weekly throughput need. Page through it with `after` (the `sequence` of the last event received). `ticket_history` doesn't help here: it lists score and title changes, not tag changes
+3. Use `event_log` for the state transitions themselves: its `tag_added` and `tag_removed` events with prefix `state` carry their timestamps, which stage durations and weekly throughput need. Read it oldest first: start with `after: 0`, then pass the `sequence` of the last event received as `after`, until a page has fewer events than `limit` (default 50). Without `after`, `event_log` returns the newest events first, and paging from there skips everything older. `ticket_history` doesn't help here: it lists score and title changes, not tag changes
 
 ## Metrics to calculate
 
