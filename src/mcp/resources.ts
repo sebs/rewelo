@@ -66,10 +66,11 @@ export function registerResources(ctx: McpContext): void {
           const done = await doneTicketIds(db, proj.id);
           const tags = await getProjectTicketTags(db, proj.id);
           const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
-          const open = rank(tickets.filter((t) => !done.has(t.id)), { w1, w2, w3, w4 });
+          const weights = { w1, w2, w3, w4 };
+          const open = rank(tickets.filter((t) => !done.has(t.id)), weights);
           return {
             project: proj.name,
-            weights: { w1, w2, w3, w4 },
+            weights,
             openTickets: open.length,
             doneTickets: tickets.length - open.length,
             tickets: open.map((t, i) => ({
@@ -79,8 +80,8 @@ export function registerResources(ctx: McpContext): void {
               penalty: t.penalty,
               estimate: t.estimate,
               risk: t.risk,
-              priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-              weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
+              priority: priority(t),
+              weighted: weightedPriority(t, weights),
               tags: tagLabels(tags.get(t.id) ?? []),
             })),
           };
@@ -104,7 +105,7 @@ export function registerResources(ctx: McpContext): void {
       readResource(uri, "application/json", () =>
         withProject(variable(vars, "project"), async (db, proj) => {
           const t = await resolveTicket(db, proj.id, variable(vars, "title"));
-          const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
+          const weights = await getWeights(db, proj.id);
           return {
             project: proj.name,
             id: t.id,
@@ -116,8 +117,8 @@ export function registerResources(ctx: McpContext): void {
             risk: t.risk,
             value: t.benefit + t.penalty,
             cost: t.estimate + t.risk,
-            priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-            weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
+            priority: priority(t),
+            weighted: weightedPriority(t, weights),
             tags: tagLabels(await getTicketTags(db, t.id)),
             relations: await listRelations(db, proj.id, t.id),
             created_at: t.created_at,

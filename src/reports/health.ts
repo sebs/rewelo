@@ -29,7 +29,7 @@ export async function getBacklogHealth(
   for (const t of tickets) {
     if (doneIds.has(t.id)) continue;
 
-    const prio = exactPriority(t.benefit, t.penalty, t.estimate, t.risk);
+    const prio = exactPriority(t);
     if (prio >= highThreshold) {
       highCount++;
     } else {

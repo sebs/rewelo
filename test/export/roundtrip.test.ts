@@ -84,7 +84,7 @@ describe("round-trip", () => {
     const b = await createTicket(db, { projectId, title: "B" });
     await createRelation(db, projectId, a.id, b.id, "blocks");
     await createRelation(db, projectId, a.id, b.id, "relates-to");
-    await setWeights(db, projectId, 3, 1, 2, 0.5);
+    await setWeights(db, projectId, { w1: 3, w2: 1, w3: 2, w4: 0.5 });
 
     const json = JSON.stringify(await exportJson(db, projectId));
     const target = await createProject(db, "Target");

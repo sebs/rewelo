@@ -62,7 +62,7 @@ export async function renderDashboard(
       risk: t.risk,
       value: t.benefit + t.penalty,
       cost: t.estimate + t.risk,
-      priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
+      priority: priority(t),
     }));
 
   const weights = await getWeights(db, projectId);

@@ -58,7 +58,7 @@ export async function exportCsv(
       if (options.withCalculations) {
         const val = ticket.benefit + ticket.penalty;
         const cost = ticket.estimate + ticket.risk;
-        const prio = priority(ticket.benefit, ticket.penalty, ticket.estimate, ticket.risk);
+        const prio = priority(ticket);
         row.push(String(val), String(cost), prio.toFixed(2));
       }
 

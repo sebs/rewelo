@@ -4,27 +4,27 @@ import { value, cost, priority, round2 } from "../../src/calculations/priority.j
 
 describe("priority calculations", () => {
   it("value is benefit plus penalty", () => {
-    assert.equal(value(8, 5), 13);
+    assert.equal(value({ benefit: 8, penalty: 5 }), 13);
   });
 
   it("cost is estimate plus risk", () => {
-    assert.equal(cost(3, 2), 5);
+    assert.equal(cost({ estimate: 3, risk: 2 }), 5);
   });
 
   it("priority is value divided by cost", () => {
-    assert.equal(priority(8, 5, 3, 2), 2.6);
+    assert.equal(priority({ benefit: 8, penalty: 5, estimate: 3, risk: 2 }), 2.6);
   });
 
   it("priority with high cost", () => {
-    assert.equal(priority(1, 1, 13, 8), 0.1);
+    assert.equal(priority({ benefit: 1, penalty: 1, estimate: 13, risk: 8 }), 0.1);
   });
 
   it("priority with minimum values", () => {
-    assert.equal(priority(1, 1, 1, 1), 1);
+    assert.equal(priority({ benefit: 1, penalty: 1, estimate: 1, risk: 1 }), 1);
   });
 
   it("priority with maximum values", () => {
-    assert.equal(priority(21, 21, 21, 21), 1);
+    assert.equal(priority({ benefit: 21, penalty: 21, estimate: 21, risk: 21 }), 1);
   });
 
   it("round2 rounds halves up despite float noise, but not values just below a half", () => {

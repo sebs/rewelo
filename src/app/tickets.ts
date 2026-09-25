@@ -47,11 +47,11 @@ export async function queryTickets(
     ...t,
     value: t.benefit + t.penalty,
     cost: t.estimate + t.risk,
-    priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
+    priority: priority(t),
   }));
 
   const { minPriority, minValue, maxCost } = query;
-  if (minPriority != null) items = items.filter((t) => exactPriority(t.benefit, t.penalty, t.estimate, t.risk) >= minPriority);
+  if (minPriority != null) items = items.filter((t) => exactPriority(t) >= minPriority);
   if (minValue != null) items = items.filter((t) => t.value >= minValue);
   if (maxCost != null) items = items.filter((t) => t.cost <= maxCost);
 

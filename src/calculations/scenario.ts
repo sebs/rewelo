@@ -1,5 +1,5 @@
 import { round2 } from "./priority.js";
-import { exactWeightedPriority } from "./weighted-priority.js";
+import { exactWeightedPriority, weightedPriority } from "./weighted-priority.js";
 import { AppError } from "../errors.js";
 import { validateWeights, withOverrides, type Weights } from "../domain/weights.js";
 import { DIMENSIONS, FIBONACCI, type Dimension, type Scores } from "../domain/scores.js";
@@ -12,11 +12,9 @@ export interface Scored extends Scores {
   title: string;
 }
 
-const exact = (t: Scored, w: Weights) => exactWeightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w.w1, w.w2, w.w3, w.w4);
-
 /** Highest weighted priority first; ties keep the given order, as calc_priority does */
 export function rank<T extends Scored>(tickets: T[], w: Weights): T[] {
-  const priorities = new Map(tickets.map((t) => [t, exact(t, w)]));
+  const priorities = new Map(tickets.map((t) => [t, exactWeightedPriority(t, w)]));
   return [...tickets].sort((a, b) => priorities.get(b)! - priorities.get(a)!);
 }
 
@@ -82,8 +80,8 @@ export function compareRankings<T extends Scored, K, C extends string>(
       baselineRank: was,
       scenarioRank: now,
       rankChange: was !== null && now !== null ? was - now : null,
-      baselinePriority: old ? round2(exact(old, baseline.weights)) : null,
-      scenarioPriority: now !== null ? round2(exact(t, scenario.weights)) : null,
+      baselinePriority: old ? weightedPriority(old, baseline.weights) : null,
+      scenarioPriority: now !== null ? weightedPriority(t, scenario.weights) : null,
       ...(change ? { change } : {}),
     };
   };
@@ -95,7 +93,7 @@ export function compareRankings<T extends Scored, K, C extends string>(
   return {
     total: after.length,
     moved: rows.filter((r) => r.rankChange !== null && r.rankChange !== 0).length,
-    top: after.slice(0, options.top).map((t, i) => ({ rank: i + 1, title: t.title, priority: round2(exact(t, scenario.weights)) })),
+    top: after.slice(0, options.top).map((t, i) => ({ rank: i + 1, title: t.title, priority: weightedPriority(t, scenario.weights) })),
     tickets: rows.slice(0, options.limit),
   };
 }
@@ -120,7 +118,7 @@ export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: 
     added.push({ title: t.title, benefit: 1, penalty: 1, estimate: 1, risk: 1, ...definedScores(t) });
   }
   const scenarioWeights = withOverrides(baselineWeights, scenario.weights);
-  validateWeights(scenarioWeights.w1, scenarioWeights.w2, scenarioWeights.w3, scenarioWeights.w4);
+  validateWeights(scenarioWeights);
 
   const changes = new Map<string, "scores" | "added" | "removed">([
     ...[...changed.keys()].map((title) => [title, "scores"] as const),
@@ -170,7 +168,7 @@ export function explain(tickets: Scored[], weights: Weights, title: string, top:
   const { w1, w2, w3, w4 } = weights;
   const weightedValue = w1 * ticket.benefit + w2 * ticket.penalty;
   const weightedCost = w3 * ticket.estimate + w4 * ticket.risk;
-  const priority = round2(exact(ticket, weights));
+  const priority = weightedPriority(ticket, weights);
   const others = rank(tickets.filter((t) => t !== ticket), weights);
   const rival = others[top - 1];
 
@@ -186,7 +184,7 @@ export function explain(tickets: Scored[], weights: Weights, title: string, top:
         const variant = { ...ticket, [dimension]: to };
         const r = rankOf(variant);
         if (r <= top) {
-          options.push({ dimension, from, to, priority: round2(exact(variant, weights)), rank: r });
+          options.push({ dimension, from, to, priority: weightedPriority(variant, weights), rank: r });
           break;
         }
       }
@@ -206,7 +204,7 @@ export function explain(tickets: Scored[], weights: Weights, title: string, top:
     target: {
       top,
       reached: current <= top,
-      priorityToBeat: current > top && rival ? round2(exact(rival, weights)) : null,
+      priorityToBeat: current > top && rival ? weightedPriority(rival, weights) : null,
       options,
     },
   };

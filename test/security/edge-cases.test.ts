@@ -46,17 +46,17 @@ describe("edge cases", () => {
   });
 
   it("max Fibonacci: value 42, cost 42, priority 1.00", () => {
-    const p = priority(21, 21, 21, 21);
+    const p = priority({ benefit: 21, penalty: 21, estimate: 21, risk: 21 });
     assert.equal(p, 1);
   });
 
   it("min Fibonacci: value 2, cost 2, priority 1.00", () => {
-    const p = priority(1, 1, 1, 1);
+    const p = priority({ benefit: 1, penalty: 1, estimate: 1, risk: 1 });
     assert.equal(p, 1);
   });
 
   it("zero denominator weights throws clear error", () => {
-    assert.throws(() => weightedPriority(5, 3, 1, 1, 1, 1, 0, 0), /denominator is zero/);
+    assert.throws(() => weightedPriority({ benefit: 5, penalty: 3, estimate: 1, risk: 1 }, { w1: 1, w2: 1, w3: 0, w4: 0 }), /denominator is zero/);
   });
 
   it("all zeros in relative weights returns 0", () => {

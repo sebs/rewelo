@@ -17,8 +17,9 @@ const MAX_WEIGHT = 100;
 // and prints as exponent notation; below 0.01 a weight is as good as 0.
 const MIN_NONZERO_WEIGHT = 0.01;
 
-export function validateWeights(w1: number, w2: number, w3: number, w4: number): void {
-  for (const [name, val] of [["w1", w1], ["w2", w2], ["w3", w3], ["w4", w4]] as const) {
+export function validateWeights(weights: Weights): void {
+  for (const name of ["w1", "w2", "w3", "w4"] as const) {
+    const val = weights[name];
     if (typeof val !== "number" || !Number.isFinite(val) || val < 0) {
       throw new AppError(`Weight ${name} must be a non-negative number`);
     }
@@ -29,7 +30,7 @@ export function validateWeights(w1: number, w2: number, w3: number, w4: number):
       throw new AppError(`Weight ${name} must be 0 or at least ${MIN_NONZERO_WEIGHT}`);
     }
   }
-  if (w3 === 0 && w4 === 0) {
+  if (weights.w3 === 0 && weights.w4 === 0) {
     throw new AppError("Cost weights w3 and w4 cannot both be zero (would cause division by zero in priority calculation)");
   }
 }

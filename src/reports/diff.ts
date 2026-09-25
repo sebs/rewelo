@@ -52,7 +52,7 @@ export async function getProjectDiff(
     .map((t) => ({
       id: t.id,
       title: t.title,
-      priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
+      priority: priority(t),
     }));
 
   // 2. Score/title changes: find revisions since the timestamp and diff against current

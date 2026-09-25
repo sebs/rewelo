@@ -36,7 +36,7 @@ export async function getProjectSummary(
     .sort(byPriority)
     .map((t) => ({
       title: t.title,
-      priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
+      priority: priority(t),
     }));
 
   return {

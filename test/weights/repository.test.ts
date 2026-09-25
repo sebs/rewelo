@@ -33,7 +33,7 @@ describe("weight configuration", () => {
   });
 
   it("persists custom weights", async () => {
-    await setWeights(db, projectId, 3.0, 1.0, 1.5, 2.0);
+    await setWeights(db, projectId, { w1: 3.0, w2: 1.0, w3: 1.5, w4: 2.0 });
     const config = await getWeights(db, projectId);
     assert.equal(config.w1, 3.0);
     assert.equal(config.w2, 1.0);
@@ -42,8 +42,8 @@ describe("weight configuration", () => {
   });
 
   it("updates existing weights", async () => {
-    await setWeights(db, projectId, 3.0, 1.0, 1.5, 2.0);
-    await setWeights(db, projectId, 2.0, 2.0, 1.0, 1.0);
+    await setWeights(db, projectId, { w1: 3.0, w2: 1.0, w3: 1.5, w4: 2.0 });
+    await setWeights(db, projectId, { w1: 2.0, w2: 2.0, w3: 1.0, w4: 1.0 });
     const config = await getWeights(db, projectId);
     assert.equal(config.w1, 2.0);
     assert.equal(config.w2, 2.0);
@@ -51,13 +51,13 @@ describe("weight configuration", () => {
 
   it("weights are scoped per project", async () => {
     const project2 = await createProject(db, "Globex");
-    await setWeights(db, projectId, 3.0, 1.0, 1.5, 2.0);
+    await setWeights(db, projectId, { w1: 3.0, w2: 1.0, w3: 1.5, w4: 2.0 });
     const config2 = await getWeights(db, project2.id);
     assert.equal(config2.w1, 1.5);
   });
 
   it("resets weights to defaults", async () => {
-    await setWeights(db, projectId, 3.0, 1.0, 1.5, 2.0);
+    await setWeights(db, projectId, { w1: 3.0, w2: 1.0, w3: 1.5, w4: 2.0 });
     const config = await resetWeights(db, projectId);
     assert.equal(config.w1, 1.5);
     assert.equal(config.w2, 1.5);
@@ -66,33 +66,33 @@ describe("weight configuration", () => {
   });
 
   it("rejects negative weights", async () => {
-    await assert.rejects(setWeights(db, projectId, -1.0, 1.5, 1.5, 1.5), /non-negative/);
+    await assert.rejects(setWeights(db, projectId, { w1: -1.0, w2: 1.5, w3: 1.5, w4: 1.5 }), /non-negative/);
   });
 
   it("allows zero weights when not both cost weights", async () => {
-    await setWeights(db, projectId, 0, 1.5, 1.5, 1.5);
+    await setWeights(db, projectId, { w1: 0, w2: 1.5, w3: 1.5, w4: 1.5 });
     const config = await getWeights(db, projectId);
     assert.equal(config.w1, 0);
   });
 
   it("allows w3=0 when w4 is non-zero", async () => {
-    await setWeights(db, projectId, 1.5, 1.5, 0, 1.5);
+    await setWeights(db, projectId, { w1: 1.5, w2: 1.5, w3: 0, w4: 1.5 });
     const config = await getWeights(db, projectId);
     assert.equal(config.w3, 0);
   });
 
   it("allows w4=0 when w3 is non-zero", async () => {
-    await setWeights(db, projectId, 1.5, 1.5, 1.5, 0);
+    await setWeights(db, projectId, { w1: 1.5, w2: 1.5, w3: 1.5, w4: 0 });
     const config = await getWeights(db, projectId);
     assert.equal(config.w4, 0);
   });
 
   it("rejects w3=0 and w4=0 simultaneously", async () => {
-    await assert.rejects(setWeights(db, projectId, 1.5, 1.5, 0, 0), /w3 and w4 cannot both be zero/);
+    await assert.rejects(setWeights(db, projectId, { w1: 1.5, w2: 1.5, w3: 0, w4: 0 }), /w3 and w4 cannot both be zero/);
   });
 
   it("rejects weights between 0 and 0.01", async () => {
-    await assert.rejects(setWeights(db, projectId, 1.5, 1.5, 1e-22, 0), /Weight w3 must be 0 or at least 0.01/);
-    await setWeights(db, projectId, 1.5, 1.5, 0.01, 0);
+    await assert.rejects(setWeights(db, projectId, { w1: 1.5, w2: 1.5, w3: 1e-22, w4: 0 }), /Weight w3 must be 0 or at least 0.01/);
+    await setWeights(db, projectId, { w1: 1.5, w2: 1.5, w3: 0.01, w4: 0 });
   });
 });

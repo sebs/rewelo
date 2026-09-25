@@ -166,7 +166,7 @@ export function parseWeights(raw: unknown): SerializedWeights | undefined {
   }
   const weights = { w1: w.w1 as number, w2: w.w2 as number, w3: w.w3 as number, w4: w.w4 as number };
   try {
-    validateWeights(weights.w1, weights.w2, weights.w3, weights.w4);
+    validateWeights(weights);
   } catch (e) {
     throw new ValidationError(`Weights: ${(e as Error).message}`);
   }

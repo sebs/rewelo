@@ -20,12 +20,10 @@ export async function getWeights(
 export async function setWeights(
   db: DB,
   projectId: number,
-  w1: number,
-  w2: number,
-  w3: number,
-  w4: number
+  weights: Weights
 ): Promise<WeightConfig> {
-  validateWeights(w1, w2, w3, w4);
+  validateWeights(weights);
+  const { w1, w2, w3, w4 } = weights;
 
   // One upsert: select, delete and insert let parallel writers fail on the
   // unique project_id and readers see the defaults in between

@@ -1,11 +1,13 @@
 import type { Scores } from "../domain/scores.js";
 
-export function value(benefit: number, penalty: number): number {
-  return benefit + penalty;
+/** benefit + penalty */
+export function value(s: Pick<Scores, "benefit" | "penalty">): number {
+  return s.benefit + s.penalty;
 }
 
-export function cost(estimate: number, risk: number): number {
-  return estimate + risk;
+/** estimate + risk */
+export function cost(s: Pick<Scores, "estimate" | "risk">): number {
+  return s.estimate + s.risk;
 }
 
 /**
@@ -19,23 +21,13 @@ export function round2(x: number): number {
 }
 
 /** value / cost, unrounded: use it to sort and filter */
-export function exactPriority(
-  benefit: number,
-  penalty: number,
-  estimate: number,
-  risk: number
-): number {
-  return value(benefit, penalty) / cost(estimate, risk);
+export function exactPriority(s: Scores): number {
+  return value(s) / cost(s);
 }
 
 /** value / cost rounded to two decimals, for display */
-export function priority(
-  benefit: number,
-  penalty: number,
-  estimate: number,
-  risk: number
-): number {
-  return round2(exactPriority(benefit, penalty, estimate, risk));
+export function priority(s: Scores): number {
+  return round2(exactPriority(s));
 }
 
 /**
@@ -43,5 +35,5 @@ export function priority(
  * and 2/26 both display as 0.08 but are not equal.
  */
 export function byPriority(a: Scores, b: Scores): number {
-  return exactPriority(b.benefit, b.penalty, b.estimate, b.risk) - exactPriority(a.benefit, a.penalty, a.estimate, a.risk);
+  return exactPriority(b) - exactPriority(a);
 }

@@ -74,7 +74,7 @@ describe("dashboard report", () => {
   it("says the ranking is unweighted when the project has its own weights", async () => {
     await createTicket(db, { projectId, title: "A" });
     assert.ok(!(await renderDashboard(db, projectId, "Dash")).includes("without the project's weights"));
-    await setWeights(db, projectId, 0.1, 5, 1.5, 1.5);
+    await setWeights(db, projectId, { w1: 0.1, w2: 5, w3: 1.5, w4: 1.5 });
     assert.ok((await renderDashboard(db, projectId, "Dash")).includes("without the project's weights"));
   });
 

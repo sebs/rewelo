@@ -21,7 +21,7 @@ export async function groupByTagPrefix(
   for (const t of tickets) {
     const tags = tagsByTicket.get(t.id) ?? [];
     const matching = tags.filter((tg) => tg.prefix === prefix);
-    const prio = exactPriority(t.benefit, t.penalty, t.estimate, t.risk);
+    const prio = exactPriority(t);
 
     for (const tag of matching) {
       if (!groups[tag.value]) groups[tag.value] = { count: 0, sumPriority: 0 };

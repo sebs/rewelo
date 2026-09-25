@@ -141,8 +141,7 @@ export async function importProjectData(
     }
 
     if (extras.weights) {
-      const { w1, w2, w3, w4 } = extras.weights;
-      await setWeights(db, projectId, w1, w2, w3, w4);
+      await setWeights(db, projectId, extras.weights);
     }
 
     // Say what else changed: the file's weights replace the project's, and

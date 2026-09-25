@@ -30,18 +30,17 @@ export async function weightedRanking(
 ): Promise<WeightedRanking> {
   const tickets = await ticketsInScope(db, projectId, options.tags);
   const weights = withOverrides(await getWeights(db, projectId), options.weights);
-  const { w1, w2, w3, w4 } = weights;
-  validateWeights(w1, w2, w3, w4);
+  validateWeights(weights);
 
-  const exact = (t: Ticket) => exactWeightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4);
+  const exact = (t: Ticket) => exactWeightedPriority(t, weights);
   return {
     weights,
     tickets: [...tickets]
       .sort((a, b) => exact(b) - exact(a))
       .map((t) => ({
         title: t.title,
-        priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-        weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
+        priority: priority(t),
+        weighted: weightedPriority(t, weights),
       })),
   };
 }
@@ -64,6 +63,5 @@ export async function relativeWeights(
 
 /** Set the weights given; the others keep their current value */
 export async function updateWeights(db: DB, projectId: number, overrides: Partial<Weights>): Promise<WeightConfig> {
-  const { w1, w2, w3, w4 } = withOverrides(await getWeights(db, projectId), overrides);
-  return setWeights(db, projectId, w1, w2, w3, w4);
+  return setWeights(db, projectId, withOverrides(await getWeights(db, projectId), overrides));
 }
