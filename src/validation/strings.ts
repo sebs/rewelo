@@ -77,6 +77,11 @@ export function validateTicketTitle(title: string): string {
     throw new ValidationError("Ticket title is not valid UTF-8 (it contains the replacement character \uFFFD)");
   }
   const normalized = collapseSpaces(normalize(title.trim()));
+  // URL parsing drops "." and ".." path segments, even percent-encoded: the
+  // MCP resource rewelo://{project}/ticket/{title} could never reach them
+  if (normalized === "." || normalized === "..") {
+    throw new ValidationError('Ticket title must not be "." or ".."');
+  }
   if (normalized.length > MAX_TICKET_TITLE) {
     throw new ValidationError(
       `Ticket title must not exceed ${MAX_TICKET_TITLE} characters`

@@ -64,6 +64,14 @@ describe("validateTicketTitle", () => {
     assert.equal(validateTicketTitle("Fix bug #123"), "Fix bug #123");
   });
 
+  it('rejects "." and "..", which no resource URI can name', () => {
+    for (const title of [".", "..", " .. "]) {
+      assert.throws(() => validateTicketTitle(title), /must not be "\." or "\.\."/);
+    }
+    assert.equal(validateTicketTitle("..."), "...");
+    assert.equal(validateTicketTitle("a.."), "a..");
+  });
+
   it("rejects empty titles", () => {
     assert.throws(() => validateTicketTitle(""), ValidationError);
   });
