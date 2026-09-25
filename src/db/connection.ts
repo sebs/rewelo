@@ -128,6 +128,11 @@ export class DB {
     }
   }
 
+  /** Changes whenever another connection commits (PRAGMA data_version) */
+  async dataVersion(): Promise<number> {
+    return (await this.all<{ data_version: number }>("PRAGMA data_version"))[0].data_version;
+  }
+
   async close(): Promise<void> {
     this.db.close();
   }

@@ -56,7 +56,7 @@ export class ChangeWatcher {
     this.checking = true;
     try {
       await this.session.queued(async (db) => {
-        const version = (await db.all<{ data_version: number }>("PRAGMA data_version"))[0].data_version;
+        const version = await db.dataVersion();
         const changed = this.wrote || (this.dataVersion !== undefined && version !== this.dataVersion);
         this.dataVersion = version;
         this.wrote = false;

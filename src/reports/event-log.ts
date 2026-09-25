@@ -11,6 +11,11 @@ export interface ProjectEvent {
   sequence: number;
 }
 
+/** The sequence of the last event written, in any project (0 before the first) */
+export async function lastEventSequence(db: DB): Promise<number> {
+  return (await db.all<{ seq: number | null }>("SELECT MAX(seq) AS seq FROM event_order"))[0].seq ?? 0;
+}
+
 export async function getEventLog(
   db: DB,
   projectId: number,

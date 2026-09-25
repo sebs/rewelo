@@ -1,13 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { DB } from "../../db/connection.js";
 import { listProjects } from "../../projects/repository.js";
-import { getEventLog, type ProjectEvent } from "../../reports/event-log.js";
+import { getEventLog, lastEventSequence, type ProjectEvent } from "../../reports/event-log.js";
 
 // Events pushed per project and check; more are summed up in one message
 const MAX_CHANNEL_EVENTS = 20;
-
-const lastSequence = async (db: DB) =>
-  (await db.all<{ seq: number | null }>("SELECT MAX(seq) AS seq FROM event_order"))[0].seq ?? 0;
 
 function describe(project: string, e: ProjectEvent): string {
   const ticket = `"${e.ticketTitle}" in ${project}`;
@@ -41,11 +38,11 @@ export class Channel {
 
   // A session hears about changes made elsewhere, not the ones it made itself
   noteOwnEvents = async <T>(db: DB, fn: (db: DB) => Promise<T>): Promise<T> => {
-    const from = await lastSequence(db);
+    const from = await lastEventSequence(db);
     try {
       return await fn(db);
     } finally {
-      const to = await lastSequence(db);
+      const to = await lastEventSequence(db);
       if (to > from) this.ownEvents.push([from, to]);
     }
   };
@@ -55,7 +52,7 @@ export class Channel {
   }
 
   async push(db: DB): Promise<void> {
-    const last = await lastSequence(db);
+    const last = await lastEventSequence(db);
     // Start from now: the channel reports what happens while it listens
     if (this.cursor === undefined || last <= this.cursor) {
       this.cursor ??= last;

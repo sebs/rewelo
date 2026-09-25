@@ -2,6 +2,7 @@ import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { createProject, deleteProject, listProjects } from "../../projects/repository.js";
 import { AppError } from "../../errors.js";
+import { countTickets } from "../../tickets/repository.js";
 import { validateProjectName } from "../../validation/strings.js";
 import { VERSION } from "../../version.generated.js";
 import { safe, textResult } from "../results.js";
@@ -44,9 +45,7 @@ export function registerProjectTools(ctx: McpContext): void {
       if (answer.kind === "missing" && canAskUser()) {
         // Like every other tool (and the CLI), a missing project is an
         // error, and asking to confirm its deletion is pointless
-        const tickets = await withProject(name, async (db, proj) =>
-          (await db.all<{ n: number }>("SELECT COUNT(*) AS n FROM tickets WHERE project_id = ?", proj.id))[0].n
-        );
+        const tickets = await withProject(name, (db, proj) => countTickets(db, proj.id));
         return inputRequired({
           inputRequests: {
             confirm: inputRequired.elicit({

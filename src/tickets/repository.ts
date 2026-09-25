@@ -159,6 +159,11 @@ export async function listTickets(
   return db.all<Ticket>(sql, ...params);
 }
 
+export async function countTickets(db: DB, projectId: number): Promise<number> {
+  const [{ n }] = await db.all<{ n: number }>(`SELECT COUNT(*) AS n FROM tickets WHERE project_id = ?`, projectId);
+  return n;
+}
+
 export async function getTicketByTitle(
   db: DB,
   projectId: number,
