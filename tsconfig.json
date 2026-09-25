@@ -6,6 +6,8 @@
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
+    // An unused import or variable fails the build instead of lingering
+    "noUnusedLocals": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
