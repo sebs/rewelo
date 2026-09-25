@@ -171,6 +171,13 @@ export async function startMcpServer(dbPath: string, options?: { channel?: boole
   const shutdown = async () => {
     disconnected.abort();
     await server.close();
+    // stdout to a pipe is written asynchronously: exiting before it drains
+    // cut the last answer off mid-line (docker stop during a large result)
+    // (an empty write's callback runs once everything before it is written)
+    await new Promise((flushed) => {
+      process.stdout.write("", flushed);
+      setTimeout(flushed, 5000).unref();
+    });
     process.exit(0);
   };
 

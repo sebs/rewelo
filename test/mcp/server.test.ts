@@ -640,6 +640,53 @@ describe("MCP server", () => {
     assert.match(line, /^rewelo \S+ MCP server on stdio transport, database :memory:/);
   });
 
+  it("finishes writing the answer on its way out when stopped (SIGTERM)", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-term-"));
+    const path = join(dir, "t.db");
+    const db = await DB.open(path);
+    await (await import("../../src/db/migrate.js")).migrate(db);
+    await db.run("INSERT INTO projects (id, name) VALUES (1, 'P')");
+    await db.transaction(async () => {
+      for (let i = 0; i < 3_000; i++) await db.run("INSERT INTO tickets (project_id, title) VALUES (1, ?)", `${i} ${"x".repeat(400)}`);
+    });
+    await db.close();
+
+    const child = spawn(process.execPath, [resolve(__dirname, "../../src/index.js"), "--db", path, "serve"], {
+      stdio: ["pipe", "pipe", "ignore"],
+      env: childEnv(),
+    });
+    // "close": the process has exited and its stdout has been read to the end
+    const exited = new Promise((done) => child.once("close", done));
+    const send = (m: object) => child.stdin!.write(JSON.stringify(m) + "\n");
+    send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
+    send({ jsonrpc: "2.0", method: "notifications/initialized" });
+    send({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "ticket_list", arguments: { project: "P", limit: 3_000 } } });
+
+    // Stop the server once the large answer has started, while most of it
+    // still waits to be written: the client doesn't read in the meantime
+    let out = "";
+    let stopped = false;
+    await new Promise<void>((started) => {
+      child.stdout!.on("data", (chunk) => {
+        out += chunk;
+        const lines = out.split("\n");
+        if (!stopped && lines.length > 1 && lines[1].length > 0) {
+          stopped = true;
+          child.stdout!.pause();
+          child.kill("SIGTERM");
+          setTimeout(() => (child.stdout!.resume(), started()), 300);
+        }
+      });
+    });
+    await exited;
+    rmSync(dir, { recursive: true, force: true });
+
+    const lines = out.split("\n").filter((l) => l.length > 0);
+    const answer = JSON.parse(lines[1]);
+    assert.equal(answer.id, 2);
+    assert.equal(JSON.parse(answer.result.content[0].text).items.length, 3_000);
+  });
+
   it("applies the payload limit to every tool and never echoes a huge input", async () => {
     await client.callTool({ name: "project_create", arguments: { name: "Big" } });
     const huge = await client.callTool({ name: "ticket_update", arguments: { project: "Big", title: "x".repeat(2_000_000) } });
