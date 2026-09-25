@@ -150,6 +150,13 @@ Feature: MCP Server
     When a client reads "rewelo://Nope/backlog"
     Then the response should be an MCP error that the project was not found
 
+  Scenario: A document over 5 MB comes as a link
+    Given a project "Big Project" whose JSON export with history is over 5 MB
+    When a client calls "export_json" with project "Big Project" and withHistory true
+    Then the response should be a resource_link to "rewelo://Big%20Project/export/json-with-history" and a text saying why
+    When the client reads that resource
+    Then the content should be the whole export
+
   # -- Prompts --
 
   Scenario: The skills are offered as prompts

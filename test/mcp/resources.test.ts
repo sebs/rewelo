@@ -35,13 +35,15 @@ describe("MCP resources", () => {
 
   afterEach(() => close());
 
-  it("offers backlog, ticket and dashboard templates", async () => {
+  it("offers backlog, ticket, dashboard and export templates", async () => {
     const { resourceTemplates } = await client.listResourceTemplates();
     assert.deepEqual(
       resourceTemplates.map((t) => [t.name, t.uriTemplate, t.mimeType]).sort(),
       [
         ["backlog", "rewelo://{project}/backlog", "application/json"],
         ["dashboard", "rewelo://{project}/dashboard", "text/html"],
+        ["dashboard-rows", "rewelo://{project}/dashboard/{limit}", "text/html"],
+        ["export", "rewelo://{project}/export/{format}", undefined],
         ["ticket", "rewelo://{project}/ticket/{title}", "application/json"],
       ]
     );

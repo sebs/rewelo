@@ -6,6 +6,7 @@ import {
   inputRequired,
   inputResponse,
   isInputRequiredResult,
+  type CallToolResult,
   type PrimitiveSchemaDefinition,
   type Variables,
   type ServerContext,
@@ -103,8 +104,21 @@ function textResult(data: unknown): { content: Array<{ type: "text"; text: strin
   return typeof data === "string" ? { content } : { content, structuredContent: data as Record<string, unknown> };
 }
 
-const tooLarge = (size: string) =>
-  `The result is too large (${size}, max ${MAX_RESULT_BYTES / 1_000_000} MB). Narrow it (limit, offset, filters), or use the rw CLI, which writes exports and dashboards to files.`;
+// Documents (exports, dashboards) are read as resources, which a client
+// fetches on its own instead of putting them into the model's context: they
+// may be larger. The whole document is still one message in memory.
+const MAX_DOCUMENT_BYTES = 32_000_000;
+
+// Thrown while a document is built, once it is over its limit
+class DocumentTooLarge extends AppError {}
+
+// A tool result in its final form, such as a link to a resource
+class ToolResult {
+  constructor(readonly result: CallToolResult) {}
+}
+
+const tooLarge = (size: string, max = MAX_RESULT_BYTES) =>
+  `The result is too large (${size}, max ${max / 1_000_000} MB). Narrow it (limit, offset, filters), or use the rw CLI, which writes exports and dashboards to files.`;
 
 function errorResult(err: unknown): { content: Array<{ type: "text"; text: string }>; isError: true } {
   // Messages quote input (e.g. a ticket title); never echo a huge one back
@@ -253,7 +267,8 @@ function safe(fn: (args: any, ctx: ServerContext) => any) {
     try {
       const result = await fn(args, ctx);
       // A question for the user (inputRequired) goes out as it is
-      return isInputRequiredResult(result) ? result : textResult(result);
+      if (isInputRequiredResult(result)) return result;
+      return result instanceof ToolResult ? result.result : textResult(result);
     } catch (err) {
       return errorResult(err);
     }
@@ -358,6 +373,54 @@ export function createMcpServer(
     if (!ticket) throw new AppError(title ? `Ticket "${title}" not found` : `Ticket #${id} not found`);
     return ticket;
   }
+
+  // The export as export_json and the export resource return it, given up
+  // past maxBytes: the whole export of a big project in memory killed the
+  // server (heap out of memory), only for the result to be refused as too large
+  async function jsonExport(db: DB, projectId: number, withHistory: boolean, maxBytes: number): Promise<string> {
+    let text = "";
+    await writeJsonExport(db, projectId, { withHistory, indent: false }, async (chunks) => {
+      for await (const chunk of chunks) {
+        text += chunk;
+        // UTF-16 units, at most the bytes: over this is over in bytes too
+        if (text.length > maxBytes) throw new DocumentTooLarge(tooLarge(`over ${maxBytes / 1_000_000} MB`, maxBytes));
+      }
+    });
+    return text;
+  }
+
+  function checkDocumentSize(text: string, maxBytes: number): string {
+    const bytes = Buffer.byteLength(text, "utf-8");
+    if (bytes > maxBytes) throw new DocumentTooLarge(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`, maxBytes));
+    return text;
+  }
+
+  // A document too large for a tool result: a link to the resource with it
+  async function documentOrLink(build: () => Promise<string>, uri: string, name: string, mimeType: string) {
+    try {
+      return checkDocumentSize(await build(), MAX_RESULT_BYTES);
+    } catch (err) {
+      if (!(err instanceof DocumentTooLarge)) throw err;
+      return new ToolResult({
+        content: [
+          {
+            type: "text",
+            text: `The ${name} is over ${MAX_RESULT_BYTES / 1_000_000} MB, too large to return here. Read it from the resource ${uri} (up to ${MAX_DOCUMENT_BYTES / 1_000_000} MB), or use the rw CLI, which writes it to a file.`,
+          },
+          { type: "resource_link", uri, name, mimeType },
+        ],
+      });
+    }
+  }
+
+  const dashboard = (db: DB, proj: Project, limit?: number) =>
+    renderDashboard(db, proj.id, proj.name, {
+      generatedAt: new Date().toISOString(),
+      limit,
+      limitHint: "a higher <code>limit</code> for <code>report_dashboard</code>",
+    });
+
+  const resourceUri = (project: string, path: string) => `rewelo://${encodeURIComponent(project)}/${path}`;
 
   // Whether the client can show the user a form (elicitation). Asking one
   // that can't fails the call instead of going ahead without an answer.
@@ -1040,7 +1103,7 @@ export function createMcpServer(
 
   tool(
     "report_dashboard",
-    "Render a self-contained HTML dashboard (tickets, distribution, health, relations). Returns the HTML document as text.",
+    "Render a self-contained HTML dashboard (tickets, distribution, health, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       limit: z.number().int().nonnegative().optional().describe("Rows per table (default 500)"),
@@ -1048,11 +1111,12 @@ export function createMcpServer(
     READ,
     safe(({ project, limit }) =>
       withProject(resolveProject(project), (db, proj) =>
-        renderDashboard(db, proj.id, proj.name, {
-          generatedAt: new Date().toISOString(),
-          limit,
-          limitHint: "a higher <code>limit</code> for <code>report_dashboard</code>",
-        })
+        documentOrLink(
+          () => dashboard(db, proj, limit),
+          resourceUri(proj.name, limit === undefined ? "dashboard" : `dashboard/${limit}`),
+          "dashboard",
+          "text/html"
+        )
       )
     )
   );
@@ -1095,40 +1159,41 @@ export function createMcpServer(
 
   tool(
     "export_csv",
-    "Export all tickets as CSV. Optionally includes calculated value, cost, and priority columns.",
+    "Export all tickets as CSV. Optionally includes calculated value, cost, and priority columns. Over 5 MB, returns a link to the resource with the CSV instead.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       withCalculations: z.boolean().optional().describe("Include value/cost/priority columns"),
     },
     READ,
     safe(({ project, withCalculations }) =>
-      withProject(resolveProject(project), (db, proj) => exportCsv(db, proj.id, { withCalculations }))
+      withProject(resolveProject(project), (db, proj) =>
+        documentOrLink(
+          () => exportCsv(db, proj.id, { withCalculations }),
+          resourceUri(proj.name, `export/${withCalculations ? "csv-with-calculations" : "csv"}`),
+          "CSV export",
+          "text/csv"
+        )
+      )
     )
   );
 
   tool(
     "export_json",
-    "Export a project as JSON: tickets, tags, relations and weights, and with withHistory each ticket's revisions and tag changes. Use for backups of a single project; import_json restores it.",
+    "Export a project as JSON: tickets, tags, relations and weights, and with withHistory each ticket's revisions and tag changes. Use for backups of a single project; import_json restores it. Over 5 MB, returns a link to the resource with the export instead.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       withHistory: z.boolean().optional().describe("Include revisions and audit log"),
     },
     READ,
     safe(({ project, withHistory }) =>
-      withProject(resolveProject(project), async (db, proj) => {
-        // Built piece by piece and given up past the result limit: the whole
-        // export of a big project in memory killed the server (heap out of
-        // memory), only for the result to be refused as too large
-        let text = "";
-        await writeJsonExport(db, proj.id, { withHistory, indent: false }, async (chunks) => {
-          for await (const chunk of chunks) {
-            text += chunk;
-            // UTF-16 units, at most the bytes: over this is over in bytes too
-            if (text.length > MAX_RESULT_BYTES) throw new AppError(tooLarge(`over ${MAX_RESULT_BYTES / 1_000_000} MB`));
-          }
-        });
-        return text;
-      })
+      withProject(resolveProject(project), (db, proj) =>
+        documentOrLink(
+          () => jsonExport(db, proj.id, withHistory ?? false, MAX_RESULT_BYTES),
+          resourceUri(proj.name, `export/${withHistory ? "json-with-history" : "json"}`),
+          "JSON export",
+          "application/json"
+        )
+      )
     )
   );
 
@@ -1295,12 +1360,10 @@ export function createMcpServer(
     return decodeURIComponent(Array.isArray(raw) ? raw[0] : raw);
   };
 
-  async function readResource(uri: URL, mimeType: string, read: () => Promise<unknown>) {
+  async function readResource(uri: URL, mimeType: string, read: () => Promise<unknown>, maxBytes = MAX_RESULT_BYTES) {
     try {
       const data = await read();
-      const text = typeof data === "string" ? data : JSON.stringify(data);
-      const bytes = Buffer.byteLength(text, "utf-8");
-      if (bytes > MAX_RESULT_BYTES) throw new AppError(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
+      const text = checkDocumentSize(typeof data === "string" ? data : JSON.stringify(data), maxBytes);
       return { contents: [{ uri: uri.href, mimeType, text }] };
     } catch (err) {
       const message = shorten(sanitizeError(err));
@@ -1314,7 +1377,7 @@ export function createMcpServer(
   // One resource per project, for the templates that have one
   const perProject = (path: string, what: string, mimeType: string) => async () => ({
     resources: (await withDb((db) => listProjects(db))).map((p) => ({
-      uri: `rewelo://${encodeURIComponent(p.name)}/${path}`,
+      uri: resourceUri(p.name, path),
       name: `${p.name} ${what}`,
       mimeType,
     })),
@@ -1410,15 +1473,65 @@ export function createMcpServer(
       description: "A project's self-contained HTML dashboard (tickets, distribution, health, relations), as report_dashboard renders it",
       mimeType: "text/html",
     },
+    (uri, vars) => readResource(uri, "text/html", () => withProject(variable(vars, "project"), (db, proj) => dashboard(db, proj)), MAX_DOCUMENT_BYTES)
+  );
+
+  // Where report_dashboard links to with a limit
+  server.registerResource(
+    "dashboard-rows",
+    new ResourceTemplate("rewelo://{project}/dashboard/{limit}", { list: undefined, complete: { project: completeProject } }),
+    {
+      title: "Dashboard with a row limit",
+      description: "The dashboard with at most limit rows per table",
+      mimeType: "text/html",
+    },
     (uri, vars) =>
-      readResource(uri, "text/html", () =>
-        withProject(variable(vars, "project"), (db, proj) =>
-          renderDashboard(db, proj.id, proj.name, {
-            generatedAt: new Date().toISOString(),
-            limitHint: "a higher <code>limit</code> in the <code>report_dashboard</code> tool",
-          })
-        )
+      readResource(
+        uri,
+        "text/html",
+        () => {
+          const limit = variable(vars, "limit");
+          if (!/^\d{1,9}$/.test(limit)) throw new AppError(`Invalid limit "${limit}": expected a whole number`);
+          return withProject(variable(vars, "project"), (db, proj) => dashboard(db, proj, Number(limit)));
+        },
+        MAX_DOCUMENT_BYTES
       )
+  );
+
+  const EXPORT_FORMATS: Record<string, string> = {
+    csv: "text/csv",
+    "csv-with-calculations": "text/csv",
+    json: "application/json",
+    "json-with-history": "application/json",
+  };
+
+  // Where export_csv and export_json link to when an export is too large
+  server.registerResource(
+    "export",
+    new ResourceTemplate("rewelo://{project}/export/{format}", {
+      list: undefined,
+      complete: { project: completeProject, format: (typed) => Object.keys(EXPORT_FORMATS).filter((f) => f.startsWith(typed ?? "")) },
+    }),
+    {
+      title: "Export",
+      description: "A project's export as export_csv or export_json returns it. format: csv, csv-with-calculations, json or json-with-history.",
+    },
+    async (uri, vars) => {
+      const format = variable(vars, "format");
+      const mimeType = EXPORT_FORMATS[format];
+      if (!mimeType) throw new ResourceNotFoundError(uri.href, `Unknown export format "${format}": use ${Object.keys(EXPORT_FORMATS).join(", ")}`);
+      return readResource(
+        uri,
+        mimeType,
+        () =>
+          withProject(variable(vars, "project"), (db, proj) =>
+            format.startsWith("csv")
+              ? exportCsv(db, proj.id, { withCalculations: format === "csv-with-calculations" })
+              : jsonExport(db, proj.id, format === "json-with-history", MAX_DOCUMENT_BYTES)
+          ),
+        MAX_DOCUMENT_BYTES
+      );
+    }
   );
 
   const connect = server.connect.bind(server);
