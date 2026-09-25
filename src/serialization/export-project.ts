@@ -2,6 +2,7 @@ import { DB } from "../db/connection.js";
 import { listTags } from "../tags/repository.js";
 import { listProjectRelations } from "../relations/repository.js";
 import { getWeights } from "../weights/repository.js";
+import type { Weights } from "../domain/weights.js";
 
 export interface TagPair {
   prefix: string;
@@ -24,12 +25,8 @@ export interface SerializedRelation {
   target: string;
 }
 
-export interface SerializedWeights {
-  w1: number;
-  w2: number;
-  w3: number;
-  w4: number;
-}
+/** The project's weights, as in the export */
+export type SerializedWeights = Weights;
 
 export interface SerializedProject {
   tickets: SerializedTicket[];

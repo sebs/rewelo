@@ -5,8 +5,8 @@ import { getDistribution } from "./distribution.js";
 import { doneTicketIds, getBacklogHealth } from "./health.js";
 import { listProjectRelations } from "../relations/repository.js";
 import { getWeights } from "../weights/repository.js";
-
-const FIBS = [1, 2, 3, 5, 8, 13, 21];
+import { FIBONACCI } from "../domain/scores.js";
+import { DEFAULT_WEIGHTS } from "../domain/weights.js";
 
 function esc(value: unknown): string {
   return String(value ?? "").replace(
@@ -65,7 +65,7 @@ export async function renderDashboard(
     }));
 
   const weights = await getWeights(db, projectId);
-  const customWeights = [weights.w1, weights.w2, weights.w3, weights.w4].some((w) => w !== 1.5);
+  const customWeights = (["w1", "w2", "w3", "w4"] as const).some((w) => weights[w] !== DEFAULT_WEIGHTS[w]);
   const distribution = await getDistribution(db, projectId);
   const health = await getBacklogHealth(db, projectId);
   const relations = await listProjectRelations(db, projectId);
@@ -95,7 +95,7 @@ export async function renderDashboard(
   const distRows = distribution
     .map(
       (d) =>
-        `<tr><th scope="row">${esc(d.dimension)}</th>${FIBS.map(
+        `<tr><th scope="row">${esc(d.dimension)}</th>${FIBONACCI.map(
           (f) => `<td class="n">${d.counts[f] || 0}</td>`
         ).join("")}</tr>`
     )
@@ -186,7 +186,7 @@ ${more(Math.min(limit, rows.length), rows.length, "open ticket")}
 
 <h2 id="distribution">Score distribution</h2>
 <table aria-labelledby="distribution">
-  <thead><tr><th scope="col">Dimension</th>${FIBS.map((f) => `<th scope="col">${f}</th>`).join("")}</tr></thead>
+  <thead><tr><th scope="col">Dimension</th>${FIBONACCI.map((f) => `<th scope="col">${f}</th>`).join("")}</tr></thead>
   <tbody>${distRows}</tbody>
 </table>
 

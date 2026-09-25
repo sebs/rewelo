@@ -7,8 +7,8 @@ import { createTicket, listTickets } from "../../src/tickets/repository.js";
 import { priority } from "../../src/calculations/priority.js";
 import {
   calculateRelativeWeights,
-  Scoreable,
 } from "../../src/calculations/relative-weights.js";
+import type { Scores } from "../../src/domain/scores.js";
 import { weightedPriority } from "../../src/calculations/weighted-priority.js";
 import { getTicketTimes, averageLeadTime } from "../../src/calculations/time.js";
 
@@ -37,7 +37,7 @@ describe("edge cases", () => {
   });
 
   it("single ticket: relative weights are all 1.00", () => {
-    const ticket: Scoreable = { benefit: 5, penalty: 3, estimate: 8, risk: 2 };
+    const ticket: Scores = { benefit: 5, penalty: 3, estimate: 8, risk: 2 };
     const weights = calculateRelativeWeights(ticket, [ticket]);
     assert.equal(weights.relativeBenefit, 1);
     assert.equal(weights.relativePenalty, 1);
@@ -60,7 +60,7 @@ describe("edge cases", () => {
   });
 
   it("all zeros in relative weights returns 0", () => {
-    const ticket: Scoreable = { benefit: 0, penalty: 0, estimate: 0, risk: 0 };
+    const ticket: Scores = { benefit: 0, penalty: 0, estimate: 0, risk: 0 };
     const weights = calculateRelativeWeights(ticket, [ticket]);
     assert.equal(weights.relativeBenefit, 0);
     assert.equal(weights.relativePenalty, 0);

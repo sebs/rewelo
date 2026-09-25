@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { isFibonacci, assertFibonacci } from "../../src/db/types.js";
+import { isFibonacci, assertFibonacci } from "../../src/domain/scores.js";
 
 describe("Fibonacci validation", () => {
   for (const n of [1, 2, 3, 5, 8, 13, 21]) {

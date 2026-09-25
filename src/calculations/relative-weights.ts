@@ -1,9 +1,4 @@
-export interface Scoreable {
-  benefit: number;
-  penalty: number;
-  estimate: number;
-  risk: number;
-}
+import type { Scores } from "../domain/scores.js";
 
 export interface RelativeWeights {
   relativeBenefit: number;
@@ -19,8 +14,8 @@ function safeRatio(value: number, total: number): number {
   return Number((value / total).toPrecision(4));
 }
 
-function totals(all: Scoreable[]): Scoreable {
-  const sum: Scoreable = { benefit: 0, penalty: 0, estimate: 0, risk: 0 };
+function totals(all: Scores[]): Scores {
+  const sum: Scores = { benefit: 0, penalty: 0, estimate: 0, risk: 0 };
   for (const t of all) {
     sum.benefit += t.benefit;
     sum.penalty += t.penalty;
@@ -30,7 +25,7 @@ function totals(all: Scoreable[]): Scoreable {
   return sum;
 }
 
-function relativeTo(ticket: Scoreable, sum: Scoreable): RelativeWeights {
+function relativeTo(ticket: Scores, sum: Scores): RelativeWeights {
   return {
     relativeBenefit: safeRatio(ticket.benefit, sum.benefit),
     relativePenalty: safeRatio(ticket.penalty, sum.penalty),
@@ -40,8 +35,8 @@ function relativeTo(ticket: Scoreable, sum: Scoreable): RelativeWeights {
 }
 
 export function calculateRelativeWeights(
-  ticket: Scoreable,
-  all: Scoreable[]
+  ticket: Scores,
+  all: Scores[]
 ): RelativeWeights {
   return relativeTo(ticket, totals(all));
 }
@@ -50,7 +45,7 @@ export function calculateRelativeWeights(
  * Relative weights of every ticket. Sums the backlog once: calling
  * calculateRelativeWeights per ticket is quadratic (minutes for 20,000 tickets).
  */
-export function calculateAllRelativeWeights<T extends Scoreable>(
+export function calculateAllRelativeWeights<T extends Scores>(
   all: T[]
 ): (T & RelativeWeights)[] {
   const sum = totals(all);

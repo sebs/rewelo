@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DIMENSIONS } from "../domain/scores.js";
 
 // What each tool returns, advertised as its outputSchema and sent as
 // structuredContent next to the JSON text. The schemas are exact (no
@@ -153,7 +154,7 @@ export const outputSchemas = {
       reached: z.boolean(),
       priorityToBeat: z.number().nullable().describe("Priority of the ticket holding that rank now"),
       options: z.array(z.object({
-        dimension: z.enum(["benefit", "penalty", "estimate", "risk"]),
+        dimension: z.enum(DIMENSIONS),
         from: score,
         to: score,
         priority: z.number(),
@@ -198,7 +199,7 @@ export const outputSchemas = {
       estimate: score,
       risk: score,
     })).describe("The most similar existing tickets: possible duplicates"),
-    references: z.object(Object.fromEntries(["benefit", "penalty", "estimate", "risk"].map((d) => [
+    references: z.object(Object.fromEntries(DIMENSIONS.map((d) => [
       d,
       z.array(z.object({ score, title: z.string(), description: z.string().nullable() })),
     ]))).describe("Per dimension and score, the existing ticket closest to the new one"),

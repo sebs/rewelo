@@ -2,19 +2,13 @@
 // tickets most like it (possible duplicates), and for every score of every
 // dimension the existing ticket closest to it, as a reference point.
 
-export interface CalibrationTicket {
+import { DIMENSIONS, FIBONACCI, isFibonacci, type Dimension, type Scores } from "../domain/scores.js";
+
+export interface CalibrationTicket extends Scores {
   title: string;
   description: string | null;
-  benefit: number;
-  penalty: number;
-  estimate: number;
-  risk: number;
 }
 
-type Dimension = "benefit" | "penalty" | "estimate" | "risk";
-
-const DIMENSIONS: Dimension[] = ["benefit", "penalty", "estimate", "risk"];
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21];
 const MAX_SIMILAR = 5;
 const EXCERPT_LENGTH = 200;
 
@@ -88,7 +82,7 @@ export function scoringPrompt(title: string, description: string | undefined, ca
     `New ticket: ${JSON.stringify(title)}`,
     ...(description ? [`Description: ${JSON.stringify(description)}`] : []),
     "",
-    "Scores are Fibonacci values: 1, 2, 3, 5, 8, 13, 21. benefit is the value if delivered, penalty the harm if not delivered, estimate the effort, risk the uncertainty.",
+    `Scores are Fibonacci values: ${FIBONACCI.join(", ")}. benefit is the value if delivered, penalty the harm if not delivered, estimate the effort, risk the uncertainty.`,
     "",
     "Existing tickets at each score:",
     ...DIMENSIONS.flatMap((d) => [
@@ -124,7 +118,7 @@ export function parseSuggestion(answer: string): Suggestion | undefined {
   } catch {
     return undefined;
   }
-  if (!DIMENSIONS.every((d) => FIBONACCI.includes(data[d] as number))) return undefined;
+  if (!DIMENSIONS.every((d) => typeof data[d] === "number" && isFibonacci(data[d]))) return undefined;
   const { benefit, penalty, estimate, risk, reasoning } = data as unknown as Suggestion;
   return { benefit, penalty, estimate, risk, ...(typeof reasoning === "string" ? { reasoning: reasoning.slice(0, 1000) } : {}) };
 }

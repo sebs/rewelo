@@ -9,12 +9,11 @@ import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from 
 import { validateExportPath } from "../../validation/paths.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { displayWidth } from "../../display-width.js";
+import { FIBONACCI } from "../../domain/scores.js";
 import { withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, parseFloatOption, parseNonNegativeIntOption, type ProjectOptions } from "../options.js";
 import { formatTable, printRows, reportWritten } from "../output.js";
 import { writeFile } from "../files.js";
-
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21];
 
 export function registerReportCommands(program: Command): void {
   const reportCmd = program.command("report").description("reporting commands");

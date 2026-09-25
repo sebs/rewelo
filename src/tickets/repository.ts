@@ -1,5 +1,5 @@
 import { DB } from "../db/connection.js";
-import { Fibonacci, assertFibonacci } from "../db/types.js";
+import { assertScores, type Fibonacci } from "../domain/scores.js";
 import { AppError, MAX_TICKET_TITLE, ValidationError, collapseSpaces, isBlank, normalizeName } from "../validation/strings.js";
 import { getTicketTags } from "../tags/assignment.js";
 
@@ -36,18 +36,6 @@ export interface UpdateTicketInput {
   risk?: number;
 }
 
-function validateScores(input: {
-  benefit?: number;
-  penalty?: number;
-  estimate?: number;
-  risk?: number;
-}): void {
-  if (input.benefit !== undefined) assertFibonacci(input.benefit, "benefit");
-  if (input.penalty !== undefined) assertFibonacci(input.penalty, "penalty");
-  if (input.estimate !== undefined) assertFibonacci(input.estimate, "estimate");
-  if (input.risk !== undefined) assertFibonacci(input.risk, "risk");
-}
-
 // Whitespace alone is no description: stored as null, like ""
 const blankToNull = (description: string | undefined): string | null =>
   description === undefined || isBlank(description) ? null : description;
@@ -59,7 +47,7 @@ export async function createTicket(
   // One write transaction: the title check and the write must not interleave
   // with another process (which let two tickets get the same title)
   return db.transaction(async () => {
-    validateScores(input);
+    assertScores(input);
 
     // The project may have been deleted since the caller looked it up
     if ((await db.all(`SELECT 1 FROM projects WHERE id = ?`, input.projectId)).length === 0) {
@@ -209,7 +197,7 @@ export async function updateTicket(
   // One write transaction: the title check and the write must not interleave
   // with another process (which let two tickets get the same title)
   return db.transaction(async () => {
-    validateScores(input);
+    assertScores(input);
 
     const current = await getTicketById(db, projectId, ticketId);
     if (!current) throw new AppError("Ticket not found");
@@ -307,7 +295,7 @@ export async function upsertTicket(
       return { ticket, action: "created" };
     }
 
-    validateScores(input);
+    assertScores(input);
     const ticket = await updateTicket(db, projectId, existing.id, input);
     const changed = (["title", "description", "benefit", "penalty", "estimate", "risk"] as const).some(
       (field) => ticket[field] !== existing[field]

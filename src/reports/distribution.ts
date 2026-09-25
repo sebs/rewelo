@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { FIBONACCI_VALUES } from "../db/types.js";
+import { DIMENSIONS, FIBONACCI } from "../domain/scores.js";
 
 export interface DimensionDistribution {
   dimension: string;
@@ -13,20 +13,13 @@ export async function getDistribution(
 ): Promise<DimensionDistribution[]> {
   const tickets = await listTickets(db, projectId, { withDescription: false });
 
-  const dimensions: Array<{ name: string; key: "benefit" | "penalty" | "estimate" | "risk" }> = [
-    { name: "benefit", key: "benefit" },
-    { name: "penalty", key: "penalty" },
-    { name: "estimate", key: "estimate" },
-    { name: "risk", key: "risk" },
-  ];
-
-  return dimensions.map((dim) => {
+  return DIMENSIONS.map((dimension) => {
     const counts: Record<number, number> = {};
-    for (const fib of FIBONACCI_VALUES) counts[fib] = 0;
+    for (const fib of FIBONACCI) counts[fib] = 0;
     for (const t of tickets) {
-      const val = t[dim.key];
+      const val = t[dimension];
       counts[val] = (counts[val] || 0) + 1;
     }
-    return { dimension: dim.name, counts };
+    return { dimension, counts };
   });
 }

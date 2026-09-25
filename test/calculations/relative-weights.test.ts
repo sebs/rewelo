@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import {
   calculateAllRelativeWeights,
   calculateRelativeWeights,
-  Scoreable,
 } from "../../src/calculations/relative-weights.js";
+import type { Scores } from "../../src/domain/scores.js";
 
 describe("relative weight calculations", () => {
-  const stories: Scoreable[] = [
+  const stories: Scores[] = [
     { benefit: 8, penalty: 5, estimate: 3, risk: 2 },
     { benefit: 2, penalty: 1, estimate: 5, risk: 3 },
     { benefit: 5, penalty: 3, estimate: 2, risk: 1 },
@@ -20,7 +20,7 @@ describe("relative weight calculations", () => {
   });
 
   it("calculates relative penalty", () => {
-    const s: Scoreable[] = [
+    const s: Scores[] = [
       { benefit: 3, penalty: 8, estimate: 2, risk: 1 },
       { benefit: 5, penalty: 2, estimate: 3, risk: 2 },
     ];
@@ -29,7 +29,7 @@ describe("relative weight calculations", () => {
   });
 
   it("calculates relative estimate", () => {
-    const s: Scoreable[] = [
+    const s: Scores[] = [
       { benefit: 3, penalty: 2, estimate: 13, risk: 1 },
       { benefit: 5, penalty: 3, estimate: 8, risk: 2 },
     ];
@@ -38,7 +38,7 @@ describe("relative weight calculations", () => {
   });
 
   it("calculates relative risk", () => {
-    const s: Scoreable[] = [
+    const s: Scores[] = [
       { benefit: 3, penalty: 2, estimate: 5, risk: 13 },
       { benefit: 5, penalty: 3, estimate: 3, risk: 8 },
     ];
@@ -47,7 +47,7 @@ describe("relative weight calculations", () => {
   });
 
   it("single ticket has all relative weights = 1.0", () => {
-    const single: Scoreable[] = [{ benefit: 5, penalty: 3, estimate: 2, risk: 1 }];
+    const single: Scores[] = [{ benefit: 5, penalty: 3, estimate: 2, risk: 1 }];
     const rw = calculateRelativeWeights(single[0], single);
     assert.equal(rw.relativeBenefit, 1);
     assert.equal(rw.relativePenalty, 1);
@@ -72,7 +72,7 @@ describe("relative weight calculations", () => {
     // re-summing per ticket reads every ticket for each ticket.
     let reads = 0;
     const counted = Array.from({ length: 1000 }, () => {
-      const ticket = {} as Scoreable;
+      const ticket = {} as Scores;
       for (const key of ["benefit", "penalty", "estimate", "risk"] as const) {
         Object.defineProperty(ticket, key, { enumerable: true, get: () => (reads++, 1) });
       }

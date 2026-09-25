@@ -2,7 +2,7 @@ import { DB } from "../db/connection.js";
 import { createTicket } from "../tickets/repository.js";
 import { createTag, getTag } from "../tags/repository.js";
 import { assertOneValuePerPrefix, assignTag, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
-import { assertFibonacci } from "../db/types.js";
+import { assertScores } from "../domain/scores.js";
 import { ValidationError, parseTagPair, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { TagPair } from "../serialization/export-project.js";
 
@@ -166,10 +166,7 @@ function parseRows(csv: string): CsvRow[] {
       penalty = parseScore(row.penalty, "penalty");
       estimate = parseScore(row.estimate, "estimate");
       risk = parseScore(row.risk, "risk");
-      assertFibonacci(benefit, "benefit");
-      assertFibonacci(penalty, "penalty");
-      assertFibonacci(estimate, "estimate");
-      assertFibonacci(risk, "risk");
+      assertScores({ benefit, penalty, estimate, risk });
     } catch (e) {
       throw new ValidationError(`Row ${rowNumber}: ${(e as Error).message}`);
     }

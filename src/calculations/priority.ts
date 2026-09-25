@@ -1,3 +1,5 @@
+import type { Scores } from "../domain/scores.js";
+
 export function value(benefit: number, penalty: number): number {
   return benefit + penalty;
 }
@@ -34,13 +36,6 @@ export function priority(
   risk: number
 ): number {
   return round2(exactPriority(benefit, penalty, estimate, risk));
-}
-
-interface Scores {
-  benefit: number;
-  penalty: number;
-  estimate: number;
-  risk: number;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { assertFibonacci } from "../db/types.js";
+import { assertFibonacci, assertScores } from "../domain/scores.js";
 import { ValidationError, isBlank, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 import { isValidRelationType } from "../relations/types.js";
@@ -91,10 +91,7 @@ export function parseTickets(
       penalty = score("penalty");
       estimate = score("estimate");
       risk = score("risk");
-      assertFibonacci(benefit, "benefit");
-      assertFibonacci(penalty, "penalty");
-      assertFibonacci(estimate, "estimate");
-      assertFibonacci(risk, "risk");
+      assertScores({ benefit, penalty, estimate, risk });
     } catch (e) {
       throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
     }

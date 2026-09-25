@@ -1,5 +1,6 @@
 import { inputRequired, inputResponse, type PrimitiveSchemaDefinition } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { DIMENSIONS, FIBONACCI, isFibonacci, type Dimension } from "../../domain/scores.js";
 import { queryTickets } from "../../app/tickets.js";
 import { listProjectRevisions, listRevisions } from "../../revisions/repository.js";
 import { createTicket, deleteTicket, getTicketByTitle, updateTicket, upsertTicket } from "../../tickets/repository.js";
@@ -9,12 +10,10 @@ import { ADDS, CHANGES, CHANGES_IDEMPOTENT, DELETES, fibonacciScore, READ, resol
 
 const DEFAULT_TICKET_LIMIT = 100;
 
-const SCORES = ["benefit", "penalty", "estimate", "risk"] as const;
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21];
 
 // Form fields for scores the user is asked for: a drop-down of the
 // Fibonacci values (form enums are strings)
-const SCORE_FIELDS: Record<(typeof SCORES)[number], PrimitiveSchemaDefinition> = {
+const SCORE_FIELDS: Record<Dimension, PrimitiveSchemaDefinition> = {
   benefit: { type: "string", title: "Benefit", description: "Benefit if delivered", enum: FIBONACCI.map(String) },
   penalty: { type: "string", title: "Penalty", description: "Penalty if not delivered", enum: FIBONACCI.map(String) },
   estimate: { type: "string", title: "Estimate", description: "Implementation effort", enum: FIBONACCI.map(String) },
@@ -25,8 +24,8 @@ const SCORE_FIELDS: Record<(typeof SCORES)[number], PrimitiveSchemaDefinition> =
 function parseScore(score: string, answer: unknown): number | undefined {
   if (answer === undefined) return undefined;
   const value = Number(answer);
-  if (!FIBONACCI.includes(value)) {
-    throw new AppError(`${score}: must be a Fibonacci value (1, 2, 3, 5, 8, 13, 21), got ${JSON.stringify(answer)}`);
+  if (!isFibonacci(value)) {
+    throw new AppError(`${score}: must be a Fibonacci value (${FIBONACCI.join(", ")}), got ${JSON.stringify(answer)}`);
   }
   return value;
 }
@@ -51,7 +50,7 @@ export function registerTicketTools(ctx: McpContext): void {
       const validTitle = validateTicketTitle(title);
       const validDesc = validateTicketDescription(description);
       const projectName = resolveProject(project);
-      const missing = SCORES.filter((score) => given[score] === undefined);
+      const missing = DIMENSIONS.filter((score) => given[score] === undefined);
       const answer = inputResponse(ctx.mcpReq.inputResponses, "scores");
       if (missing.length > 0 && answer.kind === "missing" && canAskUser()) {
         // Fail now on a missing project or a taken title, not after the user
@@ -76,7 +75,7 @@ export function registerTicketTools(ctx: McpContext): void {
       }
       const asked = answer.kind === "elicit" && answer.action === "accept" ? answer.content ?? {} : {};
       const scores = Object.fromEntries(
-        SCORES.map((score) => [score, given[score] ?? parseScore(score, asked[score])])
+        DIMENSIONS.map((score) => [score, given[score] ?? parseScore(score, asked[score])])
       );
       return withProject(projectName, (db, proj) =>
         createTicket(db, { projectId: proj.id, title: validTitle, description: validDesc, ...scores })

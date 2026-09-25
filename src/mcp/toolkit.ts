@@ -3,6 +3,7 @@ import { z } from "zod";
 import { DB } from "../db/connection.js";
 import { getTicketById, getTicketByTitle, Ticket } from "../tickets/repository.js";
 import { AppError } from "../validation/strings.js";
+import { FIBONACCI, type Fibonacci } from "../domain/scores.js";
 import type { ReweloConfig } from "../config.js";
 import type { DbSession } from "./session.js";
 
@@ -47,8 +48,8 @@ export const DELETES: ToolAnnotations = CHANGES_IDEMPOTENT;
 
 // The same message as the CLI's, not zod's bare "Invalid input"
 export const fibonacciScore = z.union(
-  [z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(8), z.literal(13), z.literal(21)],
-  { error: (issue) => `must be a Fibonacci value (1, 2, 3, 5, 8, 13, 21), got ${JSON.stringify(issue.input)}` }
+  FIBONACCI.map((n) => z.literal(n)) as [z.ZodLiteral<Fibonacci>, ...z.ZodLiteral<Fibonacci>[]],
+  { error: (issue) => `must be a Fibonacci value (${FIBONACCI.join(", ")}), got ${JSON.stringify(issue.input)}` }
 );
 
 // The tag and tags parameters as the one tag list the use cases take

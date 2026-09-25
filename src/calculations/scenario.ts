@@ -2,22 +2,15 @@ import { round2 } from "./priority.js";
 import { exactWeightedPriority } from "./weighted-priority.js";
 import { AppError } from "../validation/strings.js";
 import { validateWeights, withOverrides, type Weights } from "../domain/weights.js";
+import { DIMENSIONS, FIBONACCI, type Dimension, type Scores } from "../domain/scores.js";
 
 // What-if calculations for agents: the ranking under hypothetical scores,
 // tickets and weights, computed here so a model doesn't do the arithmetic.
 // Nothing is written.
 
-export interface Scored {
+export interface Scored extends Scores {
   title: string;
-  benefit: number;
-  penalty: number;
-  estimate: number;
-  risk: number;
 }
-
-type Dimension = "benefit" | "penalty" | "estimate" | "risk";
-
-const FIBONACCI = [1, 2, 3, 5, 8, 13, 21];
 
 const exact = (t: Scored, w: Weights) => exactWeightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w.w1, w.w2, w.w3, w.w4);
 
@@ -183,7 +176,7 @@ export function explain(tickets: Scored[], weights: Weights, title: string, top:
 
   const options: Explanation["target"]["options"] = [];
   if (current > top) {
-    for (const dimension of ["benefit", "penalty", "estimate", "risk"] as const) {
+    for (const dimension of DIMENSIONS) {
       const from = ticket[dimension];
       // Raise value, lower cost: the nearest Fibonacci value first
       const candidates = dimension === "benefit" || dimension === "penalty"
@@ -221,6 +214,6 @@ export function explain(tickets: Scored[], weights: Weights, title: string, top:
 
 function definedScores(input: Partial<Record<Dimension, number>>): Partial<Record<Dimension, number>> {
   const out: Partial<Record<Dimension, number>> = {};
-  for (const d of ["benefit", "penalty", "estimate", "risk"] as const) if (input[d] !== undefined) out[d] = input[d];
+  for (const d of DIMENSIONS) if (input[d] !== undefined) out[d] = input[d];
   return out;
 }
