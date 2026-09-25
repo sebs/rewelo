@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { Command } from "commander";
 import { exportCsv } from "../../transfer/csv/export.js";
 import { writeJsonExport } from "../../transfer/json/export.js";
@@ -56,6 +57,11 @@ export function registerTransferCommands(program: Command): void {
             throw (err as NodeJS.ErrnoException).syscall ? describeFsError(err, "write", outPath) : err;
           });
           reportWritten(opts, outPath, `Exported to ${outPath}`);
+          const size = statSync(outPath).size;
+          if (size > MAX_JSON_SIZE_BYTES) {
+            // As the import would refuse it (readImportFile)
+            console.error(`Warning: ${outPath} is ${(size / 1024 / 1024).toFixed(1)} MB; imports take at most ${MAX_JSON_SIZE_BYTES / 1024 / 1024} MB, so it can't be imported as it is`);
+          }
         } else {
           await writeJsonExport(db, project.id, options, toStdout);
         }

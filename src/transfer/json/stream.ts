@@ -1,19 +1,23 @@
 import { createWriteStream } from "node:fs";
 import { Writable } from "node:stream";
 
+/** Indented as JSON.stringify(v, null, 2), compact, or one list element per line */
+export type JsonLayout = boolean | "lines";
+
 const isAsyncIterable = (v: unknown): v is AsyncIterable<unknown> =>
   typeof v === "object" && v !== null && Symbol.asyncIterator in v;
 
 /**
- * The text of JSON.stringify(value, null, 2), in pieces: a top-level list
+ * The text of JSON.stringify(value, null, 2) (or of another layout), in pieces: a top-level list
  * (an array, or an async iterable produced while writing) is written one
  * element at a time. The whole text of a 100,000-ticket export (70 MB) next
  * to the data ran the 192 MB heap out of memory.
  */
-export async function* jsonChunks(value: object, { indent = true }: { indent?: boolean } = {}): AsyncGenerator<string> {
-  // Compact (indent false) is JSON.stringify(value)
+export async function* jsonChunks(value: object, { indent = true }: { indent?: JsonLayout } = {}): AsyncGenerator<string> {
+  // Compact (indent false) is JSON.stringify(value); "lines" writes each
+  // list element compact on a line of its own
   const stringify = (v: unknown, depth: number) =>
-    indent ? JSON.stringify(v, null, 2).split("\n").join("\n" + "  ".repeat(depth)) : JSON.stringify(v);
+    indent === true ? JSON.stringify(v, null, 2).split("\n").join("\n" + "  ".repeat(depth)) : JSON.stringify(v);
   const [open, keyGap, first, next, close, afterKey, end] = indent
     ? ["{\n", "  ", "[\n    ", ",\n    ", "\n  ]", ": ", "\n"]
     : ["{", "", "[", ",", "]", ":", ""];

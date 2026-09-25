@@ -36,6 +36,15 @@ describe("streamed JSON", () => {
     }
   });
 
+  it("writes each list element on a line of its own in the lines layout", async () => {
+    for (const value of samples) {
+      const written = await text(jsonChunks(value, { indent: "lines" }));
+      assert.deepEqual(JSON.parse(written), JSON.parse(JSON.stringify(value)));
+    }
+    const lines = (await text(jsonChunks(samples[2], { indent: "lines" }))).split("\n");
+    assert.equal(lines.filter((l) => l.startsWith('    {"title":')).length, 2);
+  });
+
   it("writes a list produced while writing like an array", async () => {
     async function* items() {
       yield { a: 1 };

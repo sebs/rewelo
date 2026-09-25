@@ -8,6 +8,7 @@ import { createTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
 import { exportJson } from "./helpers.js";
+import { writeJsonExport } from "../../src/transfer/json/export.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,6 +53,21 @@ describe("JSON export", () => {
     const data = await exportJson(db, projectId, { withHistory: true });
     assert.notEqual(data.tickets[0].revisions, undefined);
     assert.equal(data.tickets[0].revisions!.length, 1);
+  });
+
+  it("writes a history export one ticket per line, without the history rows' own ids", async () => {
+    const ticket = await createTicket(db, { projectId, title: "Rev", benefit: 3 });
+    await updateTicket(db, projectId, ticket.id, { benefit: 8 });
+    await createTicket(db, { projectId, title: "Other" });
+    let text = "";
+    await writeJsonExport(db, projectId, { withHistory: true }, async (chunks) => {
+      for await (const chunk of chunks) text += chunk;
+    });
+    assert.equal(text.split("\n").filter((l) => l.startsWith('    {"title":')).length, 2);
+    const [revision] = JSON.parse(text).tickets[0].revisions;
+    assert.equal(revision.id, undefined);
+    assert.equal(revision.ticket_id, undefined);
+    assert.equal(revision.benefit, 3);
   });
 
   it("does not include history by default", async () => {

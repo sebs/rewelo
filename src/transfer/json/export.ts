@@ -3,7 +3,7 @@ import { listProjectRelations } from "../../relations/repository.js";
 import { listRevisions } from "../../revisions/repository.js";
 import { getTagChangeLog } from "../../tags/audit.js";
 import { listTags } from "../../tags/repository.js";
-import { jsonChunks } from "./stream.js";
+import { jsonChunks, type JsonLayout } from "./stream.js";
 import type { SerializedProject, SerializedTicket, TagPair, SerializedDeletion } from "../types.js";
 import { getWeights } from "../../weights/repository.js";
 
@@ -82,16 +82,18 @@ export type ExportedProject = SerializedProject & {
  * Write the export as indented JSON, building each ticket's history only
  * when it is written: the histories of 100,000 tickets at once ran the
  * 192 MB heap out of memory. Reads one snapshot, as exportJson does.
+ * With history, each ticket is written on one line: indented, the history
+ * of 50,000 tickets took a backup past the size an import accepts.
  */
 export async function writeJsonExport(
   db: DB,
   projectId: number,
-  options: JsonExportOptions & { indent?: boolean },
+  options: JsonExportOptions & { indent?: JsonLayout },
   write: (chunks: AsyncIterable<string>) => Promise<void>
 ): Promise<void> {
   await db.readTransaction(async () => {
     const { data, tickets } = await readProject(db, projectId, options);
-    await write(jsonChunks({ ...data, tickets }, { indent: options.indent ?? true }));
+    await write(jsonChunks({ ...data, tickets }, { indent: options.indent ?? (options.withHistory ? "lines" : true) }));
   });
 }
 
@@ -145,11 +147,13 @@ async function readProject(
         ...serialized,
         createdAt: ticket.created_at,
         updatedAt: ticket.updated_at,
-        revisions: (await listRevisions(db, ticket.id)).map((r) => ({ ...r, sequence: sequences.get(`revision:${r.id}`) })),
-        tagChanges: (await getTagChangeLog(db, ticket.id)).map((c) => ({
+        // Without the rows' own ids, which an import doesn't use; tag_id
+        // tells which changes belong to one tag
+        revisions: (await listRevisions(db, ticket.id)).map(({ id, ticket_id: _, ...r }) => ({ ...r, sequence: sequences.get(`revision:${id}`) })),
+        tagChanges: (await getTagChangeLog(db, ticket.id)).map(({ id, ticket_id: _, ...c }) => ({
           ...c,
           tag: currentTags.get(c.tag_id) ?? null,
-          sequence: sequences.get(`tag_change:${c.id}`),
+          sequence: sequences.get(`tag_change:${id}`),
         })),
       };
     }
