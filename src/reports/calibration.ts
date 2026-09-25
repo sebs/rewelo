@@ -3,6 +3,7 @@
 // dimension the existing ticket closest to it, as a reference point.
 
 import { round2 } from "../calculations/priority.js";
+import { truncate } from "../text.js";
 import { DIMENSIONS, FIBONACCI, isFibonacci, type Dimension, type Scores } from "../domain/scores.js";
 
 export interface CalibrationTicket extends Scores {
@@ -34,7 +35,7 @@ export function similarity(a: Set<string>, b: Set<string>): number {
 }
 
 const excerpt = (text: string | null) =>
-  text === null ? null : text.length > EXCERPT_LENGTH ? `${text.slice(0, EXCERPT_LENGTH)}…` : text;
+  text === null ? null : text.length > EXCERPT_LENGTH ? `${truncate(text, EXCERPT_LENGTH)}…` : text;
 
 export interface Calibration {
   similar: Array<{ title: string; similarity: number; benefit: number; penalty: number; estimate: number; risk: number }>;
@@ -120,5 +121,5 @@ export function parseSuggestion(answer: string): Suggestion | undefined {
   }
   if (!DIMENSIONS.every((d) => typeof data[d] === "number" && isFibonacci(data[d]))) return undefined;
   const { benefit, penalty, estimate, risk, reasoning } = data as unknown as Suggestion;
-  return { benefit, penalty, estimate, risk, ...(typeof reasoning === "string" ? { reasoning: reasoning.slice(0, 1000) } : {}) };
+  return { benefit, penalty, estimate, risk, ...(typeof reasoning === "string" ? { reasoning: truncate(reasoning, 1000) } : {}) };
 }

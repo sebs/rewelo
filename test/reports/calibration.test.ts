@@ -26,6 +26,14 @@ describe("calibrate", () => {
     assert.deepEqual([similar[0].benefit, similar[0].estimate], [8, 5]);
   });
 
+  it("cuts excerpts and the model's reasoning between characters, not inside an emoji", () => {
+    const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    const { references } = calibrate([ticket("Party", 1, 1, "x".repeat(199) + "🎉 tail")], "Party");
+    assert.doesNotMatch(references.benefit[0].description!, loneSurrogate);
+    const suggestion = parseSuggestion(JSON.stringify({ benefit: 1, penalty: 1, estimate: 1, risk: 1, reasoning: "a".repeat(999) + "🎉" }));
+    assert.doesNotMatch(suggestion!.reasoning!, loneSurrogate);
+  });
+
   it("lists no similar ticket whose similarity rounds to 0", () => {
     // 1 shared word of 301
     const long = ticket("Big", 1, 1, ["login", ...Array.from({ length: 299 }, (_, i) => `w${i}`)].join(" "));
