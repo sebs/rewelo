@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { jsonChunks, writeJsonFile } from "../../src/export/json-stream.js";
+import { jsonChunks, toFile } from "../../src/export/json-stream.js";
 
 describe("streamed JSON", () => {
   const samples: object[] = [
@@ -48,7 +48,7 @@ describe("streamed JSON", () => {
   it("writes a file", async () => {
     const dir = mkdtempSync(join(tmpdir(), "rw-json-"));
     try {
-      await writeJsonFile(join(dir, "x.json"), samples[2]);
+      await toFile(join(dir, "x.json"))(jsonChunks(samples[2]));
       assert.equal(readFileSync(join(dir, "x.json"), "utf-8"), JSON.stringify(samples[2], null, 2));
     } finally {
       rmSync(dir, { recursive: true, force: true });

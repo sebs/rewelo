@@ -63,8 +63,3 @@ export async function toStdout(chunks: AsyncIterable<string>): Promise<void> {
   await writeTo(process.stdout, chunks);
   process.stdout.write("\n");
 }
-
-/** Write value as indented JSON to a file, without building the whole text */
-export async function writeJsonFile(path: string, value: object): Promise<void> {
-  await toFile(path)(jsonChunks(value));
-}

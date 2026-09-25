@@ -11,8 +11,8 @@ import {
   deleteTicket,
 } from "../../src/tickets/repository.js";
 import { createTag, getTagById } from "../../src/tags/repository.js";
-import { assignTag, listTicketsByTag, getTicketTags } from "../../src/tags/assignment.js";
-import { getTicketTimes } from "../../src/calculations/time.js";
+import { assignTag, getTicketTags } from "../../src/tags/assignment.js";
+import { getProjectTimes } from "../../src/calculations/time.js";
 
 describe("multi-project isolation", () => {
   let db: DB;
@@ -72,7 +72,7 @@ describe("multi-project isolation", () => {
     assert.equal(result, undefined);
   });
 
-  it("listTicketsByTag scopes to project", async () => {
+  it("listing tickets by tag scopes to project", async () => {
     const ticketA = await createTicket(db, { projectId: projectA, title: "A" });
     const ticketB = await createTicket(db, { projectId: projectB, title: "B" });
     const tagA = await createTag(db, projectA, "state", "wip");
@@ -81,21 +81,17 @@ describe("multi-project isolation", () => {
     await assignTag(db, ticketA.id, tagA.id);
     await assignTag(db, ticketB.id, tagB.id);
 
-    const idsA = await listTicketsByTag(db, projectA, tagA.id);
-    assert.deepEqual(idsA, [ticketA.id]);
-    // tagA should not return projectB tickets
-    const crossIds = await listTicketsByTag(db, projectB, tagA.id);
-    assert.deepEqual(crossIds, []);
+    const wip = [{ prefix: "state", value: "wip" }];
+    assert.deepEqual((await listTickets(db, projectA, { includeTags: wip })).map((t) => t.id), [ticketA.id]);
+    assert.deepEqual((await listTickets(db, projectB, { includeTags: wip })).map((t) => t.id), [ticketB.id]);
   });
 
   it("calculations are scoped to project", async () => {
     const ticketA = await createTicket(db, { projectId: projectA, title: "A" });
     const ticketB = await createTicket(db, { projectId: projectB, title: "B" });
 
-    // getTicketTimes works with ticket IDs but is called per-ticket
-    const timesA = await getTicketTimes(db, ticketA.id);
-    assert.equal(timesA.ticketId, ticketA.id);
-    const timesB = await getTicketTimes(db, ticketB.id);
-    assert.equal(timesB.ticketId, ticketB.id);
+    // Each project's times cover its own tickets only
+    assert.deepEqual((await getProjectTimes(db, projectA)).map((t) => t.ticketId), [ticketA.id]);
+    assert.deepEqual((await getProjectTimes(db, projectB)).map((t) => t.ticketId), [ticketB.id]);
   });
 });

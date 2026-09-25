@@ -88,16 +88,6 @@ export function isValidRelationType(name: string): boolean {
   return BY_FORWARD.has(name) || BY_INVERSE.has(name);
 }
 
-export function getInverse(forwardType: string): string {
-  const rt = getRelationType(forwardType);
-  return rt.inverse;
-}
-
-export function isSymmetric(forwardType: string): boolean {
-  const rt = getRelationType(forwardType);
-  return rt.symmetric;
-}
-
 export function allRelationTypes(): RelationType[] {
   return [...RELATION_TYPES];
 }

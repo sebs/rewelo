@@ -7,7 +7,7 @@ import { createTicket, updateTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
 import { createRevision } from "../../src/revisions/repository.js";
-import { exportJson } from "../../src/export/json.js";
+import { exportJson } from "./helpers.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

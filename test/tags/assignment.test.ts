@@ -3,14 +3,13 @@ import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { createTicket, deleteTicket } from "../../src/tickets/repository.js";
+import { createTicket, deleteTicket, listTickets } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import {
   assertOneValuePerPrefix,
   assignTag,
   removeTag,
   getTicketTags,
-  listTicketsByTag,
 } from "../../src/tags/assignment.js";
 import { getTagChangeLog } from "../../src/tags/audit.js";
 
@@ -120,7 +119,7 @@ describe("tag assignment", () => {
     const ticket2 = await createTicket(db, { projectId, title: "Signup flow" });
     await assignTag(db, ticketId, tagId);
     await assignTag(db, ticket2.id, tagId);
-    const ticketIds = await listTicketsByTag(db, projectId, tagId);
+    const ticketIds = (await listTickets(db, projectId, { includeTags: [{ prefix: "state", value: "backlog" }] })).map((t) => t.id);
     assert.ok(ticketIds.includes(ticketId));
     assert.ok(ticketIds.includes(ticket2.id));
   });

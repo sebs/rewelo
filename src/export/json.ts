@@ -25,21 +25,6 @@ export type ExportedProject = SerializedProject & {
   tickets: ExportedTicket[];
 };
 
-export async function exportJson(
-  db: DB,
-  projectId: number,
-  options: JsonExportOptions = {}
-): Promise<ExportedProject> {
-  // One snapshot: a ticket deleted or imported between the queries below
-  // made the export fail, or pair tickets with other tickets' history
-  return db.readTransaction(async () => {
-    const { data, tickets } = await readProject(db, projectId, options);
-    const all: ExportedTicket[] = [];
-    for await (const ticket of tickets) all.push(ticket);
-    return { ...data, tickets: all };
-  });
-}
-
 /**
  * Write the export as indented JSON, building each ticket's history only
  * when it is written: the histories of 100,000 tickets at once ran the

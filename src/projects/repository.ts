@@ -40,17 +40,6 @@ export async function getProjectByName(
   return rows[0];
 }
 
-export async function getProjectById(
-  db: DB,
-  id: number
-): Promise<Project | undefined> {
-  const rows = await db.all<Project>(
-    `SELECT * FROM projects WHERE id = ?`,
-    id
-  );
-  return rows[0];
-}
-
 export async function deleteProject(db: DB, name: string): Promise<boolean> {
   // All or nothing: a failure part-way (busy timeout, crash) must not leave
   // a half-deleted project, and a parallel ticket create must not slip in

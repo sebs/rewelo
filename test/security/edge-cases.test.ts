@@ -6,15 +6,19 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket, listTickets } from "../../src/tickets/repository.js";
 import { priority } from "../../src/calculations/priority.js";
 import {
-  calculateRelativeWeights,
+  calculateAllRelativeWeights,
 } from "../../src/calculations/relative-weights.js";
 import type { Scores } from "../../src/domain/scores.js";
 import { weightedPriority } from "../../src/calculations/weighted-priority.js";
-import { getTicketTimes, averageLeadTime } from "../../src/calculations/time.js";
+import { averageLeadTime, getProjectTimes } from "../../src/calculations/time.js";
 
 describe("edge cases", () => {
   let db: DB;
   let projectId: number;
+
+  // A ticket's times, as the project's times report computes them
+  const timesOf = async (ticketId: number) =>
+    (await getProjectTimes(db, projectId)).find((t) => t.ticketId === ticketId)!;
 
   beforeEach(async () => {
     db = await DB.open(":memory:");
@@ -38,7 +42,7 @@ describe("edge cases", () => {
 
   it("single ticket: relative weights are all 1.00", () => {
     const ticket: Scores = { benefit: 5, penalty: 3, estimate: 8, risk: 2 };
-    const weights = calculateRelativeWeights(ticket, [ticket]);
+    const weights = calculateAllRelativeWeights([ticket])[0];
     assert.equal(weights.relativeBenefit, 1);
     assert.equal(weights.relativePenalty, 1);
     assert.equal(weights.relativeEstimate, 1);
@@ -61,14 +65,14 @@ describe("edge cases", () => {
 
   it("all zeros in relative weights returns 0", () => {
     const ticket: Scores = { benefit: 0, penalty: 0, estimate: 0, risk: 0 };
-    const weights = calculateRelativeWeights(ticket, [ticket]);
+    const weights = calculateAllRelativeWeights([ticket])[0];
     assert.equal(weights.relativeBenefit, 0);
     assert.equal(weights.relativePenalty, 0);
   });
 
   it("ticket times with no state tags returns undefined times", async () => {
     const ticket = await createTicket(db, { projectId, title: "Bare" });
-    const times = await getTicketTimes(db, ticket.id);
+    const times = await timesOf(ticket.id);
     assert.equal(times.leadTimeDays, undefined);
     assert.equal(times.cycleTimeDays, undefined);
   });

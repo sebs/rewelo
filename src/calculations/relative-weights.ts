@@ -34,13 +34,6 @@ function relativeTo(ticket: Scores, sum: Scores): RelativeWeights {
   };
 }
 
-export function calculateRelativeWeights(
-  ticket: Scores,
-  all: Scores[]
-): RelativeWeights {
-  return relativeTo(ticket, totals(all));
-}
-
 /**
  * Relative weights of every ticket. Sums the backlog once: calling
  * calculateRelativeWeights per ticket is quadratic (minutes for 20,000 tickets).

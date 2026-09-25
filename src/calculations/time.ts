@@ -34,20 +34,6 @@ function timesOf(ticket: { id: number; title: string; created_at: string }, wipA
   return result;
 }
 
-export async function getTicketTimes(
-  db: DB,
-  ticketId: number
-): Promise<TimeResult> {
-  const [ticket] = await db.all<{ id: number; created_at: string; title: string }>(
-    `SELECT id, created_at, title FROM tickets WHERE id = ?`,
-    ticketId
-  );
-  if (!ticket) throw new Error("Ticket not found");
-  const [wip] = await db.all<{ at: string | null }>(`${WIP_STARTS_SQL} AND c.ticket_id = ?`, ticketId);
-  const [done] = await db.all<{ at: string | null }>(`${DONE_AT_SQL} AND c.ticket_id = ?`, ticketId);
-  return timesOf(ticket, wip?.at ?? undefined, done?.at ?? undefined);
-}
-
 /**
  * Times for every ticket of a project, in ticket list order, with three
  * queries in all: per ticket, report times took 2.3 s and ~870 MB for 30,000

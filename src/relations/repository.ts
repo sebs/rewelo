@@ -301,24 +301,3 @@ export async function listProjectRelations(
     ...types
   );
 }
-
-export async function deleteRelationsForTicket(
-  db: DB,
-  ticketId: number
-): Promise<void> {
-  await db.run(
-    `DELETE FROM ticket_relations WHERE source_id = ? OR target_id = ?`,
-    ticketId,
-    ticketId
-  );
-}
-
-export async function deleteRelationsForProject(
-  db: DB,
-  projectId: number
-): Promise<void> {
-  await db.run(
-    `DELETE FROM ticket_relations WHERE project_id = ?`,
-    projectId
-  );
-}

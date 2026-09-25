@@ -4,13 +4,13 @@ import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket, listTickets, updateTicket } from "../../src/tickets/repository.js";
-import { getTicketTimes } from "../../src/calculations/time.js";
+import { getProjectTimes } from "../../src/calculations/time.js";
 import { listRevisions } from "../../src/revisions/repository.js";
 import { getTagChangeLog } from "../../src/tags/audit.js";
 import { createTag, deleteTag, listTags, renameTag } from "../../src/tags/repository.js";
 import { assignTag, getTicketTags, removeTag } from "../../src/tags/assignment.js";
 import { exportCsv } from "../../src/export/csv.js";
-import { exportJson } from "../../src/export/json.js";
+import { exportJson } from "./helpers.js";
 import { importCsv } from "../../src/import/csv.js";
 import { importJson } from "../../src/import/json.js";
 import { getEventLog } from "../../src/reports/event-log.js";
@@ -19,6 +19,9 @@ import { getWeights, setWeights } from "../../src/weights/repository.js";
 
 describe("round-trip", () => {
   let db: DB;
+  // A ticket's times, as its project's times report computes them
+  const timesOf = async (t: { id: number; project_id: number }) =>
+    (await getProjectTimes(db, t.project_id)).find((x) => x.ticketId === t.id)!;
   let projectId: number;
 
   beforeEach(async () => {
@@ -123,7 +126,7 @@ describe("round-trip", () => {
 
     const [copy] = await listTickets(db, target.id);
     assert.equal(copy.created_at, "2026-01-01T00:00:00.000Z");
-    const times = await getTicketTimes(db, copy.id);
+    const times = await timesOf(copy);
     assert.deepEqual([times.leadTimeDays, times.cycleTimeDays], [10, 8]);
     assert.deepEqual((await listRevisions(db, copy.id)).map((r) => r.benefit), [3]);
     assert.deepEqual(
@@ -155,7 +158,7 @@ describe("round-trip", () => {
     await importJson(db, target.id, json);
 
     const [copy] = await listTickets(db, target.id);
-    const times = await getTicketTimes(db, copy.id);
+    const times = await timesOf(copy);
     assert.equal(times.leadTimeDays, 0);
     assert.equal(times.cycleTimeDays, 0);
     assert.deepEqual((await listTags(db, target.id)).map((tag) => tag.value), ["done", "wip"]);
@@ -340,7 +343,7 @@ describe("round-trip", () => {
     await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Old", tags: [{ prefix: "state", value: "done" }], tagChanges }] }));
     const [t] = await listTickets(db, projectId);
     assert.equal(t.created_at, "2024-01-01T00:00:00.000Z");
-    assert.equal((await getTicketTimes(db, t.id)).leadTimeDays, 9);
+    assert.equal((await timesOf(t)).leadTimeDays, 9);
   });
 
   it("rejects imported history in year 10000", async () => {
@@ -353,7 +356,7 @@ describe("round-trip", () => {
   it("doesn't date an imported ticket's tags to the import when only createdAt is known", async () => {
     await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "Old", tags: [{ prefix: "state", value: "done" }], createdAt: "2020-01-01T00:00:00Z" }] }));
     const [t] = await listTickets(db, projectId);
-    assert.equal((await getTicketTimes(db, t.id)).leadTimeDays, undefined);
+    assert.equal((await timesOf(t)).leadTimeDays, undefined);
     assert.deepEqual((await getTicketTags(db, t.id)).map((tag) => tag.value), ["done"]);
   });
 });

@@ -6,11 +6,15 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createTag, deleteTag, getTag, renameTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
-import { getTicketTimes, getProjectTimes, averageLeadTime } from "../../src/calculations/time.js";
+import { getProjectTimes, averageLeadTime } from "../../src/calculations/time.js";
 
 describe("lead and cycle time", () => {
   let db: DB;
   let projectId: number;
+
+  // A ticket's times, as the project's times report computes them
+  const timesOf = async (ticketId: number) =>
+    (await getProjectTimes(db, projectId)).find((t) => t.ticketId === ticketId)!;
 
   beforeEach(async () => {
     db = await DB.open(":memory:");
@@ -25,7 +29,7 @@ describe("lead and cycle time", () => {
 
   it("returns undefined times when no state tags exist", async () => {
     const ticket = await createTicket(db, { projectId, title: "Story A" });
-    const times = await getTicketTimes(db, ticket.id);
+    const times = await timesOf(ticket.id);
     assert.equal(times.leadTimeDays, undefined);
     assert.equal(times.cycleTimeDays, undefined);
   });
@@ -34,7 +38,7 @@ describe("lead and cycle time", () => {
     const ticket = await createTicket(db, { projectId, title: "Story A" });
     const done = await createTag(db, projectId, "state", "done");
     await assignTag(db, ticket.id, done.id);
-    const times = await getTicketTimes(db, ticket.id);
+    const times = await timesOf(ticket.id);
     assert.notEqual(times.leadTimeDays, undefined);
     assert.equal(times.cycleTimeDays, undefined);
   });
@@ -49,7 +53,7 @@ describe("lead and cycle time", () => {
     await assignTag(db, ticket.id, wip.id);
     await assignTag(db, ticket.id, done.id);
 
-    const times = await getTicketTimes(db, ticket.id);
+    const times = await timesOf(ticket.id);
     // All happen within same test so times are ~0, but the logic works
     assert.notEqual(times.leadTimeDays, undefined);
     assert.notEqual(times.cycleTimeDays, undefined);
@@ -86,7 +90,7 @@ describe("lead and cycle time", () => {
     await assignTag(db, ticket.id, done.id);
     await removeTag(db, ticket.id, done.id);
 
-    const times = await getTicketTimes(db, ticket.id);
+    const times = await timesOf(ticket.id);
     assert.equal(times.leadTimeDays, undefined);
     assert.equal(times.cycleTimeDays, undefined);
   });
@@ -107,7 +111,7 @@ describe("lead and cycle time", () => {
       await db.run(`UPDATE ticket_tag_changes SET changed_at = ? WHERE id = ?`, at[i], changes[i].id);
     }
 
-    assert.equal((await getTicketTimes(db, ticket.id)).leadTimeDays, 10);
+    assert.equal((await timesOf(ticket.id)).leadTimeDays, 10);
   });
 
   it("averages the exact lead times, not the rounded ones", async () => {
@@ -119,7 +123,7 @@ describe("lead and cycle time", () => {
       await assignTag(db, t.id, done.id);
       await db.run(`UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z' WHERE id = ?`, t.id);
       await db.run(`UPDATE ticket_tag_changes SET changed_at = ? WHERE ticket_id = ?`, doneAt, t.id);
-      times.push(await getTicketTimes(db, t.id));
+      times.push(await timesOf(t.id));
     }
     assert.deepEqual(times.map((t) => t.leadTimeDays), [1, 0]);
     assert.equal(averageLeadTime(times), 0);
@@ -132,7 +136,7 @@ describe("lead and cycle time", () => {
     await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
     await renameTag(db, projectId, wip.id, "state", "doing");
 
-    assert.equal((await getTicketTimes(db, t.id)).cycleTimeDays, 0);
+    assert.equal((await timesOf(t.id)).cycleTimeDays, 0);
   });
 
   it("recognises states by name: renaming a state tag changes its meaning", async () => {
@@ -143,8 +147,8 @@ describe("lead and cycle time", () => {
     await assignTag(db, a.id, done.id);
     await renameTag(db, projectId, done.id, "state", "cancelled");
     await assignTag(db, b.id, (await createTag(db, projectId, "state", "done")).id);
-    assert.equal((await getTicketTimes(db, a.id)).leadTimeDays, undefined);
-    assert.equal((await getTicketTimes(db, b.id)).leadTimeDays, 0);
+    assert.equal((await timesOf(a.id)).leadTimeDays, undefined);
+    assert.equal((await timesOf(b.id)).leadTimeDays, 0);
 
     // wip -> backlog: tagging it afterwards doesn't start work
     const y = await createTicket(db, { projectId, title: "Backlog first" });
@@ -157,7 +161,7 @@ describe("lead and cycle time", () => {
     await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-09-20T00:00:00.000Z' WHERE ticket_id = ? AND value = 'wip'", y.id);
     await assignTag(db, y.id, (await getTag(db, projectId, "state", "done"))!.id);
     await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-09-24T00:00:00.000Z' WHERE ticket_id = ? AND value = 'done'", y.id);
-    assert.equal((await getTicketTimes(db, y.id)).cycleTimeDays, 4);
+    assert.equal((await timesOf(y.id)).cycleTimeDays, 4);
   });
 
   it("keeps cycle times when the renamed wip tag is deleted", async () => {
@@ -167,7 +171,7 @@ describe("lead and cycle time", () => {
     await renameTag(db, projectId, wip.id, "state", "doing");
     await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
     await deleteTag(db, projectId, wip.id);
-    assert.equal((await getTicketTimes(db, t.id)).cycleTimeDays, 0);
+    assert.equal((await timesOf(t.id)).cycleTimeDays, 0);
   });
 
   it("computes the same times for a whole project at once", async () => {
@@ -185,7 +189,7 @@ describe("lead and cycle time", () => {
     await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-01-11T00:00:00.000Z' WHERE value = 'done'");
 
     const perTicket = [];
-    for (const t of tickets) perTicket.push(await getTicketTimes(db, t.id));
+    for (const t of tickets) perTicket.push(await timesOf(t.id));
     const all = await getProjectTimes(db, projectId);
     assert.deepEqual(all, perTicket);
     assert.deepEqual(all.map((t) => [t.leadTimeDays, t.cycleTimeDays]), [[undefined, undefined], [undefined, undefined], [10, 6], [undefined, undefined]]);

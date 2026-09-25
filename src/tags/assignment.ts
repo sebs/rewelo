@@ -2,12 +2,6 @@ import { DB } from "../db/connection.js";
 import { Tag } from "./repository.js";
 import { AppError } from "../errors.js";
 
-export interface TicketTag {
-  ticket_id: number;
-  tag_id: number;
-  assigned_at: string;
-}
-
 /**
  * A prefix works like a field: a ticket holds at most one value per prefix
  * (assigning state:done replaces state:wip). Asking for two values of the
@@ -177,19 +171,4 @@ export async function getProjectTicketTags(db: DB, projectId: number): Promise<M
     else byTicket.set(ticket_id, [tags.get(tag_id)!]);
   }
   return byTicket;
-}
-
-export async function listTicketsByTag(
-  db: DB,
-  projectId: number,
-  tagId: number
-): Promise<number[]> {
-  const rows = await db.all<{ ticket_id: number }>(
-    `SELECT tt.ticket_id FROM ticket_tags tt
-     JOIN tickets tk ON tk.id = tt.ticket_id
-     WHERE tt.tag_id = ? AND tk.project_id = ?`,
-    tagId,
-    projectId
-  );
-  return rows.map((r) => r.ticket_id);
 }
