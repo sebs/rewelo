@@ -188,6 +188,27 @@ export const outputSchemas = {
       .describe("The ranking before (baseline) and after the changes (scenario), as calc_priority ranks"),
   }),
 
+  suggest_scores: z.object({
+    tickets: z.number().int().describe("Tickets in the project"),
+    similar: z.array(z.object({
+      title: z.string(),
+      similarity: z.number().describe("Shared words over all words, 0 to 1"),
+      benefit: score,
+      penalty: score,
+      estimate: score,
+      risk: score,
+    })).describe("The most similar existing tickets: possible duplicates"),
+    references: z.object(Object.fromEntries(["benefit", "penalty", "estimate", "risk"].map((d) => [
+      d,
+      z.array(z.object({ score, title: z.string(), description: z.string().nullable() })),
+    ]))).describe("Per dimension and score, the existing ticket closest to the new one"),
+    distribution: z.array(z.object({ dimension: z.string(), counts: z.record(z.string(), z.number().int()) })),
+    sampling: z.enum(["used", "unsupported", "failed"]).optional()
+      .describe("With sample: whether the client's model gave scores"),
+    suggestion: z.object({ benefit: score, penalty: score, estimate: score, risk: score, reasoning: z.string().optional() }).optional()
+      .describe("The client's model's scores, with sample"),
+  }),
+
   report_summary: z.object({
     totalTickets: z.number().int(),
     byState: z.record(z.string(), z.number().int()),

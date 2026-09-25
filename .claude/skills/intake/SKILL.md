@@ -2,7 +2,7 @@
 name: intake
 description: Conduct a stakeholder interview to create scored backlog tickets
 argument-hint: "[project]"
-allowed-tools: mcp__rewelo__ticket_create, mcp__rewelo__tag_create, mcp__rewelo__tag_assign, mcp__rewelo__project_list, mcp__rewelo__project_create
+allowed-tools: mcp__rewelo__ticket_create, mcp__rewelo__suggest_scores, mcp__rewelo__tag_create, mcp__rewelo__tag_assign, mcp__rewelo__project_list, mcp__rewelo__project_create
 ---
 
 # Stakeholder Intake Interview
@@ -20,6 +20,8 @@ For each story the stakeholder describes, guide them through scoring:
 ### Step 1: Capture the story
 Ask: "What do you need? Describe the feature or change in one sentence."
 Create a clear, concise ticket title from their answer.
+
+Then call `suggest_scores` with the title (and a description, if there is one). If `similar` lists a ticket that looks like the same story, ask whether it's a duplicate before going on. Use `references` in the steps below: name an existing ticket at a score as the anchor ("Login page has benefit 8: is this more or less valuable?"), so the new ticket is scored relative to this backlog rather than in the abstract.
 
 ### Step 2: Score benefit (1-21, Fibonacci)
 Ask: "How valuable is this if we build it?"

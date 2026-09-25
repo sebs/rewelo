@@ -45,6 +45,7 @@ Feature: MCP Server
       | calc_weights          |
       | simulate              |
       | explain_priority      |
+      | suggest_scores        |
       | report_summary        |
       | report_times          |
       | report_health         |
@@ -107,6 +108,19 @@ Feature: MCP Server
     Then the response should show "(1.5 × 3 + 1.5 × 2) / (1.5 × 5 + 1.5 × 3) = 7.5 / 12 = 0.63"
     And rank 4 of 4, with priority 2 to beat
     And that benefit 21 or penalty 21 would reach rank 2, and no single estimate or risk change would
+
+  Scenario: Material to score a new ticket
+    Given a project "Acme" with tickets "Login page" (estimate 5) and "Dark mode" (estimate 8)
+    When a client calls "suggest_scores" with title "Login page redesign"
+    Then "similar" should list "Login page" as a possible duplicate
+    And the estimate references should be 5: "Login page" and 8: "Dark mode"
+    And the response should include the project's score distribution
+
+  Scenario: Ask the client's model for scores
+    Given a client that supports MCP sampling
+    When a client calls "suggest_scores" with sample true
+    Then the client's model should be asked with the references
+    And its scores should be returned as "suggestion", if they are Fibonacci values
 
   # -- Change plans --
 

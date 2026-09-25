@@ -39,7 +39,7 @@ describe("MCP tool annotations", () => {
       "project_diff", "project_history", "project_list",
       "relation_list", "relation_list_all",
       "report_dashboard", "report_distribution", "report_group", "report_health", "report_summary", "report_times",
-      "server_version", "simulate", "tag_list", "ticket_history", "ticket_list", "weight_get",
+      "server_version", "simulate", "suggest_scores", "tag_list", "ticket_history", "ticket_list", "weight_get",
     ]);
   });
 

@@ -65,6 +65,7 @@ import { normalizeRelationType } from "../relations/types.js";
 import { getProjectSummary } from "../reports/summary.js";
 import { doneTicketIds, getBacklogHealth } from "../reports/health.js";
 import { getDistribution } from "../reports/distribution.js";
+import { calibrate, parseSuggestion, scoringPrompt } from "../reports/calibration.js";
 import { groupByTagPrefix } from "../reports/group.js";
 import { renderDashboard } from "../reports/dashboard.js";
 import { getEventLog, type ProjectEvent } from "../reports/event-log.js";
@@ -1068,6 +1069,44 @@ export function createMcpServer(
         return explain(tickets, { w1, w2, w3, w4 }, title, top ?? 1);
       })
     )
+  );
+
+  tool(
+    "suggest_scores",
+    "Material to score a new ticket relative to the project's own backlog, before ticket_create: the most similar existing tickets (possible duplicates) with their scores; for each dimension and each score, the existing ticket closest to the new one as a reference; and the project's score distribution. With sample, and when the client supports MCP sampling, the client's model is also asked for scores, returned as suggestion.",
+    {
+      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      title: z.string().describe("The new ticket's title"),
+      description: z.string().optional().describe("The new ticket's description"),
+      sample: z.boolean().optional().describe("Ask the client's model for scores (MCP sampling; the client may ask the user first). Default false"),
+    },
+    READ,
+    safe(async ({ project, title, description, sample }, ctx) => {
+      const validTitle = validateTicketTitle(title);
+      const validDesc = validateTicketDescription(description);
+      const material = await withProject(resolveProject(project), async (db, proj) => {
+        const tickets = await listTickets(db, proj.id);
+        return { tickets: tickets.length, ...calibrate(tickets, validTitle, validDesc), distribution: await getDistribution(db, proj.id) };
+      });
+      if (!sample) return material;
+      if (!server.server.getClientCapabilities()?.sampling) return { ...material, sampling: "unsupported" };
+
+      const answer = inputResponse(ctx.mcpReq.inputResponses, "scores");
+      if (answer.kind === "missing") {
+        return inputRequired({
+          inputRequests: {
+            scores: inputRequired.createMessage({
+              messages: [{ role: "user", content: { type: "text", text: scoringPrompt(validTitle, validDesc, material) } }],
+              maxTokens: 400,
+            }),
+          },
+        });
+      }
+      const content = answer.kind === "sampling" ? answer.result.content : undefined;
+      const text = [content ?? []].flat().map((c) => (c.type === "text" ? c.text : "")).join("");
+      const suggestion = parseSuggestion(text);
+      return suggestion ? { ...material, sampling: "used", suggestion } : { ...material, sampling: "failed" };
+    })
   );
 
   // =========================================================================
