@@ -87,7 +87,7 @@ describe("MCP simulate and explain_priority", () => {
     assert.equal(r.isError, false, r.text);
     assert.deepEqual([r.data.rank, r.data.of], [2, 2]);
     const lacks = await call("explain_priority", { project: "Acme", title: "B", tags: ["team:core", "area:api"] });
-    assert.match(lacks.text, /Ticket "B" does not have the tags team:core, area:api/);
+    assert.match(lacks.text, /Ticket "B" does not have the tag area:api$/);
   });
 
   it("finds tickets by title as the other tools do: trimmed, spaces collapsed", async () => {
@@ -108,6 +108,14 @@ describe("MCP simulate and explain_priority", () => {
     assert.match(changed.text, /Ticket "C" does not have the tag team:core/);
     const missing = await call("simulate", { project: "Acme", tags: ["team:core"], remove: ["Z"] });
     assert.match(missing.text, /Ticket "Z" not found/);
+  });
+
+  it("names only the scope tags a ticket lacks, and a ticket added twice as added twice", async () => {
+    await call("tag_assign", { project: "Acme", ticket: "C", prefix: "team", value: "core" });
+    const r = await call("explain_priority", { project: "Acme", title: "C", tags: ["team:core", "area:api", "p0:v"] });
+    assert.match(r.text, /Ticket "C" does not have the tags area:api, p0:v$/);
+    const twice = await call("simulate", { project: "Acme", add: [{ title: "N" }, { title: "N" }] });
+    assert.match(twice.text, /Ticket "N" is added twice/);
   });
 
   it("says when the ticket lacks the tag it is ranked within", async () => {

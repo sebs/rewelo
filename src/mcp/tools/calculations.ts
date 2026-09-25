@@ -1,5 +1,6 @@
 import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { getTicketTags } from "../../tags/assignment.js";
 import { DB } from "../../db/connection.js";
 import type { Ticket } from "../../tickets/repository.js";
 import { relativeWeights, ticketsInScope, weightedRanking } from "../../app/priorities.js";
@@ -8,7 +9,7 @@ import { calibrate, parseSuggestion, scoringPrompt } from "../../reports/calibra
 import { getDistribution } from "../../reports/distribution.js";
 import { listTickets } from "../../tickets/repository.js";
 import { AppError } from "../../errors.js";
-import { validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
+import { parseTag, validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 import { getWeights } from "../../weights/repository.js";
 import { fibonacciScore, READ, resolveTicket, tagList, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
@@ -16,8 +17,11 @@ import { fibonacciScore, READ, resolveTicket, tagList, PROJECT_ARG, type McpCont
 // is outside the scope, not "not found"
 async function requireInScope(db: DB, projectId: number, tickets: Ticket[], title: string, scope: string[]): Promise<void> {
   if (scope.length === 0 || findTicket(tickets, title)) return;
-  await resolveTicket(db, projectId, title); // not found
-  throw new AppError(`Ticket "${title}" does not have the tag${scope.length > 1 ? "s" : ""} ${scope.join(", ")}`);
+  const ticket = await resolveTicket(db, projectId, title); // not found
+  // The scope tags it lacks, not the ones it has
+  const held = new Set((await getTicketTags(db, ticket.id)).map((t) => `${t.prefix}:${t.value}`));
+  const missing = [...new Set(scope.map((s) => parseTag(s)).map((t) => `${t.prefix}:${t.value}`))].filter((t) => !held.has(t));
+  throw new AppError(`Ticket "${title}" does not have the tag${missing.length > 1 ? "s" : ""} ${missing.join(", ")}`);
 }
 
 export function registerCalculationTools(ctx: McpContext): void {

@@ -128,7 +128,8 @@ export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: 
   for (const t of scenario.add ?? []) {
     // As a new ticket's title is stored
     const title = collapseSpaces(normalizeName(t.title));
-    if (findTicket(tickets, title) || added.some((a) => a.title === title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
+    if (findTicket(tickets, title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
+    if (added.some((a) => a.title === title)) throw new AppError(`Ticket "${t.title}" is added twice`);
     added.push({ title, benefit: 1, penalty: 1, estimate: 1, risk: 1, ...definedScores(t) });
   }
   const scenarioWeights = withOverrides(baselineWeights, scenario.weights);
