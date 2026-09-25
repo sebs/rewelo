@@ -7,13 +7,13 @@
     "rw": "dist/index.js"
   },
   "scripts": {
-    "build": "node scripts/inject-version.mjs && node scripts/generate-prompts.mjs && tsc",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && node scripts/inject-version.mjs && node scripts/generate-prompts.mjs && tsc",
     "prepack": "npm run build",
     "site": "node site/build.mjs",
     "test": "node --test --enable-source-maps \"build/test/**/*.test.js\"",
     "start": "node dist/index.js",
     "version": "node scripts/sync-server-json.mjs && git add server.json",
-    "pretest": "node scripts/inject-version.mjs && node scripts/generate-prompts.mjs && tsc -p tsconfig.test.json && node -e \"require('node:fs').cpSync('db', 'build/db', { recursive: true })\""
+    "pretest": "node -e \"require('node:fs').rmSync('build', { recursive: true, force: true })\" && node scripts/inject-version.mjs && node scripts/generate-prompts.mjs && tsc -p tsconfig.test.json && node -e \"require('node:fs').cpSync('db', 'build/db', { recursive: true })\""
   },
   "files": [
     "dist/",
