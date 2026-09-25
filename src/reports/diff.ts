@@ -85,16 +85,23 @@ export async function getProjectDiff(
   const ticketMap = new Map<number, Ticket>();
   for (const t of allTickets) ticketMap.set(t.id, t);
 
+  // The descriptions of the tickets revised since, in one query (the list
+  // above leaves them out)
+  const descriptions = new Map(
+    (await db.all<{ id: number; description: string | null }>(
+      `SELECT id, description FROM tickets
+       WHERE project_id = ? AND id IN (SELECT ticket_id FROM ticket_revisions WHERE revised_at > ?)`,
+      projectId,
+      sinceUtc
+    )).map((r) => [r.id, r.description])
+  );
+
   const updatedTickets: TicketDiff[] = [];
   for (const [ticketId, before] of earliestRevision) {
     const current = ticketMap.get(ticketId);
     // Deleted since, or created since (then it is only a new ticket)
     if (!current || new Date(current.created_at).getTime() > sinceMs) continue;
-    const [{ description }] = await db.all<{ description: string | null }>(
-      `SELECT description FROM tickets WHERE id = ?`,
-      ticketId
-    );
-    current.description = description;
+    current.description = descriptions.get(ticketId) ?? null;
 
     const changes: FieldChange[] = [];
     const fields: Array<{ field: string; key: keyof Ticket }> = [
