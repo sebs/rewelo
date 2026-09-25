@@ -130,6 +130,28 @@ Feature: MCP Server
     And scores the user leaves empty or declines should default to 1
     And when the user cancels, no ticket should be created
 
+  # -- Prompts --
+
+  Scenario: The skills are offered as prompts
+    When a client requests the prompt list
+    Then it should contain a prompt for every skill in .claude/skills, with the skill's description
+
+  Scenario: Get a prompt with arguments
+    When a client gets the prompt "plan-sprint" with project "Acme" and capacity-points "30"
+    Then the message should be the skill's text for project "Acme" with a capacity of 30
+
+  Scenario: Get a prompt without a project
+    Given no .rewelo.json with a default project
+    When a client gets the prompt "standup" without arguments
+    Then the message should tell the model to ask the user which project
+
+  Scenario: Complete prompt arguments
+    Given projects "Acme" and "acme-labs", and "Acme" has tickets "Login page" and "Logout"
+    When a client completes the "project" argument of "slice" from "acm"
+    Then the values should be "Acme" and "acme-labs"
+    When a client completes its "ticket-title" argument from "log" with project "Acme"
+    Then the values should be "Login page" and "Logout"
+
   # -- Error handling --
 
   Scenario: Invalid tool parameters return an error

@@ -29,7 +29,7 @@ jobs:
       - run: npm ci
 
       - name: Type check
-        run: node scripts/inject-version.mjs && npx tsc --noEmit
+        run: node scripts/inject-version.mjs && node scripts/generate-prompts.mjs && npx tsc --noEmit
 
       - name: Build
         run: npm run build

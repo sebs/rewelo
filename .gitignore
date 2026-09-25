@@ -15,7 +15,8 @@ dist/
 findings.md
 findings-*.md
 build/
-# written by scripts/inject-version.mjs (npm run build / npm test)
+# written by scripts/inject-version.mjs and scripts/generate-prompts.mjs (npm run build / npm test)
 src/version.generated.ts
+src/mcp/prompts.generated.ts
 # website built by site/build.mjs
 _site/

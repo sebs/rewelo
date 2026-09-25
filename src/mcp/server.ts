@@ -1,5 +1,6 @@
 import {
   McpServer,
+  completable,
   inputRequired,
   inputResponse,
   isInputRequiredResult,
@@ -77,6 +78,7 @@ import { sanitizeError } from "../validation/errors.js";
 import { VERSION } from "../version.generated.js";
 import { loadConfig, type ReweloConfig } from "../config.js";
 import { outputSchemas } from "./output-schemas.js";
+import { PROMPTS } from "./prompts.generated.js";
 
 // Results are compact JSON, and refused above this size: 30,000 tickets made
 // ticket_list 13.7 MB and export_json 19.6 MB, far more than a client can use
@@ -1218,6 +1220,64 @@ export function createMcpServer(
     READ,
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listProjectRelations(db, proj.id)))
   );
+
+  // =========================================================================
+  //  PROMPTS (the skills in .claude/skills, see scripts/generate-prompts.mjs)
+  // =========================================================================
+
+  // Completion values: MCP allows at most 100
+  const MAX_COMPLETIONS = 100;
+  const matching = (values: string[], typed: string) =>
+    values.filter((v) => v.toLowerCase().includes(typed.toLowerCase())).slice(0, MAX_COMPLETIONS);
+
+  const completeProject = async (typed: string | undefined) =>
+    matching((await withDb((db) => listProjects(db))).map((p) => p.name), typed ?? "");
+
+  // Titles in the project the prompt names so far, or the default one
+  const completeTicket = async (typed: string | undefined, context?: { arguments?: Record<string, string> }) => {
+    const name = context?.arguments?.project || config.project;
+    if (!name) return [];
+    try {
+      const tickets = await withProject(name, (db, proj) => listTickets(db, proj.id, { withDescription: false }));
+      return matching(tickets.map((t) => t.title), typed ?? "");
+    } catch {
+      return []; // an unknown project has no titles to offer
+    }
+  };
+
+  // What an argument left out stands for in the prompt's text
+  const unset = (arg: string) =>
+    arg === "project"
+      ? config.project ?? "(no project given: ask the user which one, or call project_list)"
+      : "(not given)";
+
+  for (const prompt of PROMPTS) {
+    const args = Object.fromEntries(
+      prompt.arguments.map((arg) => {
+        const schema = z.string().describe(arg === "project" ? "Project name (falls back to .rewelo.json)" : arg.replace(/-/g, " "));
+        // Completable inside optional(): the SDK looks for it there
+        if (arg === "project") return [arg, completable(schema, completeProject).optional()];
+        if (arg === "ticket-title") return [arg, completable(schema, completeTicket).optional()];
+        return [arg, schema.optional()];
+      })
+    );
+    server.registerPrompt(prompt.name, { description: prompt.description, argsSchema: z.object(args) }, (values: Record<string, string | undefined>) => ({
+      messages: [
+        {
+          role: "user" as const,
+          content: {
+            type: "text" as const,
+            // $0, $1, … are the arguments in order, as in the skill
+            text: prompt.body.replace(/\$(\d)/g, (placeholder, i: string) => {
+              const arg = prompt.arguments[Number(i)];
+              if (arg === undefined) return placeholder;
+              return values[arg]?.trim() || unset(arg);
+            }),
+          },
+        },
+      ],
+    }));
+  }
 
   const connect = server.connect.bind(server);
   server.connect = (transport) => {

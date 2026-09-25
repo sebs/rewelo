@@ -267,6 +267,26 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 
 Only `tickets` and each ticket's `title` are required; scores default to 1. Tags are `{prefix, value}` objects, not `"prefix:value"` strings. An import adds the relations and replaces the project's weights with the file's, and its result says so (`relationsCreated`, `weights`).
 
+## Prompts
+
+The server also offers prompts: ready-made instructions for common backlog work, which a client shows as commands (in Claude Code, for example, `/mcp__rewelo__plan-sprint Acme 30`). Each one tells the model which tools to call and how to present the result.
+
+| Prompt           | What it does                                                     | Arguments                        |
+|------------------|------------------------------------------------------------------|----------------------------------|
+| `intake`         | Interview a stakeholder and create scored tickets                | `project?`                       |
+| `plan-sprint`    | Propose a sprint backlog from the priorities and a capacity      | `project?`, `capacity-points?`   |
+| `standup`        | Daily digest: progress, blockers, sprint health                  | `project?`                       |
+| `slice`          | Split a large ticket into smaller ones with distributed scores   | `project?`, `ticket-title?`      |
+| `reprioritize`   | Reassess priorities after an event                               | `project?`, `event-description?` |
+| `what-if`        | Explore scenarios with `simulate`, without changing data         | `project?`                       |
+| `flow-metrics`   | Lead time, cycle time and throughput from state tags             | `project?`                       |
+| `retro-accuracy` | Compare estimates with outcomes to find scoring biases           | `project?`                       |
+| `portfolio`      | Compare value and effort across all projects                     | none                             |
+
+Without `project`, a prompt uses the server's default project (see [Available Tools](#available-tools)), or tells the model to ask. The client can autocomplete `project` from the existing projects and `ticket-title` from the titles in the chosen project.
+
+The prompts are the Claude Code skills in [`.claude/skills`](.claude/skills), built into the server by `scripts/generate-prompts.mjs`: change a skill there, and the prompt changes with the next build.
+
 ## Example Session
 
 ```

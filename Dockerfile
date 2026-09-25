@@ -8,11 +8,14 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 
 COPY scripts/ scripts/
 COPY src/ src/
+# The skills become the MCP server's prompts (scripts/generate-prompts.mjs)
+COPY .claude/skills/ .claude/skills/
 COPY tsconfig.json ./
 
 ARG APP_VERSION
 RUN APP_VERSION=${APP_VERSION:-$(node -p "require('./package.json').version")} \
        node scripts/inject-version.mjs \
+    && node scripts/generate-prompts.mjs \
     && npx tsc \
     && npm prune --omit=dev
 

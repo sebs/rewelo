@@ -40,6 +40,7 @@ src/
 test/           Mirror of src/ with *.test.ts files
 site/           Website: node site/build.mjs renders it (and the docs) into _site/
 features/       Gherkin specifications
+.claude/skills/ Claude Code skills, also served as the MCP server's prompts
 db/             SQL schema and DBML model
 ```
 

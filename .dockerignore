@@ -8,6 +8,7 @@ build
 *.db-shm
 .git
 .claude
+!.claude/skills
 test
 features
 plan
