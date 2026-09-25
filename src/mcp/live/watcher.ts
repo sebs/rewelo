@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/server";
+import type { DB } from "../../db/connection.js";
 import { AppError, sanitizeError } from "../../errors.js";
 import { shorten } from "../results.js";
 import type { DbSession } from "../session.js";
@@ -14,7 +15,7 @@ const MAX_SUBSCRIPTIONS = 1000;
  */
 export class ChangeWatcher {
   private readonly subscriptions = new Set<string>();
-  // A tool that can write ran since the last check
+  // This session committed a write since the last check
   private wrote = false;
   // PRAGMA data_version: changes when another connection commits
   private dataVersion: number | undefined;
@@ -28,9 +29,11 @@ export class ChangeWatcher {
     private readonly pollIntervalMs: number
   ) {}
 
-  /** A tool that can write has run: tell subscribers on the next check, whether or not it wrote */
-  noteWrite(): void {
-    this.wrote = true;
+  // PRAGMA data_version doesn't change for this connection's own commits:
+  // its write transactions say when they commit, and subscribers hear of it
+  // on the next check. A dry run or a failed call commits nothing.
+  attach(db: DB): void {
+    db.observeTransactions({ committing: () => void (this.wrote = true) });
   }
 
   /** Handle resources/subscribe and resources/unsubscribe */

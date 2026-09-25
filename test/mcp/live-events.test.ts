@@ -144,6 +144,23 @@ describe("MCP live events", () => {
     assert.deepEqual(channelMessages.map((m) => m.meta.ticket), ["Elsewhere 1", "Elsewhere 2"]);
   });
 
+  it("notifies subscribers of the session's own writes, but not of a dry run or a failed call", async () => {
+    const { client, updated } = await connect();
+    await client.subscribeResource({ uri: "rewelo://Acme/backlog" });
+    await settle();
+
+    const dryRun = await client.callTool({ name: "apply_changes", arguments: { project: "Acme", dryRun: true, operations: [{ op: "ticket_create", title: "Dry" }] } });
+    assert.notEqual(dryRun.isError, true);
+    const failed = await client.callTool({ name: "ticket_update", arguments: { project: "Acme", title: "Nope", benefit: 3 } });
+    assert.equal(failed.isError, true);
+    await settle();
+    assert.deepEqual(updated, []);
+
+    await client.callTool({ name: "weight_set", arguments: { project: "Acme", w1: 3 } });
+    await until(() => updated.length >= 1);
+    assert.deepEqual(updated, ["rewelo://Acme/backlog"]);
+  });
+
   it("has no channel unless asked for", async () => {
     const { client, channelMessages } = await connect();
     assert.equal(client.getServerCapabilities()?.experimental, undefined);

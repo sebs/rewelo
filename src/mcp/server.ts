@@ -79,7 +79,10 @@ export function createMcpServer(
   // Other processes write to the same database: subscribers and the channel
   // learn of it by polling (live/)
   const channel = options?.channel ? new Channel(server) : undefined;
-  const session = new DbSession(validDbPath, rateLimiter, (db) => channel?.attach(db));
+  const session = new DbSession(validDbPath, rateLimiter, (db) => {
+    watcher.attach(db);
+    channel?.attach(db);
+  });
   const watcher = new ChangeWatcher(server, session, channel, options?.pollIntervalMs ?? 2000);
 
   const ctx: McpContext = {
@@ -100,9 +103,7 @@ export function createMcpServer(
         } catch (err) {
           return errorResult(err);
         }
-        if (annotations.readOnlyHint) return run(args, call);
-        // Tell subscribers on the next check, whether or not the call wrote
-        return run(args, call).finally(() => watcher.noteWrite());
+        return run(args, call);
       });
     },
     withDb: session.withDb,
