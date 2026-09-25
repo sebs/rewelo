@@ -10,7 +10,7 @@ import { checkKeys, parseTags } from "./values.js";
 const REVISION_KEYS = ["id", "ticket_id", "title", "description", "benefit", "penalty", "estimate", "risk", "tags", "revised_at", "sequence"];
 const TAG_CHANGE_KEYS = ["id", "ticket_id", "tag_id", "action", "prefix", "value", "changed_at", "tag", "sequence"];
 import type { ImportableHistory, ImportableRevision, ImportableTagChange, TagPair } from "../types.js";
-import { validateTicketDescription } from "../../validation/strings.js";
+import { hasUnpairedSurrogate, validateTicketDescription } from "../../validation/strings.js";
 import { normalizeSince } from "../../validation/timestamps.js";
 
 // A ticket's history in the JSON export (--with-history): read, checked, and
@@ -60,8 +60,8 @@ export function parseHistory(t: Record<string, unknown>): ImportableHistory | un
       }
       // A revision records a title as it was: titles allowed by the rules of
       // the time (e.g. with characters rejected today) must restore as well
-      if (r.title.length === 0 || r.title.includes("\0") || r.title.length > 10_000) {
-        throw new ValidationError(`${at}: title must be a non-empty string without null bytes`);
+      if (r.title.length === 0 || r.title.includes("\0") || hasUnpairedSurrogate(r.title) || r.title.length > 10_000) {
+        throw new ValidationError(`${at}: title must be a non-empty string without null bytes or unpaired surrogates`);
       }
       return {
         title: r.title,

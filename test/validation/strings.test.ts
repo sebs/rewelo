@@ -64,6 +64,14 @@ describe("validateTicketTitle", () => {
     assert.equal(validateTicketTitle("Fix bug #123"), "Fix bug #123");
   });
 
+  it("rejects an unpaired UTF-16 surrogate in titles and descriptions, which would be stored as U+FFFD", () => {
+    for (const bad of ["s1 \ud800 x", "x \udc00", "end \ud83c"]) {
+      assert.throws(() => validateTicketTitle(bad), /unpaired surrogate/);
+      assert.throws(() => validateTicketDescription(bad), /unpaired surrogate/);
+    }
+    assert.equal(validateTicketTitle("party 🎉"), "party 🎉");
+  });
+
   it('rejects "." and "..", which no resource URI can name', () => {
     for (const title of [".", "..", " .. "]) {
       assert.throws(() => validateTicketTitle(title), /must not be "\." or "\.\."/);

@@ -12,6 +12,12 @@ const MAX_TICKET_DESCRIPTION = 10_000;
 const MAX_TAG_PREFIX = 50;
 const MAX_TAG_VALUE = 100;
 
+// Half of a UTF-16 surrogate pair: no character on its own, and SQLite
+// stores it as U+FFFD, which the next import of that text then rejects
+const UNPAIRED_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+export const hasUnpairedSurrogate = (s: string): boolean => UNPAIRED_SURROGATE.test(s);
+
 function hasNullBytes(s: string): boolean {
   return s.includes("\0");
 }
@@ -76,6 +82,9 @@ export function validateTicketTitle(title: string): string {
   if (title.includes("\uFFFD")) {
     throw new ValidationError("Ticket title is not valid UTF-8 (it contains the replacement character \uFFFD)");
   }
+  if (hasUnpairedSurrogate(title)) {
+    throw new ValidationError("Ticket title is not valid Unicode (it contains an unpaired surrogate)");
+  }
   const normalized = collapseSpaces(normalize(title.trim()));
   // URL parsing drops "." and ".." path segments, even percent-encoded: the
   // MCP resource rewelo://{project}/ticket/{title} could never reach them
@@ -107,6 +116,9 @@ export function validateTicketDescription(
   // As for titles: invalid UTF-8 (e.g. a Latin-1 CSV) decodes to U+FFFD
   if (description.includes("\uFFFD")) {
     throw new ValidationError("Ticket description is not valid UTF-8 (it contains the replacement character \uFFFD); save the file as UTF-8");
+  }
+  if (hasUnpairedSurrogate(description)) {
+    throw new ValidationError("Ticket description is not valid Unicode (it contains an unpaired surrogate)");
   }
   const normalized = normalize(description);
   if (normalized.length > MAX_TICKET_DESCRIPTION) {
