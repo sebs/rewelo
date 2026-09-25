@@ -509,6 +509,25 @@ describe("MCP server", () => {
     assert.deepEqual(weights.map((w: any) => [w.title, w.relativeBenefit]), [["A", 0.5], ["B", 0.5]]);
   });
 
+  it("calc_priority and calc_weights narrow the scope with several tags, as the CLI's --tag does", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "T" } });
+    for (const title of ["A", "B", "C"]) {
+      await client.callTool({ name: "ticket_create", arguments: { project: "T", title } });
+    }
+    await client.callTool({ name: "tag_assign", arguments: { project: "T", tickets: ["A", "B"], prefix: "team", value: "x" } });
+    await client.callTool({ name: "tag_assign", arguments: { project: "T", tickets: ["B", "C"], prefix: "area", value: "api" } });
+
+    const titles = async (name: string, args: Record<string, unknown>) => {
+      const r = await client.callTool({ name, arguments: { project: "T", ...args } });
+      assert.notEqual(r.isError, true, (r.content as any)[0].text);
+      return JSON.parse((r.content as any)[0].text).map((t: any) => t.title);
+    };
+    // Every tag, from tag and tags together
+    assert.deepEqual(await titles("calc_priority", { tags: ["team:x", "area:api"] }), ["B"]);
+    assert.deepEqual(await titles("calc_priority", { tag: "team:x", tags: ["area:api"] }), ["B"]);
+    assert.deepEqual(await titles("calc_weights", { tags: ["team:x", "area:api"] }), ["B"]);
+  });
+
   it("project_delete reports a missing project as an error", async () => {
     const r = await client.callTool({ name: "project_delete", arguments: { name: "Nope" } });
     assert.equal(r.isError, true);

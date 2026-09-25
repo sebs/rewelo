@@ -36,20 +36,19 @@ import {
 } from "../tickets/repository.js";
 import { createTag, deleteTag, getTag, listTags, renameTag } from "../tags/repository.js";
 import {
-  assertOneValuePerPrefix,
   assignTag,
   getProjectTicketTags,
   getTicketTags,
   removeTag,
 } from "../tags/assignment.js";
 import { listRevisions, listProjectRevisions } from "../revisions/repository.js";
-import { byPriority, exactPriority, priority } from "../calculations/priority.js";
-import {
-  calculateAllRelativeWeights,
-} from "../calculations/relative-weights.js";
-import { exactWeightedPriority, weightedPriority } from "../calculations/weighted-priority.js";
+import { priority } from "../calculations/priority.js";
+import { weightedPriority } from "../calculations/weighted-priority.js";
 import { compareRankings, explain, rank, simulate } from "../calculations/scenario.js";
-import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
+import { getWeights, resetWeights } from "../weights/repository.js";
+import { queryTickets } from "../app/tickets.js";
+import { relativeWeights, ticketsInScope, updateWeights, weightedRanking } from "../app/priorities.js";
+import { assignTags, prepareTags } from "../app/tagging.js";
 import { getProjectTimes, timesReport } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
 import { writeJsonExport } from "../export/json.js";
@@ -157,6 +156,9 @@ function capErrors(message: any): any {
   }
   return message;
 }
+
+// The tag and tags parameters as the one tag list the use cases take
+const tagList = (tag: string | undefined, tags: string[] = []): string[] => (tag !== undefined ? [tag] : []).concat(tags);
 
 // The same message as the CLI's, not zod's bare "Invalid input"
 const fibonacciScore = z.union(
@@ -601,52 +603,22 @@ export function createMcpServer(
       maxCost: z.number().optional().describe("Maximum cost (estimate+risk) threshold"),
     },
     READ,
-    safe(({ project, tag, tags: tagFilters, excludeTags, search, sort, limit, offset, minPriority, minValue, maxCost }) =>
-      withProject(resolveProject(project), async (db, proj) => {
-        // Build tag filter arrays
-        const includeTags: { prefix: string; value: string }[] = [];
-        if (tag) { includeTags.push(parseTag(tag)); }
-        if (tagFilters) for (const ts of tagFilters) { includeTags.push(parseTag(ts)); }
-
-        const excludeTagPairs: { prefix: string; value: string }[] = [];
-        if (excludeTags) for (const ts of excludeTags) { excludeTagPairs.push(parseTag(ts)); }
-
-        const tickets = await listTickets(db, proj.id, {
-          includeTags: includeTags.length > 0 ? includeTags : undefined,
-          excludeTags: excludeTagPairs.length > 0 ? excludeTagPairs : undefined,
+    safe(({ project, tag, tags, excludeTags, search, sort, limit, offset, minPriority, minValue, maxCost }) =>
+      withProject(resolveProject(project), (db, proj) =>
+        queryTickets(db, proj.id, {
+          // An empty tag is no filter here, as it always was
+          tags: (tag ? [tag] : []).concat(tags ?? []),
+          excludeTags,
           search,
-        });
-
-        const enriched = tickets.map((t) => ({
-          ...t,
-          value: t.benefit + t.penalty,
-          cost: t.estimate + t.risk,
-          priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-        }));
-
-        // Score threshold filters
-        let filtered = enriched;
-        if (minPriority != null) filtered = filtered.filter((t) => exactPriority(t.benefit, t.penalty, t.estimate, t.risk) >= minPriority);
-        if (minValue != null) filtered = filtered.filter((t) => t.value >= minValue);
-        if (maxCost != null) filtered = filtered.filter((t) => t.cost <= maxCost);
-
-        if (sort !== undefined) {
-          const validSortFields = ["priority", "benefit", "penalty", "estimate", "risk", "value", "cost"];
-          if (!validSortFields.includes(sort)) {
-            throw new AppError(`Invalid sort field "${sort}". Valid fields: ${validSortFields.join(", ")}`);
-          }
-          const key = sort as keyof (typeof filtered)[0];
-          filtered.sort(key === "priority" ? byPriority : (a, b) => (b[key] as number) - (a[key] as number));
-        }
-
-        // Pagination
-        const total = filtered.length;
-        // Pages of 100 unless a limit is given; total says how many there are
-        const off = offset ?? 0;
-        const page = filtered.slice(off, off + (limit ?? DEFAULT_TICKET_LIMIT));
-
-        return { total, offset: off, items: page };
-      })
+          minPriority,
+          minValue,
+          maxCost,
+          sort,
+          offset,
+          // Pages of 100 unless a limit is given; total says how many there are
+          limit: limit ?? DEFAULT_TICKET_LIMIT,
+        })
+      )
     )
   );
 
@@ -794,48 +766,11 @@ export function createMcpServer(
       if (prefix !== undefined && value !== undefined) allTags.push({ prefix, value });
       if (tagList) for (const t of tagList) allTags.push(t);
       if (allTags.length === 0) throw new AppError("Provide prefix+value or tags");
+      const tags = prepareTags(allTags);
 
-      const validatedTags = allTags.map(t => ({
-        prefix: validateTagPrefix(t.prefix),
-        value: validateTagValue(t.value),
-      }));
-      assertOneValuePerPrefix(validatedTags);
-
-      return withProject(resolveProject(project), async (db, proj) => {
-        // Resolve the tickets first, then create and assign in one
-        // transaction, so a missing ticket aborts the whole batch instead of
-        // half of it (and leaves no new tags behind)
-        const tickets: { title: string; id: number }[] = [];
-        for (const title of new Set(allTickets)) {
-          const ticket = await resolveTicket(db, proj.id, title);
-          if (!tickets.some((t) => t.id === ticket.id)) tickets.push({ title: ticket.title, id: ticket.id });
-        }
-
-        return db.transaction(async () => {
-          // Created like rw tag assign and the imports do: requiring
-          // tag_create first made the documented examples fail
-          const tags: { label: string; id: number; created: boolean }[] = [];
-          for (const t of validatedTags) {
-            const existing = await getTag(db, proj.id, t.prefix, t.value);
-            const tag = existing ?? (await createTag(db, proj.id, t.prefix, t.value));
-            if (!tags.some((known) => known.id === tag.id)) tags.push({ label: `${t.prefix}:${t.value}`, id: tag.id, created: !existing });
-          }
-          const out: { ticket: string; tag: string; status: "assigned" | "already_assigned"; replaced?: string[]; tagCreated?: true }[] = [];
-          for (const ticket of tickets) {
-            for (const tag of tags) {
-              const { assigned, replaced } = await assignTag(db, ticket.id, tag.id);
-              out.push({
-                ticket: ticket.title,
-                tag: tag.label,
-                status: assigned ? "assigned" : "already_assigned",
-                ...(replaced.length > 0 ? { replaced } : {}),
-                ...(tag.created && ticket === tickets[0] ? { tagCreated: true as const } : {}),
-              });
-            }
-          }
-          return out;
-        });
-      });
+      // Tags are created as rw tag assign and the imports do: requiring
+      // tag_create first made the documented examples fail
+      return withProject(resolveProject(project), (db, proj) => assignTags(db, proj.id, allTickets, tags));
     })
   );
 
@@ -939,10 +874,7 @@ export function createMcpServer(
     safe(({ project, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) => {
       // As rw config weights --set: nothing to set is a mistake, not a no-op
       if ([uw1, uw2, uw3, uw4].every((w) => w === undefined)) throw new AppError("Provide at least one of w1, w2, w3, w4");
-      return withProject(resolveProject(project), async (db, proj) => {
-        const current = await getWeights(db, proj.id);
-        return setWeights(db, proj.id, uw1 ?? current.w1, uw2 ?? current.w2, uw3 ?? current.w3, uw4 ?? current.w4);
-      });
+      return withProject(resolveProject(project), (db, proj) => updateWeights(db, proj.id, { w1: uw1, w2: uw2, w3: uw3, w4: uw4 }));
     })
   );
 
@@ -964,32 +896,17 @@ export function createMcpServer(
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       tag: z.string().optional().describe("Only tickets with this tag (prefix:value)"),
+      tags: z.array(z.string()).optional().describe("Only tickets with all of these tags (intersection, also with tag). Each as prefix:value"),
       w1: z.number().optional().describe("Benefit weight (default 1.5). Higher = benefit matters more in value."),
       w2: z.number().optional().describe("Penalty weight (default 1.5). Higher = penalty matters more in value."),
       w3: z.number().optional().describe("Estimate weight (default 1.5). Higher = large estimates are penalised more."),
       w4: z.number().optional().describe("Risk weight (default 1.5). Higher = risky items are penalised more. To de-risk first, sort by risk via ticket_list instead."),
     },
     READ,
-    safe(({ project, tag, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) =>
-      withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
-        const config = await getWeights(db, proj.id);
-        const w1 = uw1 ?? config.w1;
-        const w2 = uw2 ?? config.w2;
-        const w3 = uw3 ?? config.w3;
-        const w4 = uw4 ?? config.w4;
-        validateWeights(w1, w2, w3, w4);
-
-        // Sort on the unrounded weighted priority; return the rounded one
-        const exact = (t: Ticket) => exactWeightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4);
-        return [...tickets]
-          .sort((a, b) => exact(b) - exact(a))
-          .map((t) => ({
-            title: t.title,
-            priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-            weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
-          }));
-      })
+    safe(({ project, tag, tags, w1, w2, w3, w4 }) =>
+      withProject(resolveProject(project), async (db, proj) =>
+        (await weightedRanking(db, proj.id, { tags: tagList(tag, tags), weights: { w1, w2, w3, w4 } })).tickets
+      )
     )
   );
 
@@ -999,19 +916,11 @@ export function createMcpServer(
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       tag: z.string().optional().describe("Only compare tickets with this tag (prefix:value)"),
+      tags: z.array(z.string()).optional().describe("Only compare tickets with all of these tags (intersection, also with tag). Each as prefix:value"),
     },
     READ,
-    safe(({ project, tag }) =>
-      withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
-        return calculateAllRelativeWeights(tickets).map((t) => ({
-          title: t.title,
-          relativeBenefit: t.relativeBenefit,
-          relativePenalty: t.relativePenalty,
-          relativeEstimate: t.relativeEstimate,
-          relativeRisk: t.relativeRisk,
-        }));
-      })
+    safe(({ project, tag, tags }) =>
+      withProject(resolveProject(project), (db, proj) => relativeWeights(db, proj.id, { tags: tagList(tag, tags) }))
     )
   );
 
@@ -1041,7 +950,7 @@ export function createMcpServer(
     safe(({ project, tag, changes, add, remove, weights, top, limit }) => {
       for (const t of add ?? []) validateTicketTitle(t.title);
       return withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
+        const tickets = await ticketsInScope(db, proj.id, tagList(tag));
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
         return simulate(tickets, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 });
       });
@@ -1060,7 +969,7 @@ export function createMcpServer(
     READ,
     safe(({ project, title, tag, top }) =>
       withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
+        const tickets = await ticketsInScope(db, proj.id, tagList(tag));
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
         if (tag !== undefined && !tickets.some((t) => t.title === title)) {
           await resolveTicket(db, proj.id, title);

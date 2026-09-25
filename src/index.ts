@@ -12,7 +12,6 @@ import {
 } from "./projects/repository.js";
 import {
   createTicket,
-  listTickets,
   getTicketByTitle,
   updateTicket,
   deleteTicket,
@@ -24,15 +23,14 @@ import {
   listTags,
   renameTag,
 } from "./tags/repository.js";
-import { assertOneValuePerPrefix, assignTag, removeTag } from "./tags/assignment.js";
+import { removeTag } from "./tags/assignment.js";
+import { queryTickets } from "./app/tickets.js";
+import { relativeWeights, updateWeights, weightedRanking } from "./app/priorities.js";
+import { assignTags, prepareTags } from "./app/tagging.js";
 import { getTagChangeLog } from "./tags/audit.js";
 import { listRevisions, listProjectRevisions } from "./revisions/repository.js";
-import { byPriority, exactPriority, priority, round2 } from "./calculations/priority.js";
-import {
-  calculateAllRelativeWeights,
-} from "./calculations/relative-weights.js";
-import { exactWeightedPriority, weightedPriority } from "./calculations/weighted-priority.js";
-import { getWeights, setWeights, resetWeights, validateWeights } from "./weights/repository.js";
+import { round2 } from "./calculations/priority.js";
+import { getWeights, resetWeights } from "./weights/repository.js";
 import { getProjectTimes, averageLeadTime, averageCycleTime, timesReport } from "./calculations/time.js";
 import {
   validateProjectName,
@@ -557,45 +555,17 @@ ticketCmd
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      // Build tag filter arrays
-      const includeTags = (cmdOpts.tag as string[]).map((s: string) => parseTag(s));
-      const excludeTagPairs = (cmdOpts.excludeTag as string[]).map((s: string) => parseTag(s));
-
-      const tickets = await listTickets(db, project.id, {
-        includeTags: includeTags.length > 0 ? includeTags : undefined,
-        excludeTags: excludeTagPairs.length > 0 ? excludeTagPairs : undefined,
+      const { total, offset, items: filtered } = await queryTickets(db, project.id, {
+        tags: cmdOpts.tag,
+        excludeTags: cmdOpts.excludeTag,
         search: cmdOpts.search,
+        minPriority: cmdOpts.minPriority,
+        minValue: cmdOpts.minValue,
+        maxCost: cmdOpts.maxCost,
+        sort: cmdOpts.sort,
+        offset: cmdOpts.offset,
+        limit: cmdOpts.limit,
       });
-
-      const enriched = tickets.map((t) => ({
-        ...t,
-        value: t.benefit + t.penalty,
-        cost: t.estimate + t.risk,
-        priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-      }));
-
-      // Score threshold filters
-      let filtered = enriched;
-      if (cmdOpts.minPriority != null) filtered = filtered.filter((t) => exactPriority(t.benefit, t.penalty, t.estimate, t.risk) >= cmdOpts.minPriority);
-      if (cmdOpts.minValue != null) filtered = filtered.filter((t) => t.value >= cmdOpts.minValue);
-      if (cmdOpts.maxCost != null) filtered = filtered.filter((t) => t.cost <= cmdOpts.maxCost);
-
-      if (cmdOpts.sort !== undefined) {
-        const validSortFields = ["priority", "value", "cost", "benefit", "penalty", "estimate", "risk"];
-        if (!validSortFields.includes(cmdOpts.sort)) {
-          throw new ValidationError(
-            `Invalid sort field "${cmdOpts.sort}". Valid fields: ${validSortFields.join(", ")}`
-          );
-        }
-        const key = cmdOpts.sort as keyof (typeof filtered)[0];
-        filtered.sort(key === "priority" ? byPriority : (a, b) => (b[key] as number) - (a[key] as number));
-      }
-
-      // Pagination
-      const total = filtered.length;
-      const offset = cmdOpts.offset || 0;
-      if (offset > 0) filtered = filtered.slice(offset);
-      if (cmdOpts.limit != null) filtered = filtered.slice(0, cmdOpts.limit);
 
       if (opts.json) {
         console.log(JSON.stringify({ total, offset, items: filtered }));
@@ -808,37 +778,10 @@ tagCmd
     if (tickets.length === 0) { console.error("At least one --ticket is required"); process.exit(1); }
     // The same tag or ticket named twice (possibly spelt differently) is
     // applied and reported once
-    const parsedTags = [...new Map(tagStrs.map((s: string) => {
-      const tag = parseTag(s);
-      return [`${tag.prefix}:${tag.value}`, tag] as const;
-    })).values()];
-    assertOneValuePerPrefix(parsedTags);
+    const parsedTags = prepareTags(tagStrs.map((s: string) => parseTag(s)));
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      // Resolve every target ticket up front so a missing one aborts before
-      // any tag is applied, rather than partially assigning and then failing.
-      const resolved: { title: string; id: number }[] = [];
-      for (const ticketTitle of tickets) {
-        const ticket = await getTicketByTitle(db, project.id, ticketTitle);
-        if (!ticket) { console.error(`Ticket "${ticketTitle}" not found`); process.exit(1); }
-        if (!resolved.some((r) => r.id === ticket.id)) resolved.push({ title: ticket.title, id: ticket.id });
-      }
-      const results: { ticket: string; tag: string; status: string; replaced?: string[] }[] = [];
-      // All or nothing, and no other process creating the same tag in between
-      await db.transaction(async () => {
-        for (const { title: ticketTitle, id } of resolved) {
-          for (const t of parsedTags) {
-            let tag = await getTag(db, project.id, t.prefix, t.value);
-            if (!tag) tag = await createTag(db, project.id, t.prefix, t.value);
-            const { assigned, replaced } = await assignTag(db, id, tag.id);
-            results.push({
-              ticket: ticketTitle,
-              tag: `${t.prefix}:${t.value}`,
-              status: assigned ? "assigned" : "already_assigned",
-              ...(replaced.length > 0 ? { replaced } : {}),
-            });
-          }
-        }
-      });
+      // The CLI's JSON never said which tags were created
+      const results = (await assignTags(db, project.id, tickets, parsedTags)).map(({ tagCreated: _, ...r }) => r);
       if (opts.json) console.log(JSON.stringify(results));
       else if (!opts.quiet) {
         for (const r of results) {
@@ -1117,12 +1060,8 @@ configCmd
       }
 
       if (cmdOpts.set) {
-        const current = await getWeights(db, project.id);
-        const w1 = cmdOpts.w1 ?? current.w1;
-        const w2 = cmdOpts.w2 ?? current.w2;
-        const w3 = cmdOpts.w3 ?? current.w3;
-        const w4 = cmdOpts.w4 ?? current.w4;
-        const config = await setWeights(db, project.id, w1, w2, w3, w4);
+        const { w1, w2, w3, w4 } = cmdOpts;
+        const config = await updateWeights(db, project.id, { w1, w2, w3, w4 });
         if (opts.json) {
           console.log(JSON.stringify(config));
         } else if (!opts.quiet) {
@@ -1160,16 +1099,7 @@ calcCmd
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
       // Several --tag options narrow the scope together, as in ticket list
-      const includeTags = (cmdOpts.tag as string[]).map((s) => parseTag(s));
-      const tickets = await listTickets(db, project.id, { includeTags, withDescription: false });
-
-      const results = calculateAllRelativeWeights(tickets).map((t) => ({
-        title: t.title,
-        relativeBenefit: t.relativeBenefit,
-        relativePenalty: t.relativePenalty,
-        relativeEstimate: t.relativeEstimate,
-        relativeRisk: t.relativeRisk,
-      }));
+      const results = await relativeWeights(db, project.id, { tags: cmdOpts.tag });
 
       // Two decimals, without claiming a non-zero share is 0
       // round2 rounds halves up (0.075 -> 0.08); toFixed alone gave 0.07
@@ -1208,22 +1138,11 @@ calcCmd
   .action(async (cmdOpts: any, cmd: Command) => {
     const opts = cmd.optsWithGlobals();
     await withProject(opts, cmdOpts.project, async (db, project) => {
-      const includeTags = (cmdOpts.tag as string[]).map((s) => parseTag(s));
-      const tickets = await listTickets(db, project.id, { includeTags, withDescription: false });
-      const config = await getWeights(db, project.id);
-      const w1 = cmdOpts.w1 ?? config.w1;
-      const w2 = cmdOpts.w2 ?? config.w2;
-      const w3 = cmdOpts.w3 ?? config.w3;
-      const w4 = cmdOpts.w4 ?? config.w4;
-      validateWeights(w1, w2, w3, w4);
-
-      // Sort on the unrounded weighted priority; display the rounded one
-      const exact = (t: (typeof tickets)[0]) => exactWeightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4);
-      const results = [...tickets].sort((a, b) => exact(b) - exact(a)).map((t) => ({
-        title: t.title,
-        priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
-        weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
-      }));
+      const { w1, w2, w3, w4 } = cmdOpts;
+      const { weights, tickets: results } = await weightedRanking(db, project.id, {
+        tags: cmdOpts.tag,
+        weights: { w1, w2, w3, w4 },
+      });
 
       if (opts.json) {
         console.log(JSON.stringify(results));
@@ -1232,7 +1151,7 @@ calcCmd
       } else if (results.length === 0 && !opts.csv) {
         console.log("No tickets found.");
       } else {
-        if (!opts.csv) console.log(`Weights: w1=${w1} w2=${w2} w3=${w3} w4=${w4}\n`);
+        if (!opts.csv) console.log(`Weights: w1=${weights.w1} w2=${weights.w2} w3=${weights.w3} w4=${weights.w4}\n`);
         console.log(
           formatTable(
             ["Title", "Priority", "Weighted"],

@@ -2,7 +2,7 @@ import { assertFibonacci } from "../db/types.js";
 import { ValidationError, isBlank, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 import { isValidRelationType } from "../relations/types.js";
-import { validateWeights } from "../weights/repository.js";
+import { validateWeights } from "../domain/weights.js";
 import { assertOneValuePerPrefix, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
 import type { ImportableHistory, ImportableTicket } from "./import-project.js";
 import { normalizeSince } from "../validation/timestamps.js";

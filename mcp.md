@@ -198,8 +198,8 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `calc_priority`   | Weighted priorities for all tickets, or those with a tag | `project?`, `tag?`, `w1?`, `w2?`, `w3?`, `w4?` |
-| `calc_weights`    | Relative weights as share of total (fraction 0–1) | `project?`, `tag?`                      |
+| `calc_priority`   | Weighted priorities for all tickets, or those with every tag given | `project?`, `tag?`, `tags?`, `w1?`, `w2?`, `w3?`, `w4?` |
+| `calc_weights`    | Relative weights as share of total (fraction 0–1), of all tickets or those with every tag given | `project?`, `tag?`, `tags?` |
 | `simulate`        | What-if ranking under hypothetical scores, tickets and weights; writes nothing | `project?`, `tag?`, `changes?`, `add?`, `remove?`, `weights?`, `top?`, `limit?` |
 | `explain_priority`| One ticket's formula, rank, and what it takes to reach the top N | `project?`, `title`, `tag?`, `top?` |
 | `suggest_scores`  | Similar tickets, reference tickets per score, and the distribution, to score a new ticket; optionally the client model's scores | `project?`, `title`, `description?`, `sample?` |

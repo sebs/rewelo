@@ -1,18 +1,11 @@
 import { round2 } from "./priority.js";
 import { exactWeightedPriority } from "./weighted-priority.js";
 import { AppError } from "../validation/strings.js";
-import { validateWeights } from "../weights/repository.js";
+import { validateWeights, withOverrides, type Weights } from "../domain/weights.js";
 
 // What-if calculations for agents: the ranking under hypothetical scores,
 // tickets and weights, computed here so a model doesn't do the arithmetic.
 // Nothing is written.
-
-export interface Weights {
-  w1: number;
-  w2: number;
-  w3: number;
-  w4: number;
-}
 
 export interface Scored {
   title: string;
@@ -133,7 +126,7 @@ export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: 
     if (byTitle.has(t.title) || added.some((a) => a.title === t.title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
     added.push({ title: t.title, benefit: 1, penalty: 1, estimate: 1, risk: 1, ...definedScores(t) });
   }
-  const scenarioWeights = { ...baselineWeights, ...definedWeights(scenario.weights) };
+  const scenarioWeights = withOverrides(baselineWeights, scenario.weights);
   validateWeights(scenarioWeights.w1, scenarioWeights.w2, scenarioWeights.w3, scenarioWeights.w4);
 
   const changes = new Map<string, "scores" | "added" | "removed">([
@@ -229,11 +222,5 @@ export function explain(tickets: Scored[], weights: Weights, title: string, top:
 function definedScores(input: Partial<Record<Dimension, number>>): Partial<Record<Dimension, number>> {
   const out: Partial<Record<Dimension, number>> = {};
   for (const d of ["benefit", "penalty", "estimate", "risk"] as const) if (input[d] !== undefined) out[d] = input[d];
-  return out;
-}
-
-function definedWeights(input: Partial<Weights> | undefined): Partial<Weights> {
-  const out: Partial<Weights> = {};
-  for (const w of ["w1", "w2", "w3", "w4"] as const) if (input?.[w] !== undefined) out[w] = input[w];
   return out;
 }
