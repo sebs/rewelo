@@ -41,6 +41,13 @@ describe("MCP apply_changes", () => {
 
   afterEach(() => close());
 
+  it("doesn't list a ticket as updated when the update changed nothing", async () => {
+    const r = await call("apply_changes", { project: "Acme", operations: [{ op: "ticket_update", title: "A" }, { op: "ticket_update", title: "B", benefit: 5 }] });
+    assert.equal(r.isError, false, r.text);
+    assert.deepEqual(r.data.operations.map((o: { changes: unknown[] }) => o.changes), [[], []]);
+    assert.deepEqual(r.data.ranking.tickets, []);
+  });
+
   const plan = [
     { op: "ticket_create", title: "SSO", benefit: 21, penalty: 13, estimate: 2, risk: 1 },
     { op: "ticket_update", title: "C", newTitle: "C2", estimate: 1 },

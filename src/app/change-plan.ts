@@ -55,9 +55,10 @@ async function applyOperation(db: DB, projectId: number, op: Operation, changes:
         description: validateTicketDescription(description),
         ...given,
       });
-      if (changes.get(before.id) !== "created") changes.set(before.id, "updated");
       const fields = ["title", "description", "benefit", "penalty", "estimate", "risk"] as const;
       const fieldChanges = fields.filter((f) => before[f] !== after[f]).map((f) => ({ field: f, from: before[f], to: after[f] }));
+      // An update that changes nothing writes nothing, and isn't one
+      if (fieldChanges.length > 0 && changes.get(before.id) !== "created") changes.set(before.id, "updated");
       return { op: op.op, title: after.title, changes: fieldChanges };
     }
     case "ticket_delete": {
