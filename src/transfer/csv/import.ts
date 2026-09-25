@@ -91,11 +91,11 @@ function parseRows(csv: string): CsvRow[] {
       return scores;
     });
 
-    const title = prefixErrors(at, () => {
-      const valid = validateTicketTitle(stripCsvFormulaGuard(row.title ?? ""));
-      validateTicketDescription(stripCsvFormulaGuard(row.description ?? ""));
-      return valid;
-    });
+    // Stored as validated (NFC), as ticket create stores them
+    const { title, description } = prefixErrors(at, () => ({
+      title: validateTicketTitle(stripCsvFormulaGuard(row.title ?? "")),
+      description: validateTicketDescription(stripCsvFormulaGuard(row.description ?? ""))!,
+    }));
 
     const tags: TagPair[] = prefixErrors(at, () => {
       const pairs = (row.tags ?? "")
@@ -114,7 +114,7 @@ function parseRows(csv: string): CsvRow[] {
     rows.push({
       row: rowNumber,
       title,
-      description: stripCsvFormulaGuard(row.description ?? ""),
+      description,
       benefit,
       penalty,
       estimate,

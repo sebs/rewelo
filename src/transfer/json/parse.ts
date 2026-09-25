@@ -53,13 +53,13 @@ export function parseTickets(
       if (tags) assertOneValuePerPrefix(tags);
     });
 
-    const title = prefixErrors(at, () => {
+    // Stored as validated (NFC), as ticket create stores them
+    const { title, description } = prefixErrors(at, () => {
       const valid = validateTicketTitle(rawTitle);
       if (t.description !== undefined && t.description !== null && typeof t.description !== "string") {
         throw new ValidationError(`description must be a string, got ${JSON.stringify(t.description)}`);
       }
-      if (typeof t.description === "string") validateTicketDescription(t.description);
-      return valid;
+      return { title: valid, description: typeof t.description === "string" ? validateTicketDescription(t.description) : undefined };
     });
 
     const history = prefixErrors(at, () => {
@@ -70,7 +70,7 @@ export function parseTickets(
 
     tickets.push({
       title,
-      description: typeof t.description === "string" ? t.description : undefined,
+      description,
       benefit,
       penalty,
       estimate,

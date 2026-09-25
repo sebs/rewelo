@@ -79,6 +79,11 @@ describe("JSON import", () => {
     assert.equal((await listTickets(db, projectId)).length, 0);
   });
 
+  it("stores descriptions as ticket create does: NFC", async () => {
+    await importJson(db, projectId, JSON.stringify({ tickets: [{ title: "t", description: "cafe\u0301" }] }));
+    assert.equal((await listTickets(db, projectId))[0].description, "caf\u00e9");
+  });
+
   it("rejects invalid JSON", async () => {
     await assert.rejects(importJson(db, projectId, "not json"), /Invalid JSON/);
   });

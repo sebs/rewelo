@@ -38,6 +38,11 @@ Signup,5,2,3,1,state:wip`;
     assert.equal(tickets[0].benefit, 8);
   });
 
+  it("stores descriptions as ticket create does: NFC", async () => {
+    await importCsv(db, projectId, "title,description\nt,cafe\u0301\n");
+    assert.equal((await listTickets(db, projectId))[0].description, "caf\u00e9");
+  });
+
   it("auto-creates tags that don't exist", async () => {
     const csv = `title,benefit,penalty,estimate,risk,tags
 Login,8,3,5,2,feature:auth`;
