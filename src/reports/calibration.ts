@@ -59,7 +59,8 @@ export function calibrate(tickets: CalibrationTicket[], title: string, descripti
 
   return {
     similar: bySimilarity
-      .filter((s) => s.similarity > 0)
+      // On the value shown: 1 shared word of 301 rounds to 0
+      .filter((s) => round2(s.similarity) > 0)
       .slice(0, MAX_SIMILAR)
       .map(({ ticket: t, similarity: sim }) => ({
         title: t.title,
