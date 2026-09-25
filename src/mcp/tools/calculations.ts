@@ -1,5 +1,7 @@
 import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { DB } from "../../db/connection.js";
+import type { Ticket } from "../../tickets/repository.js";
 import { relativeWeights, ticketsInScope, weightedRanking } from "../../app/priorities.js";
 import { explain, findTicket, simulate } from "../../calculations/scenario.js";
 import { calibrate, parseSuggestion, scoringPrompt } from "../../reports/calibration.js";
@@ -9,6 +11,14 @@ import { AppError } from "../../errors.js";
 import { validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 import { getWeights } from "../../weights/repository.js";
 import { fibonacciScore, READ, resolveTicket, tagList, PROJECT_ARG, type McpContext } from "../toolkit.js";
+
+// A ticket the tools rank within a tag scope: one outside it that exists
+// is outside the scope, not "not found"
+async function requireInScope(db: DB, projectId: number, tickets: Ticket[], title: string, scope: string[]): Promise<void> {
+  if (scope.length === 0 || findTicket(tickets, title)) return;
+  await resolveTicket(db, projectId, title); // not found
+  throw new AppError(`Ticket "${title}" does not have the tag${scope.length > 1 ? "s" : ""} ${scope.join(", ")}`);
+}
 
 export function registerCalculationTools(ctx: McpContext): void {
   const { tool, inProject, server } = ctx;
@@ -72,7 +82,11 @@ export function registerCalculationTools(ctx: McpContext): void {
     ({ project, tag, tags, changes, add, remove, weights, top, limit }) => {
       for (const t of add ?? []) validateTicketTitle(t.title);
       return inProject(project, async (db, proj) => {
-        const tickets = await ticketsInScope(db, proj.id, tagList(tag, tags));
+        const scope = tagList(tag, tags);
+        const tickets = await ticketsInScope(db, proj.id, scope);
+        for (const title of [...(remove ?? []), ...(changes ?? []).map((c: { title: string }) => c.title)]) {
+          await requireInScope(db, proj.id, tickets, title, scope);
+        }
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
         return simulate(tickets, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 });
       });
@@ -95,10 +109,7 @@ export function registerCalculationTools(ctx: McpContext): void {
         const scope = tagList(tag, tags);
         const tickets = await ticketsInScope(db, proj.id, scope);
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
-        if (scope.length > 0 && !findTicket(tickets, title)) {
-          await resolveTicket(db, proj.id, title);
-          throw new AppError(`Ticket "${title}" does not have the tag${scope.length > 1 ? "s" : ""} ${scope.join(", ")}`);
-        }
+        await requireInScope(db, proj.id, tickets, title, scope);
         return explain(tickets, { w1, w2, w3, w4 }, title, top ?? 1);
       })
   );

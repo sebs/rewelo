@@ -100,6 +100,16 @@ describe("MCP simulate and explain_priority", () => {
     assert.deepEqual(sim.data.tickets.filter((t: { change?: string }) => t.change).map((t: { title: string; change: string }) => [t.title, t.change]), [["C", "scores"], ["A", "removed"]]);
   });
 
+  it("says when a ticket simulate changes or removes is outside its tag scope", async () => {
+    await call("tag_assign", { project: "Acme", tickets: ["A", "B"], prefix: "team", value: "core" });
+    const removed = await call("simulate", { project: "Acme", tags: ["team:core"], remove: ["C"] });
+    assert.match(removed.text, /Ticket "C" does not have the tag team:core/);
+    const changed = await call("simulate", { project: "Acme", tag: "team:core", changes: [{ title: "C", estimate: 1 }] });
+    assert.match(changed.text, /Ticket "C" does not have the tag team:core/);
+    const missing = await call("simulate", { project: "Acme", tags: ["team:core"], remove: ["Z"] });
+    assert.match(missing.text, /Ticket "Z" not found/);
+  });
+
   it("says when the ticket lacks the tag it is ranked within", async () => {
     await call("tag_assign", { project: "Acme", ticket: "D", prefix: "team", value: "core" });
     const r = await call("explain_priority", { project: "Acme", title: "C", tag: "team:core" });
