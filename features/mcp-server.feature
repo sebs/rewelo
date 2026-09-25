@@ -59,6 +59,14 @@ Feature: MCP Server
       | relation_list         |
       | relation_list_all     |
 
+  Scenario: Tools say what they do to the database
+    When a client requests the tool list
+    Then every tool should carry annotations with openWorldHint false
+    And the listing, report, calculation and export tools should be marked read-only
+    And "project_delete", "ticket_delete" and "import_json" should be marked destructive
+    And "project_create" and "ticket_create" should be marked not destructive
+    And "ticket_upsert" and "weight_set" should be marked idempotent
+
   # -- Tool invocation --
 
   Scenario: Create a project via MCP

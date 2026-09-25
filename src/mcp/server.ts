@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/server";
+import { McpServer, type ToolAnnotations } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 
@@ -126,6 +126,18 @@ const fibonacciScore = z.union(
   { error: (issue) => `must be a Fibonacci value (1, 2, 3, 5, 8, 13, 21), got ${JSON.stringify(issue.input)}` }
 );
 
+// Every tool says what it does to the database, so a client can run the
+// read-only ones without asking and warn before the destructive ones.
+// Nothing reaches outside the local database (openWorldHint false).
+const READ: ToolAnnotations = { readOnlyHint: true, openWorldHint: false };
+// Only adds data; an existing title or name is an error, not overwritten
+const ADDS: ToolAnnotations = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+// Overwrites or removes data
+const CHANGES: ToolAnnotations = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false };
+// As CHANGES, but a repeated call with the same arguments changes nothing more
+const CHANGES_IDEMPOTENT: ToolAnnotations = { ...CHANGES, idempotentHint: true };
+const DELETES: ToolAnnotations = CHANGES_IDEMPOTENT;
+
 const MAX_PAYLOAD_BYTES = 1_000_000; // 1 MB per tool call argument
 
 // At most maxRequests calls start per window. A burst over that waits for its
@@ -227,12 +239,12 @@ export function createMcpServer(
   const server = new McpServer({ name: "rewelo", version: VERSION }, { capabilities: { tools: {} }, instructions });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function tool(name: string, description: string, shape: z.ZodRawShape, handler: (args: any) => any) {
+  function tool(name: string, description: string, shape: z.ZodRawShape, annotations: ToolAnnotations, handler: (args: any) => any) {
     // The payload limit applies to every tool, not only the imports: others
     // took 20 MB titles and echoed them back in their errors
     // Strict: a misspelt parameter (benfit, exclude_tags) used to be dropped
     // silently, and the call succeeded without doing what was asked
-    server.registerTool(name, { description, inputSchema: z.strictObject(shape) }, (args: any) => {
+    server.registerTool(name, { description, inputSchema: z.strictObject(shape), annotations }, (args: any) => {
       try {
         checkPayloadSize(args);
       } catch (err) {
@@ -307,6 +319,7 @@ export function createMcpServer(
     "server_version",
     "Return the server version string. Use to verify which build is running.",
     {},
+    READ,
     async () => textResult({ version: VERSION })
   );
 
@@ -318,13 +331,14 @@ export function createMcpServer(
     "project_create",
     "Create a new project. Name must be unique; letters, digits, spaces, hyphens and underscores (not starting with a space), max 100 characters.",
     { name: z.string().describe("Project name") },
+    ADDS,
     safe(async ({ name }) => {
       const validName = validateProjectName(name);
       return withDb((db) => createProject(db, validName));
     })
   );
 
-  tool("project_list", "List all projects with their IDs and creation dates.", {},
+  tool("project_list", "List all projects with their IDs and creation dates.", {}, READ,
     safe(() => withDb((db) => listProjects(db)))
   );
 
@@ -332,6 +346,7 @@ export function createMcpServer(
     "project_delete",
     "Delete a project and all its tickets, tags, relations, and history. Irreversible.",
     { name: z.string().describe("Project name") },
+    DELETES,
     safe(async ({ name }) => {
       // Like every other tool (and the CLI), a missing project is an error
       if (!(await withDb((db) => deleteProject(db, name)))) throw new AppError("Project not found");
@@ -355,6 +370,7 @@ export function createMcpServer(
       estimate: fibonacciScore.optional().describe("Implementation effort (Fibonacci: 1,2,3,5,8,13,21)"),
       risk: fibonacciScore.optional().describe("Implementation risk/uncertainty (Fibonacci: 1,2,3,5,8,13,21)"),
     },
+    ADDS,
     safe(async ({ project, title, description, benefit, penalty, estimate, risk }) => {
       const validTitle = validateTicketTitle(title);
       const validDesc = validateTicketDescription(description);
@@ -380,6 +396,7 @@ export function createMcpServer(
       minValue: z.number().optional().describe("Minimum value (benefit+penalty) threshold"),
       maxCost: z.number().optional().describe("Maximum cost (estimate+risk) threshold"),
     },
+    READ,
     safe(({ project, tag, tags: tagFilters, excludeTags, search, sort, limit, offset, minPriority, minValue, maxCost }) =>
       withProject(resolveProject(project), async (db, proj) => {
         // Build tag filter arrays
@@ -442,6 +459,7 @@ export function createMcpServer(
       estimate: fibonacciScore.optional().describe("Estimate score"),
       risk: fibonacciScore.optional().describe("Risk score"),
     },
+    CHANGES,
     safe(async ({ project, title, newTitle, description, benefit, penalty, estimate, risk }) => {
       const validNewTitle = newTitle !== undefined ? validateTicketTitle(newTitle) : undefined;
       const validDesc = validateTicketDescription(description);
@@ -466,6 +484,7 @@ export function createMcpServer(
       estimate: fibonacciScore.optional().describe("Estimate score (Fibonacci: 1,2,3,5,8,13,21)"),
       risk: fibonacciScore.optional().describe("Risk score (Fibonacci: 1,2,3,5,8,13,21)"),
     },
+    CHANGES_IDEMPOTENT,
     safe(async ({ project, title, description, benefit, penalty, estimate, risk }) => {
       const validTitle = validateTicketTitle(title);
       const validDesc = validateTicketDescription(description);
@@ -484,6 +503,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       title: z.string().describe("Ticket title"),
     },
+    DELETES,
     safe(({ project, title }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title);
@@ -503,6 +523,7 @@ export function createMcpServer(
       limit: z.number().int().nonnegative().optional().describe("Maximum number of revisions to return (oldest first)"),
       offset: z.number().int().nonnegative().optional().describe("Number of revisions to skip"),
     },
+    READ,
     safe(({ project, title, id, limit, offset }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title, id);
@@ -520,6 +541,7 @@ export function createMcpServer(
       limit: z.number().int().nonnegative().optional().describe("Maximum number of revisions to return"),
       offset: z.number().int().nonnegative().optional().describe("Number of revisions to skip"),
     },
+    READ,
     safe(({ project, since, limit, offset }) =>
       withProject(resolveProject(project), (db, proj) => listProjectRevisions(db, proj.id, since, limit, offset))
     )
@@ -537,6 +559,7 @@ export function createMcpServer(
       prefix: z.string().describe("Tag prefix"),
       value: z.string().describe("Tag value"),
     },
+    ADDS,
     safe(async ({ project, prefix, value }) => {
       const validPrefix = validateTagPrefix(prefix);
       const validValue = validateTagValue(value);
@@ -555,6 +578,7 @@ export function createMcpServer(
       value: z.string().optional().describe("Tag value (single tag)"),
       tags: z.array(z.object({ prefix: z.string(), value: z.string() })).optional().describe("Multiple tags to assign"),
     },
+    CHANGES_IDEMPOTENT,
     safe(async ({ project, ticket: ticketTitle, tickets: ticketTitles, prefix, value, tags: tagList }) => {
       // concat, not push(...): spreading a large array overflows the stack
       const allTickets: string[] = (ticketTitle ? [ticketTitle] : []).concat(ticketTitles ?? []);
@@ -620,6 +644,7 @@ export function createMcpServer(
       prefix: z.string().describe("Tag prefix"),
       value: z.string().describe("Tag value"),
     },
+    CHANGES_IDEMPOTENT,
     safe(async ({ project, ticket: ticketTitle, prefix, value }) => {
       const validPrefix = validateTagPrefix(prefix);
       const validValue = validateTagValue(value);
@@ -637,6 +662,7 @@ export function createMcpServer(
     "tag_list",
     "List all tags defined in a project, sorted by prefix then value.",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    READ,
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listTags(db, proj.id)))
   );
 
@@ -648,6 +674,7 @@ export function createMcpServer(
       prefix: z.string().describe("Tag prefix"),
       value: z.string().describe("Tag value"),
     },
+    DELETES,
     safe(async ({ project, prefix, value }) => {
       const validPrefix = validateTagPrefix(prefix);
       const validValue = validateTagValue(value);
@@ -669,6 +696,7 @@ export function createMcpServer(
       oldValue: z.string().describe("Current tag value"),
       newValue: z.string().describe("New tag value"),
     },
+    CHANGES,
     safe(async ({ project, prefix, oldValue, newValue }) => {
       const validPrefix = validateTagPrefix(prefix);
       const validOldValue = validateTagValue(oldValue);
@@ -689,6 +717,7 @@ export function createMcpServer(
     "weight_get",
     "Get the weight configuration (w1-w4) for a project. Defaults are all 1.5 if not customized.",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    READ,
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => getWeights(db, proj.id)))
   );
 
@@ -702,6 +731,7 @@ export function createMcpServer(
       w3: z.number().optional().describe("Estimate weight"),
       w4: z.number().optional().describe("Risk weight"),
     },
+    CHANGES_IDEMPOTENT,
     safe(({ project, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) => {
       // As rw config weights --set: nothing to set is a mistake, not a no-op
       if ([uw1, uw2, uw3, uw4].every((w) => w === undefined)) throw new AppError("Provide at least one of w1, w2, w3, w4");
@@ -716,6 +746,7 @@ export function createMcpServer(
     "weight_reset",
     "Reset weight configuration to defaults (all 1.5).",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    CHANGES_IDEMPOTENT,
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => resetWeights(db, proj.id)))
   );
 
@@ -734,6 +765,7 @@ export function createMcpServer(
       w3: z.number().optional().describe("Estimate weight (default 1.5). Higher = large estimates are penalised more."),
       w4: z.number().optional().describe("Risk weight (default 1.5). Higher = risky items are penalised more. To de-risk first, sort by risk via ticket_list instead."),
     },
+    READ,
     safe(({ project, tag, w1: uw1, w2: uw2, w3: uw3, w4: uw4 }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
@@ -764,6 +796,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       tag: z.string().optional().describe("Only compare tickets with this tag (prefix:value)"),
     },
+    READ,
     safe(({ project, tag }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
@@ -789,6 +822,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       topN: z.number().int().nonnegative().optional().describe("Number of top tickets"),
     },
+    READ,
     safe(({ project, topN }) =>
       withProject(resolveProject(project), (db, proj) => getProjectSummary(db, proj.id, topN ?? 5))
     )
@@ -798,6 +832,7 @@ export function createMcpServer(
     "report_times",
     "Calculate lead time (created→done) and cycle time (wip→done) per ticket, plus their averages (whole days; null where there is no value). Prerequisite: assign state:wip and state:done tags to tickets.",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    READ,
     safe(({ project }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const times = await getProjectTimes(db, proj.id);
@@ -813,6 +848,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       threshold: z.number().optional().describe("High priority threshold (default 1.5), compared with the exact value/cost, not the rounded priority"),
     },
+    READ,
     safe(({ project, threshold }) =>
       withProject(resolveProject(project), (db, proj) => getBacklogHealth(db, proj.id, threshold ?? 1.5))
     )
@@ -822,6 +858,7 @@ export function createMcpServer(
     "report_distribution",
     "Count how many tickets use each Fibonacci score (1-21), per dimension (benefit, penalty, estimate, risk).",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    READ,
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => getDistribution(db, proj.id)))
   );
 
@@ -832,6 +869,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       prefix: z.string().describe("Tag prefix to group by"),
     },
+    READ,
     safe(async ({ project, prefix }) => {
       const validPrefix = validateTagPrefix(prefix);
       return withProject(resolveProject(project), (db, proj) => groupByTagPrefix(db, proj.id, validPrefix));
@@ -845,6 +883,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       limit: z.number().int().nonnegative().optional().describe("Rows per table (default 500)"),
     },
+    READ,
     safe(({ project, limit }) =>
       withProject(resolveProject(project), (db, proj) =>
         renderDashboard(db, proj.id, proj.name, {
@@ -869,6 +908,7 @@ export function createMcpServer(
       after: z.number().int().nonnegative().optional().describe("Only events written after this sequence number (an earlier event's sequence), in write order"),
       limit: z.number().int().nonnegative().optional().describe("Maximum number of events to return (default 50)"),
     },
+    READ,
     safe(({ project, since, after, limit }) =>
       withProject(resolveProject(project), (db, proj) => getEventLog(db, proj.id, since, limit ?? 50, after))
     )
@@ -881,6 +921,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       since: z.string().describe("ISO timestamp to diff from (e.g. '2026-03-10T00:00:00Z')"),
     },
+    READ,
     safe(({ project, since }) =>
       withProject(resolveProject(project), (db, proj) => getProjectDiff(db, proj.id, since))
     )
@@ -897,6 +938,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       withCalculations: z.boolean().optional().describe("Include value/cost/priority columns"),
     },
+    READ,
     safe(({ project, withCalculations }) =>
       withProject(resolveProject(project), (db, proj) => exportCsv(db, proj.id, { withCalculations }))
     )
@@ -909,6 +951,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       withHistory: z.boolean().optional().describe("Include revisions and audit log"),
     },
+    READ,
     safe(({ project, withHistory }) =>
       withProject(resolveProject(project), async (db, proj) => {
         // Built piece by piece and given up past the result limit: the whole
@@ -934,6 +977,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       csv: z.string().describe("CSV content"),
     },
+    ADDS,
     safe(async ({ project, csv }) => {
       return withProject(resolveProject(project), (db, proj) => importCsv(db, proj.id, csv));
     })
@@ -946,6 +990,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       json: z.string().describe("JSON content"),
     },
+    CHANGES,
     safe(async ({ project, json }) => {
       return withDb((db) => importJsonAsProject(db, resolveProject(project), json));
     })
@@ -964,6 +1009,7 @@ export function createMcpServer(
       type: z.string().describe("Relation type (e.g. blocks, depends-on, relates-to)"),
       target: z.string().describe("Target ticket title"),
     },
+    ADDS,
     safe(({ project, source, type, target }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const srcTicket = await resolveTicket(db, proj.id, source);
@@ -983,6 +1029,7 @@ export function createMcpServer(
       type: z.string().describe("Relation type"),
       target: z.string().describe("Target ticket title"),
     },
+    DELETES,
     safe(({ project, source, type, target }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const srcTicket = await resolveTicket(db, proj.id, source);
@@ -1000,6 +1047,7 @@ export function createMcpServer(
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       ticket: z.string().describe("Ticket title"),
     },
+    READ,
     safe(({ project, ticket }) =>
       withProject(resolveProject(project), async (db, proj) => {
         const t = await resolveTicket(db, proj.id, ticket);
@@ -1012,6 +1060,7 @@ export function createMcpServer(
     "relation_list_all",
     "List every relation in a project in one call. Returns source/target IDs, titles, and relation type. Use instead of calling relation_list per ticket.",
     { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") },
+    READ,
     safe(({ project }) => withProject(resolveProject(project), (db, proj) => listProjectRelations(db, proj.id)))
   );
 

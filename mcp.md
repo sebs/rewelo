@@ -94,6 +94,17 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data g
 
 `project` is optional everywhere it appears: without it, a tool uses the `"project"` field of the nearest `.rewelo.json`, looked up from the server's working directory upwards (for example `{"project": "Acme"}`). In the Docker setup above that directory is `/app` inside the container, where there is none: use `rw serve` [without Docker](#without-docker), started in the project's directory, or pass `project`. The server's instructions (sent on connecting) say which default project, if any, it found. A `?` marks optional parameters.
 
+### Tool annotations
+
+Every tool carries MCP annotations that say what it does to the database, so a client can run read-only tools without asking and warn before destructive ones:
+
+- **Read-only** (`readOnlyHint`): the `*_list`, `*_history`, `*_get`, `calc_*`, `report_*` and `export_*` tools, `event_log`, `project_diff` and `server_version`.
+- **Additive** (`destructiveHint: false`): `project_create`, `ticket_create`, `tag_create`, `relation_create` and `import_csv`. They only add data; an existing name or title is an error, not overwritten.
+- **Destructive** (`destructiveHint: true`): every other tool. They overwrite or delete data: the deletes, `ticket_update`, `ticket_upsert`, the tag changes, `weight_set`, `weight_reset` and `import_json` (which replaces the weights).
+- **Idempotent** (`idempotentHint`): the deletes, `ticket_upsert`, `tag_assign`, `tag_remove`, `weight_set` and `weight_reset`. Repeating the call with the same arguments changes nothing more.
+
+No tool reaches outside the local database (`openWorldHint: false`).
+
 ### Server
 
 | Tool              | Description                        | Parameters                    |
