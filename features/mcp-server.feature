@@ -83,6 +83,29 @@ Feature: MCP Server
     When a client calls "calc_priority" with project "Acme"
     Then the response should contain tickets with their calculated priorities
 
+  # -- Questions to the user (elicitation) --
+
+  Scenario: Deleting a project asks the user to confirm
+    Given a client that can show forms
+    And a project "Acme" exists with 1 ticket
+    When the client calls "project_delete" with name "Acme"
+    Then the user should be asked to confirm deleting "Acme" and its 1 ticket
+    And the project should be deleted only when the user confirms
+    And otherwise the response should be an MCP error saying the project was not deleted
+
+  Scenario: Deleting a project without a form
+    Given a client that cannot show forms
+    When the client calls "project_delete" with name "Acme"
+    Then the project should be deleted without asking
+
+  Scenario: Creating a ticket asks for the omitted scores
+    Given a client that can show forms
+    When the client calls "ticket_create" with benefit 5 and estimate 3 only
+    Then the user should be asked for penalty and risk, each a choice of 1, 2, 3, 5, 8, 13, 21
+    And the ticket should be created with the scores the user chose
+    And scores the user leaves empty or declines should default to 1
+    And when the user cancels, no ticket should be created
+
   # -- Error handling --
 
   Scenario: Invalid tool parameters return an error

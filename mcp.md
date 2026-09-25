@@ -94,6 +94,15 @@ npx @modelcontextprotocol/inspector docker run --rm -i --init -v rw-data:/data g
 
 `project` is optional everywhere it appears: without it, a tool uses the `"project"` field of the nearest `.rewelo.json`, looked up from the server's working directory upwards (for example `{"project": "Acme"}`). In the Docker setup above that directory is `/app` inside the container, where there is none: use `rw serve` [without Docker](#without-docker), started in the project's directory, or pass `project`. The server's instructions (sent on connecting) say which default project, if any, it found. A `?` marks optional parameters.
 
+### Questions to the user
+
+When the client can show forms (MCP elicitation), two tools ask the user directly instead of trusting the model to:
+
+- `project_delete` asks the user to confirm, as `rw project delete` does, and names how many tickets go with the project. Unless the user confirms, the project stays and the tool returns an error saying so.
+- `ticket_create` asks for the scores the call leaves out, with a drop-down of the Fibonacci values. Scores the user leaves empty, or all of them when the user declines, default to 1. When the user cancels, no ticket is created.
+
+A client without forms gets the previous behaviour: `project_delete` deletes straight away and omitted scores default to 1. Its annotations still mark `project_delete` as destructive, so the client can ask for approval itself.
+
 ### Tool annotations
 
 Every tool carries MCP annotations that say what it does to the database, so a client can run read-only tools without asking and warn before destructive ones:
@@ -117,7 +126,7 @@ No tool reaches outside the local database (`openWorldHint: false`).
 |-------------------|------------------------------------|-------------------------------|
 | `project_create`  | Create a new project               | `name`                        |
 | `project_list`    | List all projects                  |                               |
-| `project_delete`  | Delete a project and all its data  | `name`                        |
+| `project_delete`  | Delete a project and all its data, after the user confirms | `name`       |
 | `project_history` | Revision history across all tickets in a project: newest first, or after `since` oldest first | `project?`, `since?`, `limit?`, `offset?` |
 
 ### Tickets

@@ -1,4 +1,12 @@
-import { McpServer, type ToolAnnotations } from "@modelcontextprotocol/server";
+import {
+  McpServer,
+  inputRequired,
+  inputResponse,
+  isInputRequiredResult,
+  type PrimitiveSchemaDefinition,
+  type ServerContext,
+  type ToolAnnotations,
+} from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 
@@ -138,6 +146,28 @@ const CHANGES: ToolAnnotations = { readOnlyHint: false, destructiveHint: true, i
 const CHANGES_IDEMPOTENT: ToolAnnotations = { ...CHANGES, idempotentHint: true };
 const DELETES: ToolAnnotations = CHANGES_IDEMPOTENT;
 
+const SCORES = ["benefit", "penalty", "estimate", "risk"] as const;
+const FIBONACCI = [1, 2, 3, 5, 8, 13, 21];
+
+// Form fields for scores the user is asked for: a drop-down of the
+// Fibonacci values (form enums are strings)
+const SCORE_FIELDS: Record<(typeof SCORES)[number], PrimitiveSchemaDefinition> = {
+  benefit: { type: "string", title: "Benefit", description: "Benefit if delivered", enum: FIBONACCI.map(String) },
+  penalty: { type: "string", title: "Penalty", description: "Penalty if not delivered", enum: FIBONACCI.map(String) },
+  estimate: { type: "string", title: "Estimate", description: "Implementation effort", enum: FIBONACCI.map(String) },
+  risk: { type: "string", title: "Risk", description: "Implementation risk and uncertainty", enum: FIBONACCI.map(String) },
+};
+
+// A score from the form: the client's answer is not trusted to be valid
+function parseScore(score: string, answer: unknown): number | undefined {
+  if (answer === undefined) return undefined;
+  const value = Number(answer);
+  if (!FIBONACCI.includes(value)) {
+    throw new AppError(`${score}: must be a Fibonacci value (1, 2, 3, 5, 8, 13, 21), got ${JSON.stringify(answer)}`);
+  }
+  return value;
+}
+
 const MAX_PAYLOAD_BYTES = 1_000_000; // 1 MB per tool call argument
 
 // At most maxRequests calls start per window. A burst over that waits for its
@@ -202,11 +232,13 @@ function checkPayloadSize(args: unknown): void {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function safe(fn: (args: any) => any) {
+function safe(fn: (args: any, ctx: ServerContext) => any) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return async (args: any) => {
+  return async (args: any, ctx: ServerContext) => {
     try {
-      return textResult(await fn(args));
+      const result = await fn(args, ctx);
+      // A question for the user (inputRequired) goes out as it is
+      return isInputRequiredResult(result) ? result : textResult(result);
     } catch (err) {
       return errorResult(err);
     }
@@ -239,18 +271,18 @@ export function createMcpServer(
   const server = new McpServer({ name: "rewelo", version: VERSION }, { capabilities: { tools: {} }, instructions });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function tool(name: string, description: string, shape: z.ZodRawShape, annotations: ToolAnnotations, handler: (args: any) => any) {
+  function tool(name: string, description: string, shape: z.ZodRawShape, annotations: ToolAnnotations, handler: (args: any, ctx: ServerContext) => any) {
     // The payload limit applies to every tool, not only the imports: others
     // took 20 MB titles and echoed them back in their errors
     // Strict: a misspelt parameter (benfit, exclude_tags) used to be dropped
     // silently, and the call succeeded without doing what was asked
-    server.registerTool(name, { description, inputSchema: z.strictObject(shape), annotations }, (args: any) => {
+    server.registerTool(name, { description, inputSchema: z.strictObject(shape), annotations }, (args: any, ctx: ServerContext) => {
       try {
         checkPayloadSize(args);
       } catch (err) {
         return errorResult(err);
       }
-      return handler(args);
+      return handler(args, ctx);
     });
   }
 
@@ -311,6 +343,14 @@ export function createMcpServer(
     return ticket;
   }
 
+  // Whether the client can show the user a form (elicitation). Asking one
+  // that can't fails the call instead of going ahead without an answer.
+  function canAskUser(): boolean {
+    const elicitation = server.server.getClientCapabilities()?.elicitation;
+    // An empty elicitation capability means form mode (the pre-mode rule)
+    return elicitation !== undefined && (elicitation.form !== undefined || elicitation.url === undefined);
+  }
+
   // =========================================================================
   //  VERSION TOOL
   // =========================================================================
@@ -344,11 +384,33 @@ export function createMcpServer(
 
   tool(
     "project_delete",
-    "Delete a project and all its tickets, tags, relations, and history. Irreversible.",
+    "Delete a project and all its tickets, tags, relations, and history. Irreversible. When the client supports forms (elicitation), the user is asked to confirm first, as rw project delete does.",
     { name: z.string().describe("Project name") },
     DELETES,
-    safe(async ({ name }) => {
-      // Like every other tool (and the CLI), a missing project is an error
+    safe(async ({ name }, ctx) => {
+      const answer = inputResponse(ctx.mcpReq.inputResponses, "confirm");
+      if (answer.kind === "missing" && canAskUser()) {
+        // Like every other tool (and the CLI), a missing project is an
+        // error, and asking to confirm its deletion is pointless
+        const tickets = await withProject(name, async (db, proj) =>
+          (await db.all<{ n: number }>("SELECT COUNT(*) AS n FROM tickets WHERE project_id = ?", proj.id))[0].n
+        );
+        return inputRequired({
+          inputRequests: {
+            confirm: inputRequired.elicit({
+              message: `Delete project "${name}" and all its data (${tickets} ticket${tickets === 1 ? "" : "s"}, their tags, relations and history)? This cannot be undone.`,
+              requestedSchema: {
+                type: "object",
+                properties: { confirm: { type: "boolean", title: "Delete the project", default: false } },
+                required: ["confirm"],
+              },
+            }),
+          },
+        });
+      }
+      if (answer.kind !== "missing" && !(answer.kind === "elicit" && answer.action === "accept" && answer.content?.confirm === true)) {
+        throw new AppError(`Project "${name}" was not deleted: the user did not confirm.`);
+      }
       if (!(await withDb((db) => deleteProject(db, name)))) throw new AppError("Project not found");
       return { deleted: true };
     })
@@ -360,7 +422,7 @@ export function createMcpServer(
 
   tool(
     "ticket_create",
-    "Create a new ticket with Fibonacci scores (1,2,3,5,8,13,21). Title must be unique per project. Omitted scores default to 1. Priority = (benefit + penalty) / (estimate + risk). Use ticket_upsert instead if the title may already exist.",
+    "Create a new ticket with Fibonacci scores (1,2,3,5,8,13,21). Title must be unique per project. When the client supports forms (elicitation), the user is asked for omitted scores; otherwise, or when the user declines, they default to 1. Priority = (benefit + penalty) / (estimate + risk). Use ticket_upsert instead if the title may already exist.",
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       title: z.string().describe("Ticket title (max 500 chars)"),
@@ -371,11 +433,39 @@ export function createMcpServer(
       risk: fibonacciScore.optional().describe("Implementation risk/uncertainty (Fibonacci: 1,2,3,5,8,13,21)"),
     },
     ADDS,
-    safe(async ({ project, title, description, benefit, penalty, estimate, risk }) => {
+    safe(async ({ project, title, description, ...given }, ctx) => {
       const validTitle = validateTicketTitle(title);
       const validDesc = validateTicketDescription(description);
-      return withProject(resolveProject(project), (db, proj) =>
-        createTicket(db, { projectId: proj.id, title: validTitle, description: validDesc, benefit, penalty, estimate, risk })
+      const projectName = resolveProject(project);
+      const missing = SCORES.filter((score) => given[score] === undefined);
+      const answer = inputResponse(ctx.mcpReq.inputResponses, "scores");
+      if (missing.length > 0 && answer.kind === "missing" && canAskUser()) {
+        // Fail now on a missing project or a taken title, not after the user
+        // has filled in the form
+        await withProject(projectName, async (db, proj) => {
+          if (await getTicketByTitle(db, proj.id, validTitle)) throw new AppError(`A ticket with title "${validTitle}" already exists in this project`);
+        });
+        return inputRequired({
+          inputRequests: {
+            scores: inputRequired.elicit({
+              message: `Score the new ticket "${validTitle}". Left out, a score is 1.`,
+              requestedSchema: {
+                type: "object",
+                properties: Object.fromEntries(missing.map((score) => [score, SCORE_FIELDS[score]])),
+              },
+            }),
+          },
+        });
+      }
+      if (answer.kind === "elicit" && answer.action === "cancel") {
+        throw new AppError(`Ticket "${validTitle}" was not created: the user cancelled.`);
+      }
+      const asked = answer.kind === "elicit" && answer.action === "accept" ? answer.content ?? {} : {};
+      const scores = Object.fromEntries(
+        SCORES.map((score) => [score, given[score] ?? parseScore(score, asked[score])])
+      );
+      return withProject(projectName, (db, proj) =>
+        createTicket(db, { projectId: proj.id, title: validTitle, description: validDesc, ...scores })
       );
     })
   );
