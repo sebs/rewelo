@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
 import { PROMPTS } from "../../src/mcp/prompts.generated.js";
+import { parseTag } from "../../src/validation/strings.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -39,6 +40,20 @@ describe("MCP server", () => {
     const texts = [...tools.map((t) => `${t.name}: ${t.description}`), ...PROMPTS.map((p) => `prompt ${p.name}: ${p.body}`)];
     const stale = texts.filter((t) => /required before using tag_assign|create the tag first/i.test(t));
     assert.deepEqual(stale.map((t) => t.split(":")[0]), []);
+  });
+
+  it("spells out only valid tags in its prompts, which tag_assign would accept", () => {
+    const invalid = PROMPTS.flatMap((p) =>
+      [...p.body.matchAll(/`([a-z][a-z0-9-]*:[^`\s]+)`/g)].map((m) => m[1]).filter((tag) => {
+        try {
+          parseTag(tag);
+          return false;
+        } catch {
+          return true;
+        }
+      }).map((tag) => `${p.name}: ${tag}`)
+    );
+    assert.deepEqual(invalid, []);
   });
 
   it("discovers all registered tools", async () => {

@@ -2,7 +2,7 @@
 name: slice
 description: Decompose a large ticket into smaller slices with distributed scores
 argument-hint: "[project] [ticket-title]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__ticket_create, mcp__rewelo__ticket_update, mcp__rewelo__tag_assign, mcp__rewelo__tag_create, mcp__rewelo__calc_priority
+allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__ticket_create, mcp__rewelo__ticket_update, mcp__rewelo__tag_assign, mcp__rewelo__tag_create, mcp__rewelo__relation_create, mcp__rewelo__calc_priority
 ---
 
 # Feature Slicing Assistant
@@ -52,5 +52,6 @@ Show how the average priority of slices compares to the parent's priority.
 
 Ask: "Create these slices as new tickets?" If confirmed:
 - Create each slice as a new ticket via `ticket_create`
-- Tag slices with `state:backlog` and a shared tag like `epic:<parent-title>`
+- Tag slices with `state:backlog` and a shared tag named after the parent: tag values take only lowercase letters, digits and hyphens, so turn the title into one, e.g. `epic:checkout-redesign` for "Checkout Redesign"
+- Relate the parent to each slice with `relation_create` (type `splits-into`, the parent as source)
 - Optionally mark the parent as `state:done` or `state:sliced`
