@@ -153,8 +153,9 @@ export function registerTicketCommands(program: Command): void {
           quiet: (r) => r.revised_at,
           empty: "No revisions found.",
           headers: ["#", "Title", "B", "P", "E", "R", "Tags", "Revised At"],
+          // The revision's place in the whole history, on any page
           row: (r, i) => [
-            String(i + 1), r.title, String(r.benefit), String(r.penalty),
+            String((cmdOpts.offset ?? 0) + i + 1), r.title, String(r.benefit), String(r.penalty),
             String(r.estimate), String(r.risk),
             Array.isArray(r.tags) ? r.tags.map((t) => `${t.prefix}:${t.value}`).join(", ") : String(r.tags),
             r.revised_at,
