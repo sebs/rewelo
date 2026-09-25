@@ -3,7 +3,7 @@ import { assertScores, type Fibonacci } from "../domain/scores.js";
 import { AppError, ValidationError } from "../errors.js";
 import { collapseSpaces, isBlank, normalizeName } from "../text.js";
 import { MAX_TICKET_TITLE } from "../validation/strings.js";
-import { getTicketTags } from "../tags/assignment.js";
+import { createRevision } from "../revisions/repository.js";
 
 export interface Ticket {
   id: number;
@@ -238,17 +238,7 @@ export async function updateTicket(
     }
 
     // Snapshot the current state before mutating (automatic revision)
-    const tags = await getTicketTags(db, current.id);
-    const tagSnapshot = JSON.stringify(
-      tags.map((t) => ({ prefix: t.prefix, value: t.value }))
-    );
-    await db.run(
-      `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      current.id, current.title, current.description,
-      current.benefit, current.penalty, current.estimate, current.risk,
-      tagSnapshot
-    );
+    await createRevision(db, current);
 
     const rows = await db.all<Ticket>(
       `UPDATE tickets

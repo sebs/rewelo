@@ -1,5 +1,5 @@
 import { DB } from "../db/connection.js";
-import { Ticket } from "../tickets/repository.js";
+import type { Ticket } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
 import { normalizeSince } from "../validation/timestamps.js";
 
