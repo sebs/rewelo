@@ -51,6 +51,15 @@ describe("scripts/changelog.mjs", () => {
     assert.doesNotMatch(out, /### Other/);
   });
 
+  it("gives build and ci commits their own sections, as the other conventional types", () => {
+    commit("build: delete the output before compiling");
+    commit("ci(publish): wait for npm");
+    const out = changelog();
+    assert.match(out, /### Build\n\n- delete the output before compiling/);
+    assert.match(out, /### CI\n\n- wait for npm/);
+    assert.doesNotMatch(out, /### Other/);
+  });
+
   it("replaces an existing entry for the same version instead of adding another", () => {
     changelog("v1.0.0");
     changelog();

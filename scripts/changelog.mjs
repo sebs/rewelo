@@ -31,6 +31,8 @@ const labels = {
   refactor: "Refactoring",
   docs: "Documentation",
   test: "Tests",
+  build: "Build",
+  ci: "CI",
   chore: "Chores",
   other: "Other",
 };
