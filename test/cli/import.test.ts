@@ -27,6 +27,18 @@ describe("rw import (CLI)", () => {
     assert.ok(r.stdout.includes("Imported 1 ticket\n"));
   });
 
+  it("says a UTF-16 file is UTF-16, instead of missing columns or invalid JSON", () => {
+    const utf16 = (text: string, bom: number[]) => Buffer.concat([Buffer.from(bom), Buffer.from(text, "utf16le")]);
+    writeFileSync(join(dir, "le.csv"), utf16("title,benefit\r\ncafe,3\r\n", [0xff, 0xfe]));
+    writeFileSync(join(dir, "le.json"), utf16('{"tickets":[{"title":"x"}]}', [0xff, 0xfe]));
+    writeFileSync(join(dir, "nobom.csv"), utf16("title\nx\n", []));
+    for (const [kind, file] of [["csv", "le.csv"], ["json", "le.json"], ["csv", "nobom.csv"]]) {
+      const r = runCli(["--db", db, "import", kind, join(dir, file), "--project", "P"]);
+      assert.equal(r.code, 1, file);
+      assert.match(r.stderr, /is UTF-16; save it as UTF-8/, file);
+    }
+  });
+
   it("refuses a file over 50 MB before reading it", () => {
     const huge = join(dir, "huge.csv");
     writeFileSync(huge, "");

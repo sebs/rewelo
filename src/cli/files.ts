@@ -23,9 +23,18 @@ export function readImportFile(path: string, maxBytes: number): string {
   if (size > maxBytes) {
     throw new ValidationError(`${path} is ${(size / 1024 / 1024).toFixed(1)} MB; imports take at most ${maxBytes / 1024 / 1024} MB`);
   }
+  let bytes: Buffer;
   try {
-    return fsReadFileSync(path, "utf-8");
+    bytes = fsReadFileSync(path);
   } catch (err) {
     throw describeFsError(err, "read", path);
   }
+  // Read as UTF-8, a UTF-16 file (Excel's "Unicode text", Windows tools) is
+  // "missing" its columns or "invalid JSON": say what it is instead. UTF-16
+  // starts with a byte order mark, or has NUL bytes around ASCII characters
+  const bom = bytes.subarray(0, 2);
+  if ((bom[0] === 0xff && bom[1] === 0xfe) || (bom[0] === 0xfe && bom[1] === 0xff) || bytes.subarray(0, 1000).includes(0)) {
+    throw new ValidationError(`${path} is UTF-16; save it as UTF-8`);
+  }
+  return bytes.toString("utf-8");
 }
