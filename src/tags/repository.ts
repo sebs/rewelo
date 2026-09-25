@@ -33,6 +33,18 @@ export async function createTag(
   });
 }
 
+/** The tag with this name, created if the project has none yet; created says which */
+export async function ensureTag(
+  db: DB,
+  projectId: number,
+  prefix: string,
+  value: string
+): Promise<{ tag: Tag; created: boolean }> {
+  const existing = await getTag(db, projectId, prefix, value);
+  if (existing) return { tag: existing, created: false };
+  return { tag: await createTag(db, projectId, prefix, value), created: true };
+}
+
 export async function getTag(
   db: DB,
   projectId: number,

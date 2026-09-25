@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { createTicket } from "../tickets/repository.js";
-import { createTag, getTag } from "../tags/repository.js";
+import { ensureTag } from "../tags/repository.js";
 import { assertOneValuePerPrefix, assignTag, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
 import { assertScores } from "../domain/scores.js";
 import { ValidationError } from "../errors.js";
@@ -250,8 +250,7 @@ export async function importCsv(
       }
 
       for (const { prefix, value } of row.tags) {
-        let tag = await getTag(db, projectId, prefix, value);
-        if (!tag) tag = await createTag(db, projectId, prefix, value);
+        const { tag } = await ensureTag(db, projectId, prefix, value);
         await assignTag(db, ticket.id, tag.id);
       }
     }

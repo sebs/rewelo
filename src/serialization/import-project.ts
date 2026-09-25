@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { createTicket } from "../tickets/repository.js";
-import { createTag, getTag } from "../tags/repository.js";
+import { ensureTag } from "../tags/repository.js";
 import { assignTag } from "../tags/assignment.js";
 import { createRelation } from "../relations/repository.js";
 import { canonicalRelation, isSymmetric } from "../relations/types.js";
@@ -69,11 +69,7 @@ export async function importProjectData(
     // Pre-create any project-level tags
     if (projectTags) {
       for (const tagDef of projectTags) {
-        const existing = await getTag(db, projectId, tagDef.prefix, tagDef.value);
-        if (!existing) {
-          await createTag(db, projectId, tagDef.prefix, tagDef.value);
-          tagsCreated++;
-        }
+        if ((await ensureTag(db, projectId, tagDef.prefix, tagDef.value)).created) tagsCreated++;
       }
     }
 
@@ -107,11 +103,8 @@ export async function importProjectData(
 
       if (t.tags) {
         for (const tagDef of t.tags) {
-          let tag = await getTag(db, projectId, tagDef.prefix, tagDef.value);
-          if (!tag) {
-            tag = await createTag(db, projectId, tagDef.prefix, tagDef.value);
-            tagsCreated++;
-          }
+          const { tag, created } = await ensureTag(db, projectId, tagDef.prefix, tagDef.value);
+          if (created) tagsCreated++;
           await assignTag(db, ticket.id, tag.id);
         }
       }
@@ -244,11 +237,8 @@ async function writeHistory(db: DB, projectId: number, rows: PendingHistoryRow[]
     // Link the change to the tag as it is named now, so lead and cycle
     // times (which follow the tag, not its old name) come out the same
     const { prefix, value } = c.tag ?? c;
-    let tag = await getTag(db, projectId, prefix, value);
-    if (!tag) {
-      tag = await createTag(db, projectId, prefix, value);
-      tagsCreated++;
-    }
+    const { tag, created } = await ensureTag(db, projectId, prefix, value);
+    if (created) tagsCreated++;
     await db.run(
       `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action, changed_at) VALUES (?, ?, ?, ?, ?, ?)`,
       row.ticketId, tag.id, c.prefix, c.value, c.action, c.changed_at

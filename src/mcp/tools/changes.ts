@@ -4,7 +4,7 @@ import { DB } from "../../db/connection.js";
 import { createRelation, removeRelation } from "../../relations/repository.js";
 import { normalizeRelationType } from "../../relations/types.js";
 import { assignTag, removeTag } from "../../tags/assignment.js";
-import { createTag, getTag } from "../../tags/repository.js";
+import { ensureTag, getTag } from "../../tags/repository.js";
 import { createTicket, deleteTicket, listTickets, updateTicket } from "../../tickets/repository.js";
 import { sanitizeError, AppError } from "../../errors.js";
 import { parseTag, validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
@@ -75,8 +75,7 @@ export function registerChangeTools(ctx: McpContext): void {
       case "tag_assign": {
         const { prefix, value } = parseTag(op.tag);
         const t = await resolveTicket(db, projectId, op.ticket);
-        const existing = await getTag(db, projectId, prefix, value);
-        const tag = existing ?? (await createTag(db, projectId, prefix, value));
+        const { tag, created } = await ensureTag(db, projectId, prefix, value);
         const { assigned, replaced } = await assignTag(db, t.id, tag.id);
         return {
           op: op.op,
@@ -84,7 +83,7 @@ export function registerChangeTools(ctx: McpContext): void {
           tag: `${prefix}:${value}`,
           status: assigned ? "assigned" : "already_assigned",
           ...(replaced.length > 0 ? { replaced } : {}),
-          ...(existing ? {} : { tagCreated: true }),
+          ...(created ? { tagCreated: true } : {}),
         };
       }
       case "tag_remove": {

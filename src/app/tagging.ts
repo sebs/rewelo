@@ -1,5 +1,5 @@
 import { DB } from "../db/connection.js";
-import { createTag, getTag } from "../tags/repository.js";
+import { ensureTag } from "../tags/repository.js";
 import { assertOneValuePerPrefix, assignTag } from "../tags/assignment.js";
 import type { TagFilter as TagPair } from "../tickets/repository.js";
 import { validateTagPrefix, validateTagValue } from "../validation/strings.js";
@@ -49,9 +49,8 @@ export async function assignTags(db: DB, projectId: number, ticketTitles: string
   return db.transaction(async () => {
     const resolved: { label: string; id: number; created: boolean }[] = [];
     for (const t of tags) {
-      const existing = await getTag(db, projectId, t.prefix, t.value);
-      const tag = existing ?? (await createTag(db, projectId, t.prefix, t.value));
-      resolved.push({ label: `${t.prefix}:${t.value}`, id: tag.id, created: !existing });
+      const { tag, created } = await ensureTag(db, projectId, t.prefix, t.value);
+      resolved.push({ label: `${t.prefix}:${t.value}`, id: tag.id, created });
     }
     const rows: AssignRow[] = [];
     for (const ticket of tickets) {
