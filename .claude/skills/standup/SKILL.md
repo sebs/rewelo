@@ -2,7 +2,7 @@
 name: standup
 description: Generate a daily standup digest with progress, blockers, and sprint health
 argument-hint: "[project]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__ticket_history, mcp__rewelo__report_times, mcp__rewelo__report_summary, mcp__rewelo__calc_priority, mcp__rewelo__tag_list
+allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__event_log, mcp__rewelo__report_times, mcp__rewelo__report_summary, mcp__rewelo__calc_priority, mcp__rewelo__tag_list
 ---
 
 # Daily Standup Digest
@@ -11,9 +11,9 @@ Generate a standup summary for project **$0**.
 
 ## Data collection
 
-1. Use `ticket_list` to get all tickets with their current tags
-2. Use `report_times` for recent transitions
-3. Use `ticket_history` for tickets that changed recently
+1. Use `ticket_list` with `tags` to get the tickets in each state, e.g. `tags: ["state:wip"]`: its items don't list tags
+2. Use `event_log` with `since` for the transitions and when they happened: `tag_added` events with prefix `state` (value `done` in the last 24 hours for Done; the time a ticket got `state:wip` for how long it has been in progress)
+3. Use `report_times` for the cycle times of done tickets
 
 ## Sections
 
