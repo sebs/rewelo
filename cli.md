@@ -214,10 +214,10 @@ rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] 
 ### serve (MCP)
 
 ```bash
-rw serve [--db <path>]
+rw serve [--db <path>] [--channel]
 ```
 
-Starts the MCP server over stdio. The database path can also be set via the `RW_DB_PATH` environment variable.
+Starts the MCP server over stdio. The database path can also be set via the `RW_DB_PATH` environment variable. `--channel` pushes changes made outside the session into Claude Code as channel messages; see [Live events](mcp.md#live-events).
 
 ## Docker
 

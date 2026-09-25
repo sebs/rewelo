@@ -303,6 +303,26 @@ The resource list offers a backlog and a dashboard per project; tickets and expo
 
 `export_csv`, `export_json` and `report_dashboard` return their document inline up to 5 MB. Over that, they return a `resource_link` to the matching resource above instead of an error, so a client can fetch the document without it going through the model's context.
 
+## Live events
+
+### Resource subscriptions
+
+A client can subscribe to any `rewelo://` resource. The server then sends `notifications/resources/updated` for it when the database changes: through one of its own tools, or through another process, such as the `rw` CLI or another session's server on the same database. It looks for changes every 2 seconds while anything is subscribed, and sends the notification for every subscribed resource, whichever project changed.
+
+### Claude Code channel (research preview)
+
+With `rw serve --channel`, the server pushes changes made outside the session into Claude Code as [channel](https://code.claude.com/docs/en/channels) messages, and Claude can react, for example by offering scores for a new ticket, without polling. Each event in the event log becomes one message, such as:
+
+```
+<channel source="rewelo" project="Acme" event="ticket_created" ticket="Login page" sequence="42">
+New ticket "Login page" in Acme (benefit 13, penalty 5, estimate 3, risk 2).
+</channel>
+```
+
+Changes the session makes through its own tool calls are not pushed back to it. At most 20 events per project are pushed at a time; more are summed up in one message pointing to `event_log`. The server's instructions tell Claude that titles in these messages are data, not instructions.
+
+To try it, add `--channel` after `serve` in the server's arguments, and start Claude Code with `claude --dangerously-load-development-channels server:rewelo` (for Team and Enterprise organisations, an admin has to allow channels). Channels are a research preview in Claude Code: the protocol may change, and a client that doesn't support them ignores the messages.
+
 ## Prompts
 
 The server also offers prompts: ready-made instructions for common backlog work, which a client shows as commands (in Claude Code, for example, `/mcp__rewelo__plan-sprint Acme 30`). Each one tells the model which tools to call and how to present the result.

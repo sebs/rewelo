@@ -176,6 +176,20 @@ Feature: MCP Server
     When the client reads that resource
     Then the content should be the whole export
 
+  # -- Live events --
+
+  Scenario: Subscribers hear about changes
+    Given a client subscribed to "rewelo://Acme/backlog"
+    When a tool call or another process changes the database
+    Then the client should receive notifications/resources/updated for "rewelo://Acme/backlog"
+    And a read-only tool call should send no notification
+
+  Scenario: A channel pushes changes made elsewhere
+    Given "rw serve --channel"
+    When the rw CLI creates the ticket "Login page" in project "Acme"
+    Then the client should receive a notifications/claude/channel message 'New ticket "Login page" in Acme (…)'
+    And tickets the session creates itself should not be pushed back to it
+
   # -- Prompts --
 
   Scenario: The skills are offered as prompts
