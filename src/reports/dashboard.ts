@@ -1,10 +1,10 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { byPriority, cost, priority, value } from "../calculations/priority.js";
-import { getDistribution } from "./distribution.js";
-import { getBacklogHealth, highToLowRatioText } from "./health.js";
+import { getDistribution, type DimensionDistribution } from "./distribution.js";
+import { getBacklogHealth, highToLowRatioText, type BacklogHealth } from "./health.js";
 import { doneTicketIds } from "../workflow/states.js";
-import { listProjectRelations } from "../relations/repository.js";
+import { listProjectRelations, type ProjectRelationView } from "../relations/repository.js";
 import { getWeights } from "../weights/repository.js";
 import { FIBONACCI } from "../domain/scores.js";
 import { DEFAULT_WEIGHTS } from "../domain/weights.js";
@@ -37,17 +37,20 @@ export const DEFAULT_DASHBOARD_LIMIT = 500;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/**
- * Render a self-contained HTML dashboard (no external assets) with a
- * priority table, the Fibonacci score distribution, backlog health, and the
- * ticket relationship/dependency list.
- */
-export async function renderDashboard(
-  db: DB,
-  projectId: number,
-  projectName: string,
-  options: DashboardOptions = {}
-): Promise<string> {
+export interface DashboardModel {
+  projectName: string;
+  /** Open tickets (not state:done), highest priority first */
+  rows: Array<{ title: string; benefit: number; penalty: number; estimate: number; risk: number; value: number; cost: number; priority: number }>;
+  doneCount: number;
+  /** Whether the project's weights differ from the defaults (the table shows unweighted priority) */
+  customWeights: boolean;
+  distribution: DimensionDistribution[];
+  health: BacklogHealth;
+  relations: ProjectRelationView[];
+}
+
+/** What the dashboard shows, read from the database */
+export async function buildDashboardModel(db: DB, projectId: number, projectName: string): Promise<DashboardModel> {
   const tickets = await listTickets(db, projectId, { withDescription: false });
   // The ranking is what to do next: open tickets only, as the health cards count
   const done = await doneTicketIds(db, projectId);
@@ -71,6 +74,26 @@ export async function renderDashboard(
   const health = await getBacklogHealth(db, projectId);
   const relations = await listProjectRelations(db, projectId);
 
+  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations };
+}
+
+/**
+ * Render a self-contained HTML dashboard (no external assets) with a
+ * priority table, the Fibonacci score distribution, backlog health, and the
+ * ticket relationship/dependency list.
+ */
+export async function renderDashboard(
+  db: DB,
+  projectId: number,
+  projectName: string,
+  options: DashboardOptions = {}
+): Promise<string> {
+  return renderDashboardHtml(await buildDashboardModel(db, projectId, projectName), options);
+}
+
+/** The dashboard's HTML for a model: no database needed */
+export function renderDashboardHtml(model: DashboardModel, options: DashboardOptions = {}): string {
+  const { projectName, rows, doneCount, customWeights, distribution, health, relations } = model;
   const limit = options.limit ?? DEFAULT_DASHBOARD_LIMIT;
   const priorityRows =
     rows
@@ -90,7 +113,7 @@ export async function renderDashboard(
       .join("") +
     // Only when there are none: with --limit 0 the note below says how many
     (rows.length === 0
-      ? `<tr><td colspan="8" class="empty">${done.size > 0 ? "No open tickets." : "No tickets yet."}</td></tr>`
+      ? `<tr><td colspan="8" class="empty">${doneCount > 0 ? "No open tickets." : "No tickets yet."}</td></tr>`
       : "");
 
   const distRows = distribution
@@ -101,7 +124,6 @@ export async function renderDashboard(
         ).join("")}</tr>`
     )
     .join("");
-
 
   const relationRows =
     relations
@@ -171,7 +193,7 @@ ${generated}
 </div>
 
 <h2 id="tickets">Open tickets by priority</h2>
-${done.size > 0 ? `<p class="meta">${done.size} done ticket${done.size === 1 ? " is" : "s are"} not listed.</p>` : ""}
+${doneCount > 0 ? `<p class="meta">${doneCount} done ticket${doneCount === 1 ? " is" : "s are"} not listed.</p>` : ""}
 ${customWeights ? `<p class="meta">Priority is value / cost without the project's weights; <code>rw calc priority</code> shows the weighted priority.</p>` : ""}
 <table aria-labelledby="tickets">
   <thead><tr><th scope="col">Title</th><th scope="col"><abbr title="Benefit">B</abbr></th><th scope="col"><abbr title="Penalty">P</abbr></th><th scope="col"><abbr title="Estimate">E</abbr></th><th scope="col"><abbr title="Risk">R</abbr></th><th scope="col">Value</th><th scope="col">Cost</th><th scope="col">Priority</th></tr></thead>

@@ -5,7 +5,7 @@ import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createRelation } from "../../src/relations/repository.js";
-import { renderDashboard } from "../../src/reports/dashboard.js";
+import { renderDashboard, renderDashboardHtml, type DashboardModel } from "../../src/reports/dashboard.js";
 import { setWeights } from "../../src/weights/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
@@ -119,5 +119,26 @@ describe("dashboard report", () => {
     const html = await renderDashboard(db, projectId, "DashTest");
     assert.match(html, /No open tickets\./);
     assert.doesNotMatch(html, /No tickets yet/);
+  });
+});
+
+describe("renderDashboardHtml", () => {
+  // The page from a model alone, without a database
+  const model: DashboardModel = {
+    projectName: "A & B",
+    rows: [],
+    doneCount: 2,
+    customWeights: true,
+    distribution: [],
+    health: { totalTickets: 2, doneTickets: 2, openTickets: 0, highPriorityCount: 0, lowPriorityCount: 0, highToLowRatio: null, totalBacklogCost: 0 },
+    relations: [],
+  };
+
+  it("escapes the project name and says why the ticket table is empty", () => {
+    const html = renderDashboardHtml(model);
+    assert.match(html, /<h1>A &amp; B<\/h1>/);
+    assert.match(html, /No open tickets\./);
+    assert.match(html, /2 done tickets are not listed\./);
+    assert.match(html, /without the project's weights/);
   });
 });
