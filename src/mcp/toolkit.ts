@@ -2,6 +2,7 @@ import type { McpServer, ServerContext, ToolAnnotations } from "@modelcontextpro
 import { z } from "zod";
 import { DB } from "../db/connection.js";
 import { getTicketById, getTicketByTitle, Ticket } from "../tickets/repository.js";
+import type { Project } from "../projects/repository.js";
 import { AppError } from "../errors.js";
 import { FIBONACCI, type Fibonacci } from "../domain/scores.js";
 import type { ReweloConfig } from "../config.js";
@@ -13,13 +14,15 @@ export interface McpContext {
   server: McpServer;
   /** The .rewelo.json found at startup ({} when there is none, or it is broken) */
   config: ReweloConfig;
-  /** Register a tool: strict input, its output schema, the payload limit, and write tracking */
+  /** Register a tool: strict input, its output schema, the payload limit, write tracking, and errors as error results (safe) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tool(name: string, description: string, shape: z.ZodRawShape, annotations: ToolAnnotations, handler: (args: any, ctx: ServerContext) => any): void;
   withDb: DbSession["withDb"];
   withProject: DbSession["withProject"];
   /** The project a call names, or the .rewelo.json default */
   resolveProject(project: string | undefined): string;
+  /** Run fn in the project a call names (its project parameter), or the default one */
+  inProject<T>(project: string | undefined, fn: (db: DB, project: Project) => Promise<T>): Promise<T>;
   /** Whether the client can show the user a form (elicitation) */
   canAskUser(): boolean;
 }
@@ -51,6 +54,9 @@ export const fibonacciScore = z.union(
   FIBONACCI.map((n) => z.literal(n)) as [z.ZodLiteral<Fibonacci>, ...z.ZodLiteral<Fibonacci>[]],
   { error: (issue) => `must be a Fibonacci value (${FIBONACCI.join(", ")}), got ${JSON.stringify(issue.input)}` }
 );
+
+/** The project parameter of every tool that works on one project */
+export const PROJECT_ARG = { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") };
 
 // The tag and tags parameters as the one tag list the use cases take
 export const tagList = (tag: string | undefined, tags: string[] = []): string[] => (tag !== undefined ? [tag] : []).concat(tags);

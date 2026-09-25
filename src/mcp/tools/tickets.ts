@@ -6,8 +6,7 @@ import { listProjectRevisions, listRevisions } from "../../revisions/repository.
 import { createTicket, deleteTicket, getTicketByTitle, updateTicket, upsertTicket } from "../../tickets/repository.js";
 import { AppError } from "../../errors.js";
 import { validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
-import { safe } from "../results.js";
-import { ADDS, CHANGES, CHANGES_IDEMPOTENT, DELETES, fibonacciScore, READ, resolveTicket, type McpContext } from "../toolkit.js";
+import { ADDS, CHANGES, CHANGES_IDEMPOTENT, DELETES, fibonacciScore, READ, resolveTicket, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 const DEFAULT_TICKET_LIMIT = 100;
 
@@ -32,13 +31,13 @@ function parseScore(score: string, answer: unknown): number | undefined {
 }
 
 export function registerTicketTools(ctx: McpContext): void {
-  const { tool, withProject, resolveProject, canAskUser } = ctx;
+  const { tool, withProject, inProject, resolveProject, canAskUser } = ctx;
 
   tool(
     "ticket_create",
     "Create a new ticket with Fibonacci scores (1,2,3,5,8,13,21). Title must be unique per project. When the client supports forms (elicitation), the user is asked for omitted scores; otherwise, or when the user declines, they default to 1. Priority = (benefit + penalty) / (estimate + risk). Use ticket_upsert instead if the title may already exist.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       title: z.string().describe("Ticket title (max 500 chars)"),
       description: z.string().optional().describe("Ticket description (max 10000 chars)"),
       benefit: fibonacciScore.optional().describe("Benefit if delivered (Fibonacci: 1,2,3,5,8,13,21)"),
@@ -47,7 +46,7 @@ export function registerTicketTools(ctx: McpContext): void {
       risk: fibonacciScore.optional().describe("Implementation risk/uncertainty (Fibonacci: 1,2,3,5,8,13,21)"),
     },
     ADDS,
-    safe(async ({ project, title, description, ...given }, ctx) => {
+    async ({ project, title, description, ...given }, ctx) => {
       const validTitle = validateTicketTitle(title);
       const validDesc = validateTicketDescription(description);
       const projectName = resolveProject(project);
@@ -81,14 +80,14 @@ export function registerTicketTools(ctx: McpContext): void {
       return withProject(projectName, (db, proj) =>
         createTicket(db, { projectId: proj.id, title: validTitle, description: validDesc, ...scores })
       );
-    })
+    }
   );
 
   tool(
     "ticket_list",
     "List tickets with calculated value, cost, and priority. Supports tag filters (intersection), exclude-tags, title search, score thresholds, sort, and limit/offset pagination. Returns {total, offset, items[]}.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       tag: z.string().optional().describe("Filter by tag (prefix:value) — single tag, kept for backward compat"),
       tags: z.array(z.string()).optional().describe("Filter by multiple tags (intersection). Each as prefix:value"),
       excludeTags: z.array(z.string()).optional().describe("Exclude tickets with these tags. Each as prefix:value"),
@@ -101,8 +100,8 @@ export function registerTicketTools(ctx: McpContext): void {
       maxCost: z.number().optional().describe("Maximum cost (estimate+risk) threshold"),
     },
     READ,
-    safe(({ project, tag, tags, excludeTags, search, sort, limit, offset, minPriority, minValue, maxCost }) =>
-      withProject(resolveProject(project), (db, proj) =>
+    ({ project, tag, tags, excludeTags, search, sort, limit, offset, minPriority, minValue, maxCost }) =>
+      inProject(project, (db, proj) =>
         queryTickets(db, proj.id, {
           // An empty tag is no filter here, as it always was
           tags: (tag ? [tag] : []).concat(tags ?? []),
@@ -117,14 +116,13 @@ export function registerTicketTools(ctx: McpContext): void {
           limit: limit ?? DEFAULT_TICKET_LIMIT,
         })
       )
-    )
   );
 
   tool(
     "ticket_update",
     "Update a ticket's title, description, or scores. Only provided fields are changed. Identified by current title.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       title: z.string().describe("Current ticket title"),
       newTitle: z.string().optional().describe("New title"),
       description: z.string().optional().describe("New description"),
@@ -134,23 +132,23 @@ export function registerTicketTools(ctx: McpContext): void {
       risk: fibonacciScore.optional().describe("Risk score"),
     },
     CHANGES,
-    safe(async ({ project, title, newTitle, description, benefit, penalty, estimate, risk }) => {
+    async ({ project, title, newTitle, description, benefit, penalty, estimate, risk }) => {
       const validNewTitle = newTitle !== undefined ? validateTicketTitle(newTitle) : undefined;
       const validDesc = validateTicketDescription(description);
-      return withProject(resolveProject(project), async (db, proj) => {
+      return inProject(project, async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title);
         return updateTicket(db, proj.id, ticket.id, {
           title: validNewTitle, description: validDesc, benefit, penalty, estimate, risk,
         });
       });
-    })
+    }
   );
 
   tool(
     "ticket_upsert",
     "Create or update a ticket matched by exact title. Returns {ticket, action: 'created'|'updated'|'unchanged'}. Idempotent — safe to call repeatedly without duplicate errors.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       title: z.string().describe("Ticket title (used as the unique key)"),
       description: z.string().optional().describe("Ticket description (max 10000 chars)"),
       benefit: fibonacciScore.optional().describe("Benefit score (Fibonacci: 1,2,3,5,8,13,21)"),
@@ -159,65 +157,62 @@ export function registerTicketTools(ctx: McpContext): void {
       risk: fibonacciScore.optional().describe("Risk score (Fibonacci: 1,2,3,5,8,13,21)"),
     },
     CHANGES_IDEMPOTENT,
-    safe(async ({ project, title, description, benefit, penalty, estimate, risk }) => {
+    async ({ project, title, description, benefit, penalty, estimate, risk }) => {
       const validTitle = validateTicketTitle(title);
       const validDesc = validateTicketDescription(description);
-      return withProject(resolveProject(project), async (db, proj) => {
+      return inProject(project, async (db, proj) => {
         return upsertTicket(db, proj.id, validTitle, {
           description: validDesc, benefit, penalty, estimate, risk,
         });
       });
-    })
+    }
   );
 
   tool(
     "ticket_delete",
     "Delete a ticket and its relations, revisions, and tag assignments. Irreversible.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       title: z.string().describe("Ticket title"),
     },
     DELETES,
-    safe(({ project, title }) =>
-      withProject(resolveProject(project), async (db, proj) => {
+    ({ project, title }) =>
+      inProject(project, async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title);
         if (!(await deleteTicket(db, proj.id, ticket.id))) throw new AppError(`Ticket "${title}" not found`);
         return { deleted: true };
       })
-    )
   );
 
   tool(
     "ticket_history",
     "Show revision history for a single ticket. Provide title or id. For project-wide history, use project_history instead.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       title: z.string().optional().describe("Ticket title (provide title or id)"),
       id: z.number().int().positive().optional().describe("Ticket numeric ID (provide title or id)"),
       limit: z.number().int().nonnegative().optional().describe("Maximum number of revisions to return (oldest first)"),
       offset: z.number().int().nonnegative().optional().describe("Number of revisions to skip"),
     },
     READ,
-    safe(({ project, title, id, limit, offset }) =>
-      withProject(resolveProject(project), async (db, proj) => {
+    ({ project, title, id, limit, offset }) =>
+      inProject(project, async (db, proj) => {
         const ticket = await resolveTicket(db, proj.id, title, id);
         return listRevisions(db, ticket.id, limit, offset);
       })
-    )
   );
 
   tool(
     "project_history",
     "List revision history across all tickets in a project: newest first, or with since the revisions right after it, oldest first. Use instead of calling ticket_history per ticket. Page with limit and offset.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       since: z.string().optional().describe("Only show revisions after this ISO timestamp (then oldest first)"),
       limit: z.number().int().nonnegative().optional().describe("Maximum number of revisions to return"),
       offset: z.number().int().nonnegative().optional().describe("Number of revisions to skip"),
     },
     READ,
-    safe(({ project, since, limit, offset }) =>
-      withProject(resolveProject(project), (db, proj) => listProjectRevisions(db, proj.id, since, limit, offset))
-    )
+    ({ project, since, limit, offset }) =>
+      inProject(project, (db, proj) => listProjectRevisions(db, proj.id, since, limit, offset))
   );
 }

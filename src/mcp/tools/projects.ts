@@ -5,7 +5,6 @@ import { AppError } from "../../errors.js";
 import { countTickets } from "../../tickets/repository.js";
 import { validateProjectName } from "../../validation/strings.js";
 import { VERSION } from "../../version.generated.js";
-import { safe, textResult } from "../results.js";
 import { ADDS, DELETES, READ, type McpContext } from "../toolkit.js";
 
 export function registerProjectTools(ctx: McpContext): void {
@@ -16,7 +15,7 @@ export function registerProjectTools(ctx: McpContext): void {
     "Return the server version string. Use to verify which build is running.",
     {},
     READ,
-    async () => textResult({ version: VERSION })
+    async () => ({ version: VERSION })
   );
 
 
@@ -25,14 +24,14 @@ export function registerProjectTools(ctx: McpContext): void {
     "Create a new project. Name must be unique; letters, digits, spaces, hyphens and underscores (not starting with a space), max 100 characters.",
     { name: z.string().describe("Project name") },
     ADDS,
-    safe(async ({ name }) => {
+    async ({ name }) => {
       const validName = validateProjectName(name);
       return withDb((db) => createProject(db, validName));
-    })
+    }
   );
 
   tool("project_list", "List all projects with their IDs and creation dates.", {}, READ,
-    safe(() => withDb((db) => listProjects(db)))
+    () => withDb((db) => listProjects(db))
   );
 
   tool(
@@ -40,7 +39,7 @@ export function registerProjectTools(ctx: McpContext): void {
     "Delete a project and all its tickets, tags, relations, and history. Irreversible. When the client supports forms (elicitation), the user is asked to confirm first, as rw project delete does.",
     { name: z.string().describe("Project name") },
     DELETES,
-    safe(async ({ name }, ctx) => {
+    async ({ name }, ctx) => {
       const answer = inputResponse(ctx.mcpReq.inputResponses, "confirm");
       if (answer.kind === "missing" && canAskUser()) {
         // Like every other tool (and the CLI), a missing project is an
@@ -64,6 +63,6 @@ export function registerProjectTools(ctx: McpContext): void {
       }
       if (!(await withDb((db) => deleteProject(db, name)))) throw new AppError("Project not found");
       return { deleted: true };
-    })
+    }
   );
 }

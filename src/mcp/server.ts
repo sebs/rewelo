@@ -7,7 +7,7 @@ import { validateDbPath } from "../validation/paths.js";
 import { VERSION } from "../version.generated.js";
 import { loadConfig, type ReweloConfig } from "../config.js";
 import { outputSchemas } from "./output-schemas.js";
-import { capErrors, errorResult } from "./results.js";
+import { capErrors, errorResult, safe } from "./results.js";
 import { checkPayloadSize, RateLimiter } from "./limits.js";
 import { DbSession } from "./session.js";
 import { Channel } from "./live/channel.js";
@@ -92,6 +92,7 @@ export function createMcpServer(
       // Strict: a misspelt parameter (benfit, exclude_tags) used to be dropped
       // silently, and the call succeeded without doing what was asked
       const outputSchema = outputSchemas[name as keyof typeof outputSchemas];
+      const run = safe(handler);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       server.registerTool(name, { description, inputSchema: z.strictObject(shape), outputSchema, annotations }, (args: any, call: ServerContext) => {
         try {
@@ -99,13 +100,16 @@ export function createMcpServer(
         } catch (err) {
           return errorResult(err);
         }
-        if (annotations.readOnlyHint) return handler(args, call);
+        if (annotations.readOnlyHint) return run(args, call);
         // Tell subscribers on the next check, whether or not the call wrote
-        return Promise.resolve(handler(args, call)).finally(() => watcher.noteWrite());
+        return run(args, call).finally(() => watcher.noteWrite());
       });
     },
     withDb: session.withDb,
     withProject: session.withProject,
+    inProject(project, fn) {
+      return session.withProject(ctx.resolveProject(project), fn);
+    },
     resolveProject(project) {
       if (project !== undefined && project.trim() === "") throw new AppError("project must not be empty");
       if (project === undefined && configError) throw configError;

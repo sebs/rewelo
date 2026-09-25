@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { applyChanges, type Operation } from "../../app/change-plan.js";
-import { safe } from "../results.js";
-import { CHANGES, fibonacciScore, type McpContext } from "../toolkit.js";
+import { CHANGES, fibonacciScore, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerChangeTools(ctx: McpContext): void {
-  const { tool, withProject, resolveProject } = ctx;
+  const { tool, inProject } = ctx;
 
   const scores = {
     benefit: fibonacciScore.optional(),
@@ -28,17 +27,16 @@ export function registerChangeTools(ctx: McpContext): void {
     "apply_changes",
     "Apply a list of changes in one transaction: all of them or, when one fails, none. Operations: ticket_create, ticket_update, ticket_delete, tag_assign and tag_remove (tag as prefix:value; a missing tag is created), relation_create, relation_remove, each with the parameters of the tool of that name. With dryRun, nothing is written: the result shows what the changes would do. Returns each operation's outcome and how the ranking (as calc_priority ranks) changes. Use it to groom a backlog in one step, and dryRun to review a plan with the user first.",
     {
-      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      ...PROJECT_ARG,
       operations: z.array(operation).min(1).max(MAX_OPERATIONS).describe("Changes, applied in order"),
       dryRun: z.boolean().optional().describe("Only show what the changes would do (default false)"),
       top: z.number().int().positive().optional().describe("How many top tickets of the new ranking to list (default 10)"),
       limit: z.number().int().nonnegative().optional().describe("Max number of changed or moved tickets to return (default 100)"),
     },
     CHANGES,
-    safe(({ project, operations, dryRun, top, limit }) =>
-      withProject(resolveProject(project), (db, proj) =>
+    ({ project, operations, dryRun, top, limit }) =>
+      inProject(project, (db, proj) =>
         applyChanges(db, proj.id, operations, { dryRun, top: top ?? 10, limit: limit ?? 100 })
       )
-    )
   );
 }
