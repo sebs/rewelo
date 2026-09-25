@@ -118,6 +118,21 @@ export class DB {
    * Reads in one snapshot: other processes' writes in between (WAL mode)
    * are not seen, so several queries describe the same state.
    */
+  /**
+   * Runs fn in a write transaction and rolls it back, whatever it wrote: a
+   * dry run that sees its own changes and leaves none behind.
+   */
+  async rolledBack<T>(fn: () => Promise<T>): Promise<T> {
+    // A rollback here would end the caller's transaction too
+    if (this.db.isTransaction) throw new Error("rolledBack can't run inside another transaction");
+    await this.exec("BEGIN IMMEDIATE");
+    try {
+      return await fn();
+    } finally {
+      await this.exec("ROLLBACK");
+    }
+  }
+
   async readTransaction<T>(fn: () => Promise<T>): Promise<T> {
     if (this.db.isTransaction) return fn();
     await this.exec("BEGIN DEFERRED");
