@@ -74,6 +74,16 @@ describe("MCP resources", () => {
     assert.deepEqual(ticket.relations.map((r: { relation_type: string; ticket_title: string }) => [r.relation_type, r.ticket_title]), [["blocks", "Low"]]);
   });
 
+  it("says what is wrong with a malformed percent-encoding, not that an internal error occurred", async () => {
+    for (const uri of ["rewelo://My%20Project/ticket/100%", "rewelo://My%20Project/ticket/%E0%A4%A"]) {
+      await assert.rejects(client.readResource({ uri }), (err: Error) => {
+        assert.doesNotMatch(err.message, /internal error/);
+        assert.match(err.message, /percent-encoding/);
+        return true;
+      });
+    }
+  });
+
   it("reads the dashboard as HTML", async () => {
     const content = await read("rewelo://My%20Project/dashboard");
     assert.equal(content.mimeType, "text/html");

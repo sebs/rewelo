@@ -22,7 +22,12 @@ export function registerResources(ctx: McpContext): void {
   // A template variable as the URI has it, percent-encoded
   const variable = (vars: Variables, name: string) => {
     const raw = vars[name];
-    return decodeURIComponent(Array.isArray(raw) ? raw[0] : raw);
+    const encoded = Array.isArray(raw) ? raw[0] : raw;
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      throw new AppError(`Invalid percent-encoding in "${encoded}": write % as %25 and encode each character's UTF-8 bytes`);
+    }
   };
 
   async function readResource(uri: URL, mimeType: string, read: () => Promise<unknown>, maxBytes = MAX_RESULT_BYTES) {
