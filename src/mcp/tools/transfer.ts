@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { exportCsv } from "../../export/csv.js";
-import { importCsv } from "../../import/csv.js";
-import { importJsonAsProject } from "../../import/json.js";
+import { exportCsv } from "../../transfer/csv/export.js";
+import { importCsv } from "../../transfer/csv/import.js";
+import { importJsonAsProject } from "../../transfer/json/import.js";
 import { documentOrLink, jsonExport, resourceUri } from "../documents.js";
 import { MAX_RESULT_BYTES } from "../results.js";
 import { ADDS, CHANGES, READ, PROJECT_ARG, type McpContext } from "../toolkit.js";

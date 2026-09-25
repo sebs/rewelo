@@ -2,7 +2,7 @@ import { ResourceNotFoundError, ResourceTemplate, type Variables } from "@modelc
 import { cost, priority, value } from "../calculations/priority.js";
 import { rank } from "../calculations/scenario.js";
 import { weightedPriority } from "../calculations/weighted-priority.js";
-import { exportCsv } from "../export/csv.js";
+import { exportCsv } from "../transfer/csv/export.js";
 import { listProjects } from "../projects/repository.js";
 import { listRelations } from "../relations/repository.js";
 import { doneTicketIds } from "../workflow/states.js";

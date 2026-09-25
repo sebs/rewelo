@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { jsonChunks, toFile } from "../../src/export/json-stream.js";
+import { jsonChunks, toFile } from "../../src/transfer/json/stream.js";
 
 describe("streamed JSON", () => {
   const samples: object[] = [

@@ -6,7 +6,7 @@ import { createProject, getProjectByName } from "../../src/projects/repository.j
 import { createTicket, listTickets } from "../../src/tickets/repository.js";
 import { listTags } from "../../src/tags/repository.js";
 import { getTicketTags } from "../../src/tags/assignment.js";
-import { importJson, importJsonAsProject } from "../../src/import/json.js";
+import { importJson, importJsonAsProject } from "../../src/transfer/json/import.js";
 import { ValidationError } from "../../src/errors.js";
 
 describe("JSON import", () => {

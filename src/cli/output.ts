@@ -1,4 +1,4 @@
-import { csvRow } from "../export/csv.js";
+import { csvRow } from "../transfer/csv/codec.js";
 import { displayWidth } from "../display-width.js";
 
 /** The output flags: --json, --csv, --quiet (text otherwise) */

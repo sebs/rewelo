@@ -6,8 +6,8 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket, listTickets } from "../../src/tickets/repository.js";
 import { listTags } from "../../src/tags/repository.js";
 import { getTicketTags } from "../../src/tags/assignment.js";
-import { importCsv } from "../../src/import/csv.js";
-import { exportCsv } from "../../src/export/csv.js";
+import { importCsv } from "../../src/transfer/csv/import.js";
+import { exportCsv } from "../../src/transfer/csv/export.js";
 
 describe("CSV import", () => {
   let db: DB;

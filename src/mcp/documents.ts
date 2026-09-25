@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Project } from "../projects/repository.js";
-import { writeJsonExport } from "../export/json.js";
+import { writeJsonExport } from "../transfer/json/export.js";
 import { renderDashboard } from "../reports/dashboard.js";
 import { AppError } from "../errors.js";
 import { MAX_RESULT_BYTES, ToolResult, tooLarge } from "./results.js";

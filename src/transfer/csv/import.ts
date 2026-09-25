@@ -1,17 +1,19 @@
-import { DB } from "../db/connection.js";
-import { createTicket } from "../tickets/repository.js";
-import { ensureTag } from "../tags/repository.js";
-import { assertOneValuePerPrefix, assignTag, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
-import { assertScores } from "../domain/scores.js";
-import { prefixErrors, prefixValidationErrors, ValidationError } from "../errors.js";
-import { parseTagPair, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
-import type { TagPair } from "../serialization/export-project.js";
+import { DB } from "../../db/connection.js";
+import { assertScores } from "../../domain/scores.js";
+import { prefixErrors, prefixValidationErrors, ValidationError } from "../../errors.js";
+import { assertOneValuePerPrefix, assignTag, MAX_TAGS_PER_TICKET } from "../../tags/assignment.js";
+import { ensureTag } from "../../tags/repository.js";
+import { createTicket } from "../../tickets/repository.js";
+import { parseCsv, stripCsvFormulaGuard } from "./codec.js";
+import type { TagPair } from "../types.js";
+import { parseTagPair, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 
 const MAX_ROWS = 100_000;
 
 // Columns written by `rw export csv`; value, cost and priority
 // (--with-calculations) are derived from the scores and ignored.
 const KNOWN_COLUMNS = ["title", "description", "benefit", "penalty", "estimate", "risk", "tags", "value", "cost", "priority"];
+
 export const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 interface CsvRow {
@@ -24,90 +26,6 @@ interface CsvRow {
   estimate: number;
   risk: number;
   tags: TagPair[];
-}
-
-// Reverse the formula-injection guard applied on export: a leading apostrophe
-// that precedes a spreadsheet formula trigger is stripped so round-tripping a
-// title/description through export -> import is lossless (see export/csv.ts).
-function stripCsvFormulaGuard(field: string): string {
-  return /^'[=+\-@\t\r']/.test(field) ? field.slice(1) : field;
-}
-
-// Parse the whole input at once (RFC 4180): quoted fields may contain commas,
-// escaped quotes ("") and line breaks, so we cannot split into lines first.
-// Each record with its row number: data rows count from 1 after the header,
-// blank lines included, so an error names the row as it appears in the file
-function parseCsv(csv: string): { fields: string[]; row: number }[] {
-  const records: { fields: string[]; row: number }[] = [];
-  let seen = 0; // records ended so far, blank lines included
-  let headerAt: number | undefined;
-  let fields: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  let quoted = false; // the current field was quoted and its quotes are closed
-
-  // Malformed quoting used to be read leniently, and an unclosed quote then
-  // swallowed the rest of the file into one field
-  const fail = (problem: string): never => {
-    const where = headerAt === undefined ? "Header" : `Row ${seen + 1 - headerAt}`;
-    throw new ValidationError(`${where}: ${problem}`);
-  };
-  let recordQuoted = false; // a field of the current record was quoted
-  const endField = () => {
-    fields.push(current);
-    current = "";
-    recordQuoted ||= quoted;
-    quoted = false;
-  };
-  const endRecord = () => {
-    endField();
-    // Skip blank lines, but not a record holding a quoted blank field ("  "):
-    // that is a row with an empty title, to be reported
-    seen++;
-    if (fields.length > 1 || fields[0].trim().length > 0 || recordQuoted) {
-      headerAt ??= seen;
-      records.push({ fields, row: seen - headerAt });
-    }
-    fields = [];
-    recordQuoted = false;
-  };
-
-  for (let i = 0; i < csv.length; i++) {
-    const ch = csv[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (csv[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = false;
-          quoted = true;
-        }
-      } else {
-        current += ch;
-      }
-    } else if (ch === ",") {
-      endField();
-    } else if (ch === "\n") {
-      endRecord();
-    } else if (ch === "\r") {
-      // CRLF: the \n ends the record. A lone CR (classic Mac line ending)
-      // ends it itself; appending it made the whole file one header row.
-      if (csv[i + 1] !== "\n") endRecord();
-    } else if (quoted) {
-      fail(`unexpected character after a closing quote`);
-    } else if (ch === '"') {
-      // A quote may only open a field (after optional blanks)
-      if (current.trim() !== "") fail(`a quote inside an unquoted field; quote the whole field and double inner quotes`);
-      current = "";
-      inQuotes = true;
-    } else {
-      current += ch;
-    }
-  }
-  if (inQuotes) fail("a quoted field is never closed");
-  endRecord();
-  return records;
 }
 
 // Empty cells default to 1. Anything else must be written as a whole number:

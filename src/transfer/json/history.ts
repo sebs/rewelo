@@ -1,161 +1,15 @@
-import { assertFibonacci, assertScores } from "../domain/scores.js";
-import { prefixErrors, ValidationError } from "../errors.js";
-import { isBlank } from "../text.js";
-import { validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
-import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
-import { isValidRelationType } from "../relations/types.js";
-import { validateWeights } from "../domain/weights.js";
-import { assertOneValuePerPrefix, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
-import type { ImportableHistory, ImportableTicket } from "./import-project.js";
-import { normalizeSince } from "../validation/timestamps.js";
+import { DB } from "../../db/connection.js";
+import { assertFibonacci } from "../../domain/scores.js";
+import { ValidationError } from "../../errors.js";
+import { ensureTag } from "../../tags/repository.js";
+import { isBlank } from "../../text.js";
+import { parseTags } from "./values.js";
+import type { ImportableHistory, ImportableRevision, ImportableTagChange, TagPair } from "../types.js";
+import { validateTicketDescription } from "../../validation/strings.js";
+import { normalizeSince } from "../../validation/timestamps.js";
 
-export const MAX_JSON_SIZE_BYTES = 50 * 1024 * 1024;
-export const MAX_NESTING_DEPTH = 10;
-
-export function checkDepth(obj: unknown, depth: number = 0): void {
-  if (depth > MAX_NESTING_DEPTH) {
-    throw new ValidationError(`JSON nesting depth exceeds maximum of ${MAX_NESTING_DEPTH}`);
-  }
-  if (Array.isArray(obj)) {
-    for (const item of obj) checkDepth(item, depth + 1);
-  } else if (obj !== null && typeof obj === "object") {
-    for (const val of Object.values(obj as Record<string, unknown>)) {
-      checkDepth(val, depth + 1);
-    }
-  }
-}
-
-export function checkJsonSize(json: string, label: string = "JSON"): void {
-  if (Buffer.byteLength(json, "utf-8") > MAX_JSON_SIZE_BYTES) {
-    throw new ValidationError(`${label} exceeds maximum file size of 50 MB`);
-  }
-}
-
-export function safeParseJson(json: string, label: string = "JSON"): unknown {
-  try {
-    // Editors on Windows often save UTF-8 with a byte order mark
-    return JSON.parse(json.replace(/^\uFEFF/, ""));
-  } catch {
-    throw new ValidationError(`Invalid ${label}`);
-  }
-}
-
-export function parseTags(raw: unknown, errorPrefix: string = "Tag"): TagPair[] | undefined {
-  if (raw === undefined || raw === null) return undefined;
-  if (!Array.isArray(raw)) {
-    throw new ValidationError(`${errorPrefix}s must be an array of {"prefix", "value"} objects`);
-  }
-  return raw.map((tag, i) => {
-    const t = tag as Record<string, unknown>;
-    if (!t || typeof t !== "object" || typeof t.prefix !== "string" || typeof t.value !== "string") {
-      throw new ValidationError(
-        `${errorPrefix} ${i + 1}: must be an object with string "prefix" and "value"`
-      );
-    }
-    const { prefix, value } = t;
-    return prefixErrors(`${errorPrefix} ${i + 1}`, () => ({ prefix: validateTagPrefix(prefix), value: validateTagValue(value) }));
-  });
-}
-
-export function parseTickets(
-  raw: unknown[],
-  errorPrefix: string = "Ticket"
-): ImportableTicket[] {
-  if (raw.length > 100_000) {
-    throw new ValidationError("Exceeds maximum of 100,000 tickets");
-  }
-
-  const tickets: ImportableTicket[] = [];
-  for (let i = 0; i < raw.length; i++) {
-    const t = raw[i] as Record<string, unknown>;
-    if (!t || typeof t !== "object") {
-      throw new ValidationError(`${errorPrefix} ${i + 1}: must be an object`);
-    }
-    const at = `${errorPrefix} ${i + 1}`;
-    const rawTitle = t.title;
-    if (typeof rawTitle !== "string" || rawTitle.length === 0) {
-      throw new ValidationError(`${at}: title is required`);
-    }
-
-    // Missing scores default to 1, as in CSV import and ticket create.
-    // Anything else must be a JSON number: Number() would read true as 1,
-    // "5" and [3] as numbers and "0x5" as 5.
-    const { benefit, penalty, estimate, risk } = prefixErrors(at, () => {
-      const score = (field: string) => {
-        const v = t[field];
-        if (v === undefined || v === null) return 1;
-        if (typeof v !== "number") throw new ValidationError(`${field} must be a number, got ${JSON.stringify(v)}`);
-        return v;
-      };
-      const scores = { benefit: score("benefit"), penalty: score("penalty"), estimate: score("estimate"), risk: score("risk") };
-      assertScores(scores);
-      return scores;
-    });
-
-    const tags = parseTags(t.tags, `${at}: tag`);
-    prefixErrors(at, () => {
-      if (tags && tags.length > MAX_TAGS_PER_TICKET) throw new ValidationError(`at most ${MAX_TAGS_PER_TICKET} tags per ticket`);
-      if (tags) assertOneValuePerPrefix(tags);
-    });
-
-    const title = prefixErrors(at, () => {
-      const valid = validateTicketTitle(rawTitle);
-      if (t.description !== undefined && t.description !== null && typeof t.description !== "string") {
-        throw new ValidationError(`description must be a string, got ${JSON.stringify(t.description)}`);
-      }
-      if (typeof t.description === "string") validateTicketDescription(t.description);
-      return valid;
-    });
-
-    const history = prefixErrors(at, () => {
-      const parsed = parseHistory(t);
-      if (parsed) checkHistory(parsed, tags ?? []);
-      return parsed;
-    });
-
-    tickets.push({
-      title,
-      description: typeof t.description === "string" ? t.description : undefined,
-      benefit,
-      penalty,
-      estimate,
-      risk,
-      tags,
-      ...(history ? { history } : {}),
-    });
-  }
-
-  return tickets;
-}
-
-export function parseRelations(raw: unknown): SerializedRelation[] | undefined {
-  if (raw === undefined || raw === null) return undefined;
-  if (!Array.isArray(raw)) {
-    throw new ValidationError('Relations must be an array of {"source", "type", "target"} objects');
-  }
-  if (raw.length > 100_000) throw new ValidationError("Exceeds maximum of 100,000 relations");
-  return raw.map((rel, i) => {
-    const r = rel as Record<string, unknown>;
-    if (!r || typeof r !== "object" || typeof r.source !== "string" || typeof r.type !== "string" || typeof r.target !== "string") {
-      throw new ValidationError(`Relation ${i + 1}: must be an object with string "source", "type" and "target"`);
-    }
-    if (!isValidRelationType(r.type)) {
-      throw new ValidationError(`Relation ${i + 1}: unknown relation type "${r.type}"`);
-    }
-    return { source: r.source, type: r.type, target: r.target };
-  });
-}
-
-export function parseWeights(raw: unknown): SerializedWeights | undefined {
-  if (raw === undefined || raw === null) return undefined;
-  const w = raw as Record<string, unknown>;
-  if (typeof raw !== "object" || Array.isArray(raw) || [w.w1, w.w2, w.w3, w.w4].some((v) => typeof v !== "number")) {
-    throw new ValidationError('Weights must be an object with numeric "w1", "w2", "w3" and "w4"');
-  }
-  const weights = { w1: w.w1 as number, w2: w.w2 as number, w3: w.w3 as number, w4: w.w4 as number };
-  prefixErrors("Weights", () => validateWeights(weights));
-  return weights;
-}
+// A ticket's history in the JSON export (--with-history): read, checked, and
+// written back on import
 
 function timestamp(raw: unknown, field: string): string {
   if (typeof raw !== "string") throw new ValidationError(`${field} must be an ISO timestamp`);
@@ -166,7 +20,7 @@ function timestamp(raw: unknown, field: string): string {
   }
 }
 
-function sequence(raw: unknown, at: string): { sequence?: number } {
+export function sequence(raw: unknown, at: string): { sequence?: number } {
   if (raw === undefined || raw === null) return {};
   if (!Number.isSafeInteger(raw) || (raw as number) < 0) throw new ValidationError(`${at}: sequence must be a whole number`);
   return { sequence: raw as number };
@@ -180,7 +34,7 @@ function list(raw: unknown, field: string): Record<string, unknown>[] {
 }
 
 // The createdAt, revisions and tagChanges written by `export json --with-history`
-function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined {
+export function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined {
   if (t.createdAt === undefined && t.updatedAt === undefined && t.revisions === undefined && t.tagChanges === undefined) return undefined;
   const history: ImportableHistory = {};
   if (t.createdAt !== undefined) history.createdAt = timestamp(t.createdAt, "createdAt");
@@ -254,7 +108,7 @@ function parseHistory(t: Record<string, unknown>): ImportableHistory | undefined
 // backup restored on a machine a few seconds behind must still import
 const CLOCK_SKEW_MS = 5 * 60_000;
 
-function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
+export function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
   const now = new Date(Date.now() + CLOCK_SKEW_MS).toISOString();
   const created = history.createdAt;
   if (created !== undefined && created > now) throw new ValidationError("createdAt is in the future");
@@ -300,4 +154,95 @@ function checkHistory(history: ImportableHistory, tags: TagPair[]): void {
       throw new ValidationError("tagChanges do not end in the ticket's tags");
     }
   }
+}
+
+export type PendingHistoryRow = { ticketId: number; sequence?: number; at: string } & (
+  | { revision: ImportableRevision }
+  | { tagChange: ImportableTagChange }
+);
+
+// Put back what `export json --with-history` recorded, so lead and cycle
+// times and the event log survive a backup and restore. The creation time is
+// set right away; revisions and tag changes are returned to be written later.
+export async function prepareHistory(db: DB, ticketId: number, history: ImportableHistory): Promise<PendingHistoryRow[]> {
+  if (history.createdAt) {
+    await db.run(`UPDATE tickets SET created_at = ? WHERE id = ?`, history.createdAt, ticketId);
+  }
+  // Else the ticket's last update would be the import
+  const updated = history.updatedAt ?? history.createdAt;
+  if (updated) await db.run(`UPDATE tickets SET updated_at = ? WHERE id = ?`, updated, ticketId);
+  // Assigning the ticket's tags just now logged them with today's date. With
+  // tag changes in the file those replace them; without, but with an older
+  // createdAt, when the tags were added is unknown: keep no date rather than
+  // today's (a ticket from 2020 tagged done showed a lead time of 2,459 days)
+  if (history.tagChanges || history.createdAt) {
+    await db.run(`DELETE FROM ticket_tag_changes WHERE ticket_id = ?`, ticketId);
+  }
+  return [
+    ...(history.revisions ?? []).map((revision) => ({ ticketId, sequence: revision.sequence, at: revision.revised_at, revision })),
+    ...(history.tagChanges ?? []).map((tagChange) => ({ ticketId, sequence: tagChange.sequence, at: tagChange.changed_at, tagChange })),
+  ];
+}
+
+// A tag id no tag has: AUTOINCREMENT never hands out a deleted row's id again
+async function deletedTagId(db: DB, projectId: number): Promise<number> {
+  const [{ id }] = await db.all<{ id: number }>(
+    `INSERT INTO tags (project_id, prefix, value) VALUES (?, 'deleted', ?) RETURNING id`,
+    projectId,
+    `import-${Date.now()}-${Math.random()}`
+  );
+  await db.run(`DELETE FROM tags WHERE id = ?`, id);
+  return id;
+}
+
+// Write history rows in their original write order; rows without a sequence
+// (older files) come after, by timestamp and then position in the file.
+// Returns the number of tags created for tag changes whose tag no longer
+// existed.
+export async function writeHistory(db: DB, projectId: number, rows: PendingHistoryRow[]): Promise<number> {
+  let tagsCreated = 0;
+  // Tags deleted in the exporting project: their changes keep an id of their
+  // own that no tag has, as they did there (creating the tag brought it back)
+  const deleted = new Map<string, number>();
+  const key = (row: PendingHistoryRow) => row.sequence ?? Infinity;
+  const sorted = rows
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) =>
+      key(a.row) !== key(b.row) ? (key(a.row) < key(b.row) ? -1 : 1)
+      : a.row.at !== b.row.at ? (a.row.at < b.row.at ? -1 : 1)
+      : a.index - b.index)
+    .map(({ row }) => row);
+  for (const row of sorted) {
+    if ("revision" in row) {
+      const r = row.revision;
+      await db.run(
+        `INSERT INTO ticket_revisions (ticket_id, title, description, benefit, penalty, estimate, risk, tags, revised_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        row.ticketId, r.title, r.description, r.benefit, r.penalty, r.estimate, r.risk, JSON.stringify(r.tags), r.revised_at
+      );
+      continue;
+    }
+    const c = row.tagChange;
+    if (c.tag === null) {
+      const key = c.tagId !== undefined ? `#${c.tagId}` : `${c.prefix}:${c.value}`;
+      let id = deleted.get(key);
+      if (id === undefined) id = await deletedTagId(db, projectId);
+      deleted.set(key, id);
+      await db.run(
+        `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action, changed_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        row.ticketId, id, c.prefix, c.value, c.action, c.changed_at
+      );
+      continue;
+    }
+    // Link the change to the tag as it is named now, so lead and cycle
+    // times (which follow the tag, not its old name) come out the same
+    const { prefix, value } = c.tag ?? c;
+    const { tag, created } = await ensureTag(db, projectId, prefix, value);
+    if (created) tagsCreated++;
+    await db.run(
+      `INSERT INTO ticket_tag_changes (ticket_id, tag_id, prefix, value, action, changed_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      row.ticketId, tag.id, c.prefix, c.value, c.action, c.changed_at
+    );
+  }
+  return tagsCreated;
 }

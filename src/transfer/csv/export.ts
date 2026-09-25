@@ -1,25 +1,8 @@
-import { DB } from "../db/connection.js";
-import { listTickets } from "../tickets/repository.js";
-import { getProjectTicketTags } from "../tags/assignment.js";
-import { cost, priority, value } from "../calculations/priority.js";
-
-// Cells whose first character is one of these can be interpreted as a formula
-// by spreadsheet apps (Excel/Sheets), so we neutralise them with a leading
-// apostrophe. Values that already start with an apostrophe get one too, so
-// the importer can always strip exactly one guard (see import/csv.ts).
-const NEEDS_GUARD = /^[=+\-@\t\r']/;
-
-function escapeCsvField(field: string): string {
-  const value = NEEDS_GUARD.test(field) ? `'${field}` : field;
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
-export function csvRow(fields: string[]): string {
-  return fields.map(escapeCsvField).join(",");
-}
+import { cost, priority, value } from "../../calculations/priority.js";
+import { DB } from "../../db/connection.js";
+import { getProjectTicketTags } from "../../tags/assignment.js";
+import { listTickets } from "../../tickets/repository.js";
+import { csvRow } from "./codec.js";
 
 export interface CsvExportOptions {
   withCalculations?: boolean;

@@ -6,7 +6,7 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
-import { exportCsv } from "../../src/export/csv.js";
+import { exportCsv } from "../../src/transfer/csv/export.js";
 
 describe("CSV export", () => {
   let db: DB;

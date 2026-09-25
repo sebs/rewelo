@@ -1,10 +1,10 @@
 import { Command } from "commander";
-import { exportCsv } from "../../export/csv.js";
-import { writeJsonExport } from "../../export/json.js";
-import { toFile, toStdout } from "../../export/json-stream.js";
-import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "../../import/csv.js";
-import { importJsonAsProject } from "../../import/json.js";
-import { MAX_JSON_SIZE_BYTES } from "../../serialization/parse.js";
+import { exportCsv } from "../../transfer/csv/export.js";
+import { writeJsonExport } from "../../transfer/json/export.js";
+import { toFile, toStdout } from "../../transfer/json/stream.js";
+import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "../../transfer/csv/import.js";
+import { importJsonAsProject } from "../../transfer/json/import.js";
+import { MAX_JSON_SIZE_BYTES } from "../../transfer/json/values.js";
 import { validateExportPath, validateImportPath } from "../../validation/paths.js";
 import { describeFsError } from "../../errors.js";
 import { resolveProjectName, withDb, withProject, type GlobalOptions } from "../context.js";
