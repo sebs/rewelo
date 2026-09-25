@@ -25,4 +25,14 @@ describe("rw ticket history and project history (CLI)", () => {
     const rows = rw("--csv", "ticket", "history", "--project", "P", "--title", "C", "--offset", "2", "--limit", "2").stdout.trim().split("\n").slice(1);
     assert.deepEqual(rows.map((r) => r.split(",").slice(0, 3).join(",")), ["3,C,3", "4,C,5"]);
   });
+
+  it("doesn't claim there are no revisions for --limit 0 or a page past the end", () => {
+    const text = (...args: string[]) => rw(...args).stdout.trim();
+    assert.equal(text("ticket", "history", "--project", "P", "--title", "C", "--limit", "0"), "No revisions shown (--limit 0).");
+    assert.equal(text("ticket", "history", "--project", "P", "--title", "C", "--offset", "10"), "No revisions after the first 10.");
+    assert.equal(text("project", "history", "--project", "P", "--limit", "0"), "No revisions shown (--limit 0).");
+    assert.equal(text("project", "history", "--project", "P", "--offset", "100"), "No revisions after the first 100.");
+    rw("ticket", "create", "--project", "P", "--title", "New");
+    assert.equal(text("ticket", "history", "--project", "P", "--title", "New"), "No revisions found.");
+  });
 });

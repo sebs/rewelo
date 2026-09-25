@@ -91,6 +91,16 @@ export function printRows<T>(opts: OutputOptions, items: T[], view: RowsView<T>)
   }
 }
 
+/**
+ * What an empty page of a paged list says: --limit 0 and an offset past the
+ * end show nothing, which is not the same as there being nothing
+ */
+export function emptyPage(what: string, page: { limit?: number; offset?: number }): string {
+  if (page.limit === 0) return `No ${what} shown (--limit 0).`;
+  if (page.offset) return `No ${what} after the first ${page.offset}.`;
+  return `No ${what} found.`;
+}
+
 // Confirmation for a command that wrote a file: JSON with the path under
 // --json, nothing under --quiet
 export function reportWritten(opts: OutputOptions, path: string, message: string): void {

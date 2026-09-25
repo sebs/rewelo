@@ -6,7 +6,7 @@ import { AppError } from "../../errors.js";
 import { validateProjectName } from "../../validation/strings.js";
 import { withDb, withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, parseNonNegativeIntOption, type ProjectOptions } from "../options.js";
-import { formatTable, printResult, printRows } from "../output.js";
+import { emptyPage, formatTable, printResult, printRows } from "../output.js";
 
 // Asks on stderr, so the prompt doesn't mix with --json output. Ctrl-C and
 // Ctrl-D end the command with a failure, so `rw project delete X && ...`
@@ -92,8 +92,7 @@ export function registerProjectCommands(program: Command): void {
         const revisions = await listProjectRevisions(db, project.id, cmdOpts.since, cmdOpts.limit, cmdOpts.offset);
         printRows(opts, revisions, {
           quiet: (r) => `${r.revised_at}\t${r.ticket_title}`,
-          // --limit 0 shows nothing, which is not the same as having nothing
-          empty: cmdOpts.limit === 0 ? "No revisions shown (--limit 0)." : "No revisions found.",
+          empty: emptyPage("revisions", cmdOpts),
           headers: ["Ticket", "Title (at revision)", "B", "P", "E", "R", "Revised At"],
           row: (r) => [
             r.ticket_title, r.title, String(r.benefit), String(r.penalty),

@@ -6,7 +6,7 @@ import { AppError } from "../../errors.js";
 import { validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 import { withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, collect, parseFloatOption, parseNonNegativeIntOption, parseScoreOption, type ProjectOptions, type ScoreOptions } from "../options.js";
-import { formatTable, printResult, printRows } from "../output.js";
+import { emptyPage, formatTable, printResult, printRows } from "../output.js";
 
 type Scored = { benefit: number; penalty: number; estimate: number; risk: number };
 const scores = (t: Scored) => `[B:${t.benefit} P:${t.penalty} E:${t.estimate} R:${t.risk}]`;
@@ -151,7 +151,7 @@ export function registerTicketCommands(program: Command): void {
         const ticket = await requireTicket(db, project.id, cmdOpts.title);
         printRows(opts, await listRevisions(db, ticket.id, cmdOpts.limit, cmdOpts.offset), {
           quiet: (r) => r.revised_at,
-          empty: "No revisions found.",
+          empty: emptyPage("revisions", cmdOpts),
           headers: ["#", "Title", "B", "P", "E", "R", "Tags", "Revised At"],
           // The revision's place in the whole history, on any page
           row: (r, i) => [
