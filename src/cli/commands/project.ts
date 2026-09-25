@@ -70,10 +70,8 @@ export function registerProjectCommands(program: Command): void {
         if (!process.stdin.isTTY) {
           throw new AppError(`Refusing to delete project "${name}" without confirmation: pass --force when not running interactively`);
         }
-        if (!(await confirm(`Delete project "${name}" and all its data? (y/N) `))) {
-          console.error("Aborted.");
-          return;
-        }
+        // Declined, like Ctrl-C and Ctrl-D, fails: rw project delete X && ... stops
+        if (!(await confirm(`Delete project "${name}" and all its data? (y/N) `))) throw new AppError("Aborted.");
       }
       await withDb(opts, async (db) => {
         if (!(await deleteProject(db, name))) throw new AppError(`Project "${name}" not found`);
