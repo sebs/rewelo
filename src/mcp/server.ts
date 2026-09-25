@@ -1,4 +1,4 @@
-import { McpServer, type ServerContext } from "@modelcontextprotocol/server";
+import { McpServer, type JSONRPCMessage, type ServerContext } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 
@@ -10,6 +10,7 @@ import { outputSchemas } from "./output-schemas.js";
 import { capErrors, errorResult, safe } from "./results.js";
 import { checkPayloadSize, RateLimiter } from "./limits.js";
 import { currentCall, DbSession } from "./session.js";
+import { limitLines, MAX_MESSAGE_BYTES } from "./stdin-limit.js";
 import { Channel } from "./live/channel.js";
 import { ChangeWatcher } from "./live/watcher.js";
 import type { McpContext } from "./toolkit.js";
@@ -166,7 +167,17 @@ export async function startMcpServer(dbPath: string, options?: { channel?: boole
   const disconnected = new AbortController();
   process.stdin.once("end", () => disconnected.abort());
   const server = createMcpServer(dbPath, { signal: disconnected.signal, channel: options?.channel });
-  const transport = new StdioServerTransport();
+  // Over its limit the SDK's transport closes, and the server stopped without
+  // a word: drop such a message instead, answer it with an error, go on
+  const input = process.stdin.pipe(
+    limitLines(MAX_MESSAGE_BYTES, (id) => {
+      const message = `Request too large: a message may be at most ${MAX_MESSAGE_BYTES / 1024 / 1024} MB (a tool call's text arguments at most 1 MB)`;
+      console.error(`rewelo: ${message}; it was dropped`);
+      // id null: a request whose id couldn't be read (JSON-RPC 2.0)
+      void transport.send({ jsonrpc: "2.0", id: id ?? null, error: { code: -32600, message } } as unknown as JSONRPCMessage).catch(() => {});
+    })
+  );
+  const transport = new StdioServerTransport(input, process.stdout);
 
   const shutdown = async () => {
     disconnected.abort();

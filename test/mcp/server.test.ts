@@ -687,6 +687,47 @@ describe("MCP server", () => {
     assert.equal(JSON.parse(answer.result.content[0].text).items.length, 3_000);
   });
 
+  it("answers a message over its size limit with an error and goes on serving", async () => {
+    const child = spawn(process.execPath, [resolve(__dirname, "../../src/index.js"), "--db", ":memory:", "serve"], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: childEnv(),
+    });
+    let stderr = "";
+    child.stderr!.on("data", (d) => (stderr += d));
+    const answers = new Map<number, any>();
+    let buffer = "";
+    let arrived = () => {};
+    child.stdout!.on("data", (chunk) => {
+      buffer += chunk;
+      let newline;
+      while ((newline = buffer.indexOf("\n")) !== -1) {
+        const message = JSON.parse(buffer.slice(0, newline));
+        buffer = buffer.slice(newline + 1);
+        answers.set(message.id, message);
+        arrived();
+      }
+    });
+    const answer = (id: number) =>
+      new Promise<any>((done) => {
+        arrived = () => answers.has(id) && done(answers.get(id));
+        arrived();
+      });
+    const send = (m: object) => child.stdin!.write(JSON.stringify(m) + "\n");
+    send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
+    await answer(1);
+    send({ jsonrpc: "2.0", method: "notifications/initialized" });
+    // Numbers aren't counted by the 1 MB payload limit: 12 MB of them
+    send({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "project_list", arguments: { junk: new Array(3_000_000).fill(123) } } });
+    send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "project_list", arguments: {} } });
+
+    const refused = await answer(2);
+    assert.match(refused.error.message, /^Request too large: a message may be at most 4 MB/);
+    const listed = await answer(3);
+    assert.equal(listed.result.isError, undefined);
+    child.kill();
+    assert.match(stderr, /Request too large.*; it was dropped/);
+  });
+
   it("applies the payload limit to every tool and never echoes a huge input", async () => {
     await client.callTool({ name: "project_create", arguments: { name: "Big" } });
     const huge = await client.callTool({ name: "ticket_update", arguments: { project: "Big", title: "x".repeat(2_000_000) } });
