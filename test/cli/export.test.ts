@@ -32,6 +32,15 @@ describe("rw export (CLI)", () => {
     assert.equal(readFileSync(join(dir, "precious.txt"), "utf-8"), "keep");
   });
 
+  it("refuses an empty --output instead of writing to stdout", () => {
+    for (const cmd of [["export", "csv"], ["export", "json"], ["report", "dashboard"]]) {
+      const r = rw(...cmd, "--project", "P", "--output", "");
+      assert.equal(r.code, 1, cmd.join(" "));
+      assert.equal(r.stdout, "", cmd.join(" "));
+      assert.match(r.stderr, /Export path must not be empty/, cmd.join(" "));
+    }
+  });
+
   it("only writes each format to its own file extension", () => {
     const out = (name: string) => join(dir, name);
     const dash = rw("report", "dashboard", "--project", "P", "--output", out("d.csv"));

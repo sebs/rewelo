@@ -29,7 +29,7 @@ export function registerTransferCommands(program: Command): void {
         const csv = await exportCsv(db, project.id, {
           withCalculations: cmdOpts.withCalculations,
         });
-        if (cmdOpts.output) {
+        if (cmdOpts.output !== undefined) {
           const outPath = validateExportPath(cmdOpts.output, [".csv"]);
           writeFile(outPath, csv);
           reportWritten(opts, outPath, `Exported to ${outPath}`);
@@ -49,7 +49,7 @@ export function registerTransferCommands(program: Command): void {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       await withProject(opts, cmdOpts.project, async (db, project) => {
         const options = { withHistory: cmdOpts.withHistory };
-        if (cmdOpts.output) {
+        if (cmdOpts.output !== undefined) {
           const outPath = validateExportPath(cmdOpts.output, [".json"]);
           await writeJsonExport(db, project.id, options, toFile(outPath)).catch((err) => {
             // File errors name the path; errors reading the database pass on
