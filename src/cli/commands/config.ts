@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getWeights, resetWeights } from "../../weights/repository.js";
 import { updateWeights } from "../../app/priorities.js";
 import type { Weights } from "../../domain/weights.js";
-import { ValidationError } from "../../validation/strings.js";
+import { ValidationError } from "../../errors.js";
 import { withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, parseFloatOption, type ProjectOptions, type WeightOptions } from "../options.js";
 import { formatTable, printResult } from "../output.js";

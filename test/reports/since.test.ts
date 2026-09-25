@@ -9,7 +9,7 @@ import { assignTag } from "../../src/tags/assignment.js";
 import { listProjectRevisions } from "../../src/revisions/repository.js";
 import { getEventLog } from "../../src/reports/event-log.js";
 import { getProjectDiff } from "../../src/reports/diff.js";
-import { ValidationError } from "../../src/validation/strings.js";
+import { ValidationError } from "../../src/errors.js";
 
 // The same instant written in UTC and with a +02:00 offset. Timestamps are
 // stored as UTC text, so a raw string comparison gets the offset form wrong.

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { updateWeights } from "../../app/priorities.js";
-import { AppError } from "../../validation/strings.js";
+import { AppError } from "../../errors.js";
 import { getWeights, resetWeights } from "../../weights/repository.js";
 import { safe } from "../results.js";
 import { CHANGES_IDEMPOTENT, READ, type McpContext } from "../toolkit.js";

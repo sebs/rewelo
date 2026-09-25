@@ -1,7 +1,8 @@
 import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { createProject, deleteProject, listProjects } from "../../projects/repository.js";
-import { AppError, validateProjectName } from "../../validation/strings.js";
+import { AppError } from "../../errors.js";
+import { validateProjectName } from "../../validation/strings.js";
 import { VERSION } from "../../version.generated.js";
 import { safe, textResult } from "../results.js";
 import { ADDS, DELETES, READ, type McpContext } from "../toolkit.js";

@@ -1,4 +1,4 @@
-import { ValidationError } from "./strings.js";
+import { ValidationError } from "../errors.js";
 
 // An ISO date or date-time: 2026-03-10, 2026-03-10T09:00, 2026-03-10T09:00:00.000Z,
 // 2026-03-10T09:00:00+02:00. Date.parse alone is far more lenient: it reads

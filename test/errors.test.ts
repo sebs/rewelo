@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { sanitizeError } from "../../src/validation/errors.js";
-import { AppError, ValidationError } from "../../src/validation/strings.js";
+import { sanitizeError, AppError, ValidationError } from "../src/errors.js";
 
 describe("sanitizeError", () => {
   it("passes through ValidationError messages", () => {

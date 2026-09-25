@@ -1,5 +1,5 @@
 import { DB } from "../db/connection.js";
-import { AppError, ValidationError } from "../validation/strings.js";
+import { AppError, ValidationError } from "../errors.js";
 
 export interface Tag {
   id: number;

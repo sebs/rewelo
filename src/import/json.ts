@@ -1,5 +1,6 @@
 import { DB } from "../db/connection.js";
-import { ValidationError, validateProjectName } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
+import { validateProjectName } from "../validation/strings.js";
 import { createProject, getProjectByName } from "../projects/repository.js";
 import { importProjectData } from "../serialization/import-project.js";
 import { checkDepth, checkJsonSize, safeParseJson, parseTickets, parseTags, parseRelations, parseWeights } from "../serialization/parse.js";

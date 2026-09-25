@@ -6,7 +6,7 @@ import { createRelation } from "../relations/repository.js";
 import { canonicalRelation, isSymmetric } from "../relations/types.js";
 import { setWeights } from "../weights/repository.js";
 import { getTicketByTitle } from "../tickets/repository.js";
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 
 export interface ImportableRevision {

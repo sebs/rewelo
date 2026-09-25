@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DB } from "../../src/db/connection.js";
 import { migrate, SCHEMA_VERSION } from "../../src/db/migrate.js";
-import { AppError } from "../../src/validation/strings.js";
+import { AppError } from "../../src/errors.js";
 
 describe("migrate", () => {
   let db: DB;

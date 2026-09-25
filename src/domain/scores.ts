@@ -1,4 +1,4 @@
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 
 // A ticket's four scores and the values they take, without any storage.
 

@@ -1,5 +1,5 @@
 import { DB } from "../db/connection.js";
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
 import { allRelationTypes, canonicalRelation, forwardTypeNames, getRelationType, getInverse, isSymmetric, symmetricTypeNames } from "./types.js";
 
 export interface Relation {

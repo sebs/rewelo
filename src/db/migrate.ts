@@ -1,7 +1,9 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { DB } from "./connection.js";
-import { AppError, MAX_TICKET_TITLE, collapseSpaces, truncate } from "../validation/strings.js";
+import { AppError } from "../errors.js";
+import { collapseSpaces, truncate } from "../text.js";
+import { MAX_TICKET_TITLE } from "../validation/strings.js";
 
 // Stored in the SQLite header by create.sql ("RWLO"), so we never mistake
 // another application's database for ours.

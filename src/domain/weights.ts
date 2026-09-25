@@ -1,4 +1,4 @@
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 
 // The weights w1..w4 of the weighted priority, without any storage: used by
 // calculations and import parsing as well as by the repository.

@@ -1,5 +1,6 @@
 import { DB, Row } from "../db/connection.js";
-import { ValidationError, normalizeName } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
+import { normalizeName } from "../text.js";
 
 export interface Project {
   id: number;

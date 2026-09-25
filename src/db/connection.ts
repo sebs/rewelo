@@ -1,5 +1,6 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
-import { AppError, collapseSpaces, isBlank } from "../validation/strings.js";
+import { AppError } from "../errors.js";
+import { collapseSpaces, isBlank } from "../text.js";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Row {

@@ -3,7 +3,8 @@ import { createTicket } from "../tickets/repository.js";
 import { createTag, getTag } from "../tags/repository.js";
 import { assertOneValuePerPrefix, assignTag, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
 import { assertScores } from "../domain/scores.js";
-import { ValidationError, parseTagPair, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
+import { parseTagPair, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { TagPair } from "../serialization/export-project.js";
 
 const MAX_ROWS = 100_000;

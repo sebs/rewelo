@@ -1,14 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  validateProjectName,
-  validateTicketTitle,
-  validateTicketDescription,
-  validateTagPrefix,
-  validateTagValue,
-  ValidationError,
-  truncate,
-} from "../../src/validation/strings.js";
+import { ValidationError } from "../../src/errors.js";
+import { truncate } from "../../src/text.js";
+import { validateProjectName, validateTicketTitle, validateTicketDescription, validateTagPrefix, validateTagValue } from "../../src/validation/strings.js";
 
 describe("truncate", () => {
   it("never cuts an emoji in half", () => {

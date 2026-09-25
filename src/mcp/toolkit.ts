@@ -2,7 +2,7 @@ import type { McpServer, ServerContext, ToolAnnotations } from "@modelcontextpro
 import { z } from "zod";
 import { DB } from "../db/connection.js";
 import { getTicketById, getTicketByTitle, Ticket } from "../tickets/repository.js";
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 import { FIBONACCI, type Fibonacci } from "../domain/scores.js";
 import type { ReweloConfig } from "../config.js";
 import type { DbSession } from "./session.js";

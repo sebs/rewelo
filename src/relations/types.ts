@@ -1,4 +1,4 @@
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
 
 export interface RelationType {
   forward: string;

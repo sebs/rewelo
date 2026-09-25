@@ -4,7 +4,8 @@ import { DIMENSIONS, FIBONACCI, isFibonacci, type Dimension } from "../../domain
 import { queryTickets } from "../../app/tickets.js";
 import { listProjectRevisions, listRevisions } from "../../revisions/repository.js";
 import { createTicket, deleteTicket, getTicketByTitle, updateTicket, upsertTicket } from "../../tickets/repository.js";
-import { AppError, validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
+import { AppError } from "../../errors.js";
+import { validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 import { safe } from "../results.js";
 import { ADDS, CHANGES, CHANGES_IDEMPOTENT, DELETES, fibonacciScore, READ, resolveTicket, type McpContext } from "../toolkit.js";
 

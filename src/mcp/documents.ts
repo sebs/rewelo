@@ -2,7 +2,7 @@ import { DB } from "../db/connection.js";
 import { Project } from "../projects/repository.js";
 import { writeJsonExport } from "../export/json.js";
 import { renderDashboard } from "../reports/dashboard.js";
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 import { MAX_RESULT_BYTES, ToolResult, tooLarge } from "./results.js";
 
 // Documents (exports, dashboards) are read as resources, which a client

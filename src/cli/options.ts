@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { ValidationError } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
 
 /** --project, on every command that works on one project */
 export const PROJECT_OPTION = ["--project <name>", "project name (falls back to .rewelo.json)"] as const;

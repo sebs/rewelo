@@ -1,6 +1,5 @@
 import { statSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
-import { describeFsError } from "../validation/errors.js";
-import { ValidationError } from "../validation/strings.js";
+import { describeFsError, ValidationError } from "../errors.js";
 
 // File access on paths the user gave: errors name the path and the problem
 

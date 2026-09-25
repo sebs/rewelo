@@ -1,6 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/server";
-import { AppError } from "../../validation/strings.js";
-import { sanitizeError } from "../../validation/errors.js";
+import { AppError, sanitizeError } from "../../errors.js";
 import { shorten } from "../results.js";
 import type { DbSession } from "../session.js";
 import type { Channel } from "./channel.js";

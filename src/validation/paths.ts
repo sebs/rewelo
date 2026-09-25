@@ -5,7 +5,7 @@
 
 import { resolve, extname, dirname } from "path";
 import { lstatSync, statSync, realpathSync } from "fs";
-import { ValidationError } from "./strings.js";
+import { ValidationError } from "../errors.js";
 
 // resolve() is lexical: "file.json/../x.json" and "missing/../x.db" resolve
 // to "x.json" and "x.db" although the OS would refuse them (ENOTDIR/ENOENT),

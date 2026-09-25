@@ -2,7 +2,7 @@ import { McpServer, type ServerContext } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 import { validateDbPath } from "../validation/paths.js";
 import { VERSION } from "../version.generated.js";
 import { loadConfig, type ReweloConfig } from "../config.js";

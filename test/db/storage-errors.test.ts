@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { AppError } from "../../src/validation/strings.js";
+import { AppError } from "../../src/errors.js";
 
 async function openAndMigrate(path: string): Promise<DB> {
   const db = await DB.open(path);

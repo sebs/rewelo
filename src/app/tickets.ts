@@ -1,7 +1,8 @@
 import { DB } from "../db/connection.js";
 import { listTickets, getTicketByTitle, Ticket } from "../tickets/repository.js";
 import { byPriority, exactPriority, priority } from "../calculations/priority.js";
-import { AppError, ValidationError, parseTag } from "../validation/strings.js";
+import { AppError, ValidationError } from "../errors.js";
+import { parseTag } from "../validation/strings.js";
 
 // Use cases shared by the CLI and the MCP server: each takes plain input,
 // returns plain data and throws AppError, and leaves presentation to them.

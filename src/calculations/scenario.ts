@@ -1,6 +1,6 @@
 import { round2 } from "./priority.js";
 import { exactWeightedPriority } from "./weighted-priority.js";
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 import { validateWeights, withOverrides, type Weights } from "../domain/weights.js";
 import { DIMENSIONS, FIBONACCI, type Dimension, type Scores } from "../domain/scores.js";
 

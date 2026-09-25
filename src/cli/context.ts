@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { DB } from "../db/connection.js";
 import { migrate } from "../db/migrate.js";
 import { getProjectByName, Project } from "../projects/repository.js";
-import { AppError, ValidationError } from "../validation/strings.js";
+import { AppError, ValidationError } from "../errors.js";
 import { validateDbPath } from "../validation/paths.js";
 import { warnIfNoVolume } from "../volume.js";
 import { loadConfig } from "../config.js";

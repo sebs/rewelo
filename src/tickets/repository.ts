@@ -1,6 +1,8 @@
 import { DB } from "../db/connection.js";
 import { assertScores, type Fibonacci } from "../domain/scores.js";
-import { AppError, MAX_TICKET_TITLE, ValidationError, collapseSpaces, isBlank, normalizeName } from "../validation/strings.js";
+import { AppError, ValidationError } from "../errors.js";
+import { collapseSpaces, isBlank, normalizeName } from "../text.js";
+import { MAX_TICKET_TITLE } from "../validation/strings.js";
 import { getTicketTags } from "../tags/assignment.js";
 
 export interface Ticket {

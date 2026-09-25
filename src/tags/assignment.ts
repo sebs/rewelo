@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { Tag } from "./repository.js";
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 
 export interface TicketTag {
   ticket_id: number;

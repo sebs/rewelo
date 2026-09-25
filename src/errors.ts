@@ -1,9 +1,22 @@
 /**
- * Error sanitisation: wraps internal errors before they reach the user.
- * Never exposes SQL, file paths, or stack traces in user-facing output.
+ * The errors rewelo throws, and what any error says to the user: AppError
+ * messages are safe to show; everything else is summed up, never exposing
+ * SQL, file paths, or stack traces.
  */
 
-import { AppError } from "./strings.js";
+export class AppError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
 
 const FS_ERRORS: Record<string, string> = {
   EACCES: "Permission denied",

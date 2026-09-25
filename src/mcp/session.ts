@@ -1,7 +1,7 @@
 import { DB } from "../db/connection.js";
 import { migrate } from "../db/migrate.js";
 import { getProjectByName, Project } from "../projects/repository.js";
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 import { RateLimiter } from "./limits.js";
 
 type Around = <T>(db: DB, fn: (db: DB) => Promise<T>) => Promise<T>;

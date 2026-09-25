@@ -1,7 +1,6 @@
 import { lstatSync, readFileSync } from "fs";
 import { resolve, dirname } from "path";
-import { ValidationError } from "./validation/strings.js";
-import { describeFsError } from "./validation/errors.js";
+import { ValidationError, describeFsError } from "./errors.js";
 
 export interface ReweloConfig {
   project?: string;

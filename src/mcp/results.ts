@@ -1,6 +1,6 @@
 import { isInputRequiredResult, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import { AppError, truncate } from "../validation/strings.js";
-import { sanitizeError } from "../validation/errors.js";
+import { AppError, sanitizeError } from "../errors.js";
+import { truncate } from "../text.js";
 
 // Results are compact JSON, and refused above this size: 30,000 tickets made
 // ticket_list 13.7 MB and export_json 19.6 MB, far more than a client can use

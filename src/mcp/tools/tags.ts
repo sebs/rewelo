@@ -2,7 +2,8 @@ import { z } from "zod";
 import { assignTags, prepareTags } from "../../app/tagging.js";
 import { removeTag } from "../../tags/assignment.js";
 import { createTag, deleteTag, getTag, listTags, renameTag } from "../../tags/repository.js";
-import { AppError, validateTagPrefix, validateTagValue } from "../../validation/strings.js";
+import { AppError } from "../../errors.js";
+import { validateTagPrefix, validateTagValue } from "../../validation/strings.js";
 import { safe } from "../results.js";
 import { ADDS, CHANGES, CHANGES_IDEMPOTENT, DELETES, READ, resolveTicket, type McpContext } from "../toolkit.js";
 

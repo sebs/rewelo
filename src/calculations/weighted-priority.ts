@@ -1,5 +1,5 @@
 import { round2 } from "./priority.js";
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 
 /** Weighted value / weighted cost, unrounded: use it to sort */
 export function exactWeightedPriority(

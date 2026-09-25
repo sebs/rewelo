@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { AppError } from "../../src/validation/strings.js";
+import { AppError } from "../../src/errors.js";
 import { weightedPriority } from "../../src/calculations/weighted-priority.js";
 
 describe("weighted priority", () => {

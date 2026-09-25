@@ -1,5 +1,7 @@
 import { assertFibonacci, assertScores } from "../domain/scores.js";
-import { ValidationError, isBlank, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
+import { ValidationError } from "../errors.js";
+import { isBlank } from "../text.js";
+import { validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 import { isValidRelationType } from "../relations/types.js";
 import { validateWeights } from "../domain/weights.js";

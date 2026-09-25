@@ -1,4 +1,4 @@
-import { AppError } from "../validation/strings.js";
+import { AppError } from "../errors.js";
 
 const MAX_PAYLOAD_BYTES = 1_000_000; // 1 MB per tool call argument
 

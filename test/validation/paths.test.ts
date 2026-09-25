@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { validateDbPath, validateExportPath, validateImportPath } from "../../src/validation/paths.js";
-import { ValidationError } from "../../src/validation/strings.js";
+import { ValidationError } from "../../src/errors.js";
 
 describe("validateDbPath", () => {
   it("allows :memory:", () => {

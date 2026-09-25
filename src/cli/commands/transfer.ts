@@ -6,7 +6,7 @@ import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "../../import/csv.js"
 import { importJsonAsProject } from "../../import/json.js";
 import { MAX_JSON_SIZE_BYTES } from "../../serialization/parse.js";
 import { validateExportPath, validateImportPath } from "../../validation/paths.js";
-import { describeFsError } from "../../validation/errors.js";
+import { describeFsError } from "../../errors.js";
 import { resolveProjectName, withDb, withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, type ProjectOptions } from "../options.js";
 import { printResult, reportWritten } from "../output.js";

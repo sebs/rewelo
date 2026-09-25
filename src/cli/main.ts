@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { sanitizeError } from "../validation/errors.js";
+import { sanitizeError } from "../errors.js";
 import { VERSION } from "../version.generated.js";
 import { refuseRepeatedOptions } from "./options.js";
 import { registerProjectCommands } from "./commands/project.js";
