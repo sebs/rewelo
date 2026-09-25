@@ -5,7 +5,7 @@ import { weightedPriority } from "../calculations/weighted-priority.js";
 import { exportCsv } from "../export/csv.js";
 import { listProjects } from "../projects/repository.js";
 import { listRelations } from "../relations/repository.js";
-import { doneTicketIds } from "../reports/health.js";
+import { doneTicketIds } from "../workflow/states.js";
 import { getProjectTicketTags, getTicketTags } from "../tags/assignment.js";
 import { listTickets } from "../tickets/repository.js";
 import { sanitizeError, AppError } from "../errors.js";

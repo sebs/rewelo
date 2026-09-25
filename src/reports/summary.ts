@@ -2,7 +2,7 @@ import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { getProjectTicketTags } from "../tags/assignment.js";
 import { byPriority, priority } from "../calculations/priority.js";
-import { doneTicketIds } from "./health.js";
+import { doneTicketIds, STATE_PREFIX } from "../workflow/states.js";
 
 export interface ProjectSummary {
   totalTickets: number;
@@ -24,7 +24,7 @@ export async function getProjectSummary(
   const tagsByTicket = await getProjectTicketTags(db, projectId);
   for (const t of tickets) {
     const tags = tagsByTicket.get(t.id) ?? [];
-    const stateTag = tags.find((tg) => tg.prefix === "state");
+    const stateTag = tags.find((tg) => tg.prefix === STATE_PREFIX);
     if (stateTag) byState[stateTag.value] = (byState[stateTag.value] || 0) + 1;
     else withoutState++;
   }
