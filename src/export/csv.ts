@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { getTicketTags } from "../tags/assignment.js";
+import { getProjectTicketTags } from "../tags/assignment.js";
 import { priority } from "../calculations/priority.js";
 
 // Cells whose first character is one of these can be interpreted as a formula
@@ -33,6 +33,8 @@ export async function exportCsv(
   // One snapshot, like the JSON export: tickets and their tags as of one moment
   return db.readTransaction(async () => {
     const tickets = await listTickets(db, projectId);
+    // Every ticket's tags in one query, not one query per ticket
+    const tagsByTicket = await getProjectTicketTags(db, projectId);
 
     const headers = ["title", "description", "benefit", "penalty", "estimate", "risk", "tags"];
     if (options.withCalculations) {
@@ -42,7 +44,7 @@ export async function exportCsv(
     const lines: string[] = [csvRow(headers)];
 
     for (const ticket of tickets) {
-      const tags = await getTicketTags(db, ticket.id);
+      const tags = tagsByTicket.get(ticket.id) ?? [];
       const tagStr = tags.map((t) => `${t.prefix}:${t.value}`).join(",");
 
       const row: string[] = [
