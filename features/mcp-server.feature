@@ -130,6 +130,26 @@ Feature: MCP Server
     And scores the user leaves empty or declines should default to 1
     And when the user cancels, no ticket should be created
 
+  # -- Resources --
+
+  Scenario: A backlog and a dashboard per project
+    Given a project "My Project" exists
+    When a client requests the resource list
+    Then it should contain "rewelo://My%20Project/backlog" and "rewelo://My%20Project/dashboard"
+
+  Scenario: Read a project's backlog
+    Given a project "Acme" with two open tickets and one tagged "state:done"
+    When a client reads "rewelo://Acme/backlog"
+    Then the content should be JSON with the two open tickets, ranked, with their tags
+
+  Scenario: Read a ticket
+    When a client reads "rewelo://Acme/ticket/API%20%2F%20v2"
+    Then the content should be the ticket "API / v2" with its description, tags and relations
+
+  Scenario: Read a resource of an unknown project
+    When a client reads "rewelo://Nope/backlog"
+    Then the response should be an MCP error that the project was not found
+
   # -- Prompts --
 
   Scenario: The skills are offered as prompts

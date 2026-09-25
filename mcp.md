@@ -267,6 +267,18 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 
 Only `tickets` and each ticket's `title` are required; scores default to 1. Tags are `{prefix, value}` objects, not `"prefix:value"` strings. An import adds the relations and replaces the project's weights with the file's, and its result says so (`relationsCreated`, `weights`).
 
+## Resources
+
+Resources are context a user attaches to a conversation without a tool call; in Claude Code, type `@rewelo:` and pick one. Names in the URI are percent-encoded (`My Project` is `My%20Project`), and clients can autocomplete the project and the ticket title.
+
+| Resource URI                          | Content                                                                                   | Type               |
+|---------------------------------------|-------------------------------------------------------------------------------------------|--------------------|
+| `rewelo://{project}/backlog`          | Open tickets (not `state:done`), ranked as `calc_priority` ranks them, with scores, priorities and tags | `application/json` |
+| `rewelo://{project}/ticket/{title}`   | One ticket with description, scores, priorities, tags and relations                       | `application/json` |
+| `rewelo://{project}/dashboard`        | The HTML dashboard, as `report_dashboard` renders it                                      | `text/html`        |
+
+The resource list offers a backlog and a dashboard per project; tickets aren't listed, as a project can have thousands. Reading a resource counts against the same rate limit and 5 MB result limit as a tool call.
+
 ## Prompts
 
 The server also offers prompts: ready-made instructions for common backlog work, which a client shows as commands (in Claude Code, for example, `/mcp__rewelo__plan-sprint Acme 30`). Each one tells the model which tools to call and how to present the result.

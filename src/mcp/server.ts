@@ -1,10 +1,13 @@
 import {
   McpServer,
+  ResourceNotFoundError,
+  ResourceTemplate,
   completable,
   inputRequired,
   inputResponse,
   isInputRequiredResult,
   type PrimitiveSchemaDefinition,
+  type Variables,
   type ServerContext,
   type ToolAnnotations,
 } from "@modelcontextprotocol/server";
@@ -34,6 +37,8 @@ import { createTag, deleteTag, getTag, listTags, renameTag } from "../tags/repos
 import {
   assertOneValuePerPrefix,
   assignTag,
+  getProjectTicketTags,
+  getTicketTags,
   removeTag,
 } from "../tags/assignment.js";
 import { listRevisions, listProjectRevisions } from "../revisions/repository.js";
@@ -42,7 +47,7 @@ import {
   calculateAllRelativeWeights,
 } from "../calculations/relative-weights.js";
 import { exactWeightedPriority, weightedPriority } from "../calculations/weighted-priority.js";
-import { explain, simulate } from "../calculations/scenario.js";
+import { explain, rank, simulate } from "../calculations/scenario.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
 import { getProjectTimes, timesReport } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
@@ -57,7 +62,7 @@ import {
 } from "../relations/repository.js";
 import { normalizeRelationType } from "../relations/types.js";
 import { getProjectSummary } from "../reports/summary.js";
-import { getBacklogHealth } from "../reports/health.js";
+import { doneTicketIds, getBacklogHealth } from "../reports/health.js";
 import { getDistribution } from "../reports/distribution.js";
 import { groupByTagPrefix } from "../reports/group.js";
 import { renderDashboard } from "../reports/dashboard.js";
@@ -1278,6 +1283,143 @@ export function createMcpServer(
       ],
     }));
   }
+
+  // =========================================================================
+  //  RESOURCES: context a user attaches (in Claude Code, @rewelo:…)
+  //  without a tool call
+  // =========================================================================
+
+  // A template variable as the URI has it, percent-encoded
+  const variable = (vars: Variables, name: string) => {
+    const raw = vars[name];
+    return decodeURIComponent(Array.isArray(raw) ? raw[0] : raw);
+  };
+
+  async function readResource(uri: URL, mimeType: string, read: () => Promise<unknown>) {
+    try {
+      const data = await read();
+      const text = typeof data === "string" ? data : JSON.stringify(data);
+      const bytes = Buffer.byteLength(text, "utf-8");
+      if (bytes > MAX_RESULT_BYTES) throw new AppError(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
+      return { contents: [{ uri: uri.href, mimeType, text }] };
+    } catch (err) {
+      const message = shorten(sanitizeError(err));
+      if (err instanceof AppError && /not found/.test(message)) throw new ResourceNotFoundError(uri.href, message);
+      throw new AppError(message);
+    }
+  }
+
+  const tagLabels = (tags: { prefix: string; value: string }[]) => tags.map((t) => `${t.prefix}:${t.value}`);
+
+  // One resource per project, for the templates that have one
+  const perProject = (path: string, what: string, mimeType: string) => async () => ({
+    resources: (await withDb((db) => listProjects(db))).map((p) => ({
+      uri: `rewelo://${encodeURIComponent(p.name)}/${path}`,
+      name: `${p.name} ${what}`,
+      mimeType,
+    })),
+  });
+
+  server.registerResource(
+    "backlog",
+    new ResourceTemplate("rewelo://{project}/backlog", {
+      list: perProject("backlog", "backlog", "application/json"),
+      complete: { project: completeProject },
+    }),
+    {
+      title: "Backlog",
+      description: "A project's open tickets (not state:done), ranked as calc_priority ranks them, with scores, priorities and tags",
+      mimeType: "application/json",
+    },
+    (uri, vars) =>
+      readResource(uri, "application/json", () =>
+        withProject(variable(vars, "project"), async (db, proj) => {
+          const tickets = await listTickets(db, proj.id, { withDescription: false });
+          const done = await doneTicketIds(db, proj.id);
+          const tags = await getProjectTicketTags(db, proj.id);
+          const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
+          const open = rank(tickets.filter((t) => !done.has(t.id)), { w1, w2, w3, w4 });
+          return {
+            project: proj.name,
+            weights: { w1, w2, w3, w4 },
+            openTickets: open.length,
+            doneTickets: tickets.length - open.length,
+            tickets: open.map((t, i) => ({
+              rank: i + 1,
+              title: t.title,
+              benefit: t.benefit,
+              penalty: t.penalty,
+              estimate: t.estimate,
+              risk: t.risk,
+              priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
+              weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
+              tags: tagLabels(tags.get(t.id) ?? []),
+            })),
+          };
+        })
+      )
+  );
+
+  server.registerResource(
+    "ticket",
+    // Not listed: a project can have thousands; complete the title instead
+    new ResourceTemplate("rewelo://{project}/ticket/{title}", {
+      list: undefined,
+      complete: { project: completeProject, title: completeTicket },
+    }),
+    {
+      title: "Ticket",
+      description: "One ticket with its description, scores, priorities, tags and relations. The title is percent-encoded in the URI.",
+      mimeType: "application/json",
+    },
+    (uri, vars) =>
+      readResource(uri, "application/json", () =>
+        withProject(variable(vars, "project"), async (db, proj) => {
+          const t = await resolveTicket(db, proj.id, variable(vars, "title"));
+          const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
+          return {
+            project: proj.name,
+            id: t.id,
+            title: t.title,
+            description: t.description,
+            benefit: t.benefit,
+            penalty: t.penalty,
+            estimate: t.estimate,
+            risk: t.risk,
+            value: t.benefit + t.penalty,
+            cost: t.estimate + t.risk,
+            priority: priority(t.benefit, t.penalty, t.estimate, t.risk),
+            weighted: weightedPriority(t.benefit, t.penalty, t.estimate, t.risk, w1, w2, w3, w4),
+            tags: tagLabels(await getTicketTags(db, t.id)),
+            relations: await listRelations(db, proj.id, t.id),
+            created_at: t.created_at,
+            updated_at: t.updated_at,
+          };
+        })
+      )
+  );
+
+  server.registerResource(
+    "dashboard",
+    new ResourceTemplate("rewelo://{project}/dashboard", {
+      list: perProject("dashboard", "dashboard", "text/html"),
+      complete: { project: completeProject },
+    }),
+    {
+      title: "Dashboard",
+      description: "A project's self-contained HTML dashboard (tickets, distribution, health, relations), as report_dashboard renders it",
+      mimeType: "text/html",
+    },
+    (uri, vars) =>
+      readResource(uri, "text/html", () =>
+        withProject(variable(vars, "project"), (db, proj) =>
+          renderDashboard(db, proj.id, proj.name, {
+            generatedAt: new Date().toISOString(),
+            limitHint: "a higher <code>limit</code> in the <code>report_dashboard</code> tool",
+          })
+        )
+      )
+  );
 
   const connect = server.connect.bind(server);
   server.connect = (transport) => {
