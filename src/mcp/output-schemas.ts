@@ -64,6 +64,23 @@ const deleted = z.object({ deleted: z.literal(true) });
 
 const weightValues = z.object({ w1: z.number(), w2: z.number(), w3: z.number(), w4: z.number() });
 
+// Two rankings compared (src/calculations/scenario.ts compareRankings)
+const rankingComparison = <C extends string>(changes: [C, ...C[]]) =>
+  z.object({
+    total: z.number().int().describe("Tickets in the scenario's ranking"),
+    moved: z.number().int().describe("Tickets whose rank changed, not counting added and removed ones"),
+    top: z.array(z.object({ rank: z.number().int(), title: z.string(), priority: z.number() })),
+    tickets: z.array(z.object({
+      title: z.string(),
+      baselineRank: z.number().int().nullable(),
+      scenarioRank: z.number().int().nullable(),
+      rankChange: z.number().int().nullable().describe("Positions moved up (negative: down); null for added and removed tickets"),
+      baselinePriority: z.number().nullable(),
+      scenarioPriority: z.number().nullable(),
+      change: z.enum(changes).optional().describe("How the scenario touches this ticket itself"),
+    })),
+  });
+
 export const outputSchemas = {
   server_version: z.object({ version: z.string() }),
 
@@ -117,21 +134,9 @@ export const outputSchemas = {
     relativeRisk: z.number(),
   })),
 
-  simulate: z.object({
+  simulate: rankingComparison(["scores", "added", "removed"]).extend({
     baselineWeights: weightValues,
     scenarioWeights: weightValues,
-    total: z.number().int().describe("Tickets in the scenario's ranking"),
-    moved: z.number().int().describe("Tickets whose rank changed, not counting added and removed ones"),
-    top: z.array(z.object({ rank: z.number().int(), title: z.string(), priority: z.number() })),
-    tickets: z.array(z.object({
-      title: z.string(),
-      baselineRank: z.number().int().nullable(),
-      scenarioRank: z.number().int().nullable(),
-      rankChange: z.number().int().nullable().describe("Positions moved up (negative: down); null for added and removed tickets"),
-      baselinePriority: z.number().nullable(),
-      scenarioPriority: z.number().nullable(),
-      change: z.enum(["scores", "added", "removed"]).optional().describe("How the scenario touches this ticket itself"),
-    })),
   }),
   explain_priority: z.object({
     title: z.string(),
@@ -155,6 +160,32 @@ export const outputSchemas = {
         rank: z.number().int(),
       })).describe("The smallest change of one score that reaches the rank, per score where one does"),
     }),
+  }),
+
+  apply_changes: z.object({
+    applied: z.boolean().describe("false for a dry run: nothing was written"),
+    operations: z.array(z.discriminatedUnion("op", [
+      z.object({ op: z.literal("ticket_create"), title: z.string() }),
+      z.object({
+        op: z.literal("ticket_update"),
+        title: z.string(),
+        changes: z.array(z.object({ field: z.string(), from: z.unknown(), to: z.unknown() })),
+      }),
+      z.object({ op: z.literal("ticket_delete"), title: z.string() }),
+      z.object({
+        op: z.literal("tag_assign"),
+        ticket: z.string(),
+        tag: z.string(),
+        status: z.enum(["assigned", "already_assigned"]),
+        replaced: z.array(z.string()).optional(),
+        tagCreated: z.literal(true).optional(),
+      }),
+      z.object({ op: z.literal("tag_remove"), ticket: z.string(), tag: z.string(), status: z.enum(["removed", "was_not_assigned"]) }),
+      z.object({ op: z.literal("relation_create"), source: z.string(), type: z.string(), target: z.string() }),
+      z.object({ op: z.literal("relation_remove"), source: z.string(), type: z.string(), target: z.string() }),
+    ])).describe("Each operation's outcome, in order"),
+    ranking: rankingComparison(["created", "updated", "deleted"])
+      .describe("The ranking before (baseline) and after the changes (scenario), as calc_priority ranks"),
   }),
 
   report_summary: z.object({

@@ -45,7 +45,7 @@ describe("MCP tool annotations", () => {
 
   it("marks deletes and overwrites as destructive, and the adding tools as not", async () => {
     assert.deepEqual(await byHint("destructiveHint"), [
-      "import_json", "project_delete", "relation_remove", "tag_assign", "tag_delete", "tag_remove", "tag_rename",
+      "apply_changes", "import_json", "project_delete", "relation_remove", "tag_assign", "tag_delete", "tag_remove", "tag_rename",
       "ticket_delete", "ticket_update", "ticket_upsert", "weight_reset", "weight_set",
     ]);
     const { tools } = await client.listTools();

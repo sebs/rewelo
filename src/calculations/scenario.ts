@@ -41,7 +41,7 @@ export interface Scenario {
   weights?: Partial<Weights>;
 }
 
-export interface ScenarioRow {
+export interface ScenarioRow<C extends string = "scores" | "added" | "removed"> {
   title: string;
   baselineRank: number | null;
   scenarioRank: number | null;
@@ -50,19 +50,68 @@ export interface ScenarioRow {
   baselinePriority: number | null;
   scenarioPriority: number | null;
   /** How the scenario touches this ticket itself, if it does */
-  change?: "scores" | "added" | "removed";
+  change?: C;
 }
 
-export interface ScenarioResult {
-  baselineWeights: Weights;
-  scenarioWeights: Weights;
+export interface RankingComparison<C extends string> {
   /** Tickets in the scenario's ranking */
   total: number;
   /** Tickets whose rank changed, not counting added and removed ones */
   moved: number;
   top: Array<{ rank: number; title: string; priority: number }>;
-  /** The tickets the scenario changes, adds or removes, and every one that moved: scenario order, removed ones last */
-  tickets: ScenarioRow[];
+  /** The tickets the scenario touches, and every one that moved: scenario order, removed ones last */
+  tickets: ScenarioRow<C>[];
+}
+
+export interface ScenarioResult extends RankingComparison<"scores" | "added" | "removed"> {
+  baselineWeights: Weights;
+  scenarioWeights: Weights;
+}
+
+/**
+ * Two rankings of one backlog, compared: key says which tickets are the
+ * same one, changes how the scenario touched a ticket itself
+ */
+export function compareRankings<T extends Scored, K, C extends string>(
+  baseline: { tickets: T[]; weights: Weights },
+  scenario: { tickets: T[]; weights: Weights },
+  key: (t: T) => K,
+  changes: Map<K, C>,
+  options: { top: number; limit: number }
+): RankingComparison<C> {
+  const before = rank(baseline.tickets, baseline.weights);
+  const after = rank(scenario.tickets, scenario.weights);
+  const baselineRank = new Map(before.map((t, i) => [key(t), i + 1]));
+  const scenarioRank = new Map(after.map((t, i) => [key(t), i + 1]));
+  const original = new Map(before.map((t) => [key(t), t]));
+
+  const row = (t: T): ScenarioRow<C> => {
+    const k = key(t);
+    const was = baselineRank.get(k) ?? null;
+    const now = scenarioRank.get(k) ?? null;
+    const change = changes.get(k);
+    const old = original.get(k);
+    return {
+      title: t.title,
+      baselineRank: was,
+      scenarioRank: now,
+      rankChange: was !== null && now !== null ? was - now : null,
+      baselinePriority: old ? round2(exact(old, baseline.weights)) : null,
+      scenarioPriority: now !== null ? round2(exact(t, scenario.weights)) : null,
+      ...(change ? { change } : {}),
+    };
+  };
+  const rows = after
+    .map(row)
+    .concat(before.filter((t) => !scenarioRank.has(key(t))).map(row))
+    .filter((r) => r.change !== undefined || r.rankChange !== 0);
+
+  return {
+    total: after.length,
+    moved: rows.filter((r) => r.rankChange !== null && r.rankChange !== 0).length,
+    top: after.slice(0, options.top).map((t, i) => ({ rank: i + 1, title: t.title, priority: round2(exact(t, scenario.weights)) })),
+    tickets: rows.slice(0, options.limit),
+  };
 }
 
 export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: Scenario, options: { top: number; limit: number }): ScenarioResult {
@@ -87,41 +136,21 @@ export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: 
   const scenarioWeights = { ...baselineWeights, ...definedWeights(scenario.weights) };
   validateWeights(scenarioWeights.w1, scenarioWeights.w2, scenarioWeights.w3, scenarioWeights.w4);
 
-  const baseline = rank(tickets, baselineWeights);
-  const after = rank(
-    tickets.filter((t) => !removed.has(t.title)).map((t) => changed.get(t.title) ?? t).concat(added),
-    scenarioWeights
-  );
-  const baselineRank = new Map(baseline.map((t, i) => [t.title, i + 1]));
-  const scenarioRank = new Map(after.map((t, i) => [t.title, i + 1]));
-  const addedTitles = new Set(added.map((t) => t.title));
-
-  const row = (t: Scored, change: ScenarioRow["change"]): ScenarioRow => {
-    const before = baselineRank.get(t.title) ?? null;
-    const now = scenarioRank.get(t.title) ?? null;
-    const original = byTitle.get(t.title);
-    return {
-      title: t.title,
-      baselineRank: before,
-      scenarioRank: now,
-      rankChange: before !== null && now !== null ? before - now : null,
-      baselinePriority: original ? round2(exact(original, baselineWeights)) : null,
-      scenarioPriority: now !== null ? round2(exact(t, scenarioWeights)) : null,
-      ...(change ? { change } : {}),
-    };
-  };
-  const rows = after
-    .map((t) => row(t, addedTitles.has(t.title) ? "added" : changed.has(t.title) ? "scores" : undefined))
-    .concat(baseline.filter((t) => removed.has(t.title)).map((t) => row(t, "removed")))
-    .filter((r) => r.change !== undefined || r.rankChange !== 0);
-
+  const changes = new Map<string, "scores" | "added" | "removed">([
+    ...[...changed.keys()].map((title) => [title, "scores"] as const),
+    ...added.map((t) => [t.title, "added"] as const),
+    ...[...removed].map((title) => [title, "removed"] as const),
+  ]);
   return {
     baselineWeights,
     scenarioWeights,
-    total: after.length,
-    moved: rows.filter((r) => r.rankChange !== null && r.rankChange !== 0).length,
-    top: after.slice(0, options.top).map((t, i) => ({ rank: i + 1, title: t.title, priority: round2(exact(t, scenarioWeights)) })),
-    tickets: rows.slice(0, options.limit),
+    ...compareRankings(
+      { tickets, weights: baselineWeights },
+      { tickets: tickets.filter((t) => !removed.has(t.title)).map((t) => changed.get(t.title) ?? t).concat(added), weights: scenarioWeights },
+      (t) => t.title,
+      changes,
+      options
+    ),
   };
 }
 

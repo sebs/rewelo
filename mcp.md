@@ -241,6 +241,26 @@ Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `preced
 | `event_log`       | Unified chronological event stream: newest first, or oldest first after `since` (for polling) | `project?`, `since?`, `after?`, `limit?` (default 50) |
 | `project_diff`    | Changes since a point in time      | `project?`, `since`                        |
 
+### Change Plans
+
+| Tool              | Description                        | Parameters                                |
+|-------------------|------------------------------------|-------------------------------------------|
+| `apply_changes`   | Apply many changes in one transaction, or try them with `dryRun` | `project?`, `operations`, `dryRun?`, `top?`, `limit?` |
+
+An agent grooming a backlog makes dozens of calls, and a failure halfway leaves the backlog half-changed. `apply_changes` takes the whole plan as a list of operations and applies all of them or, when one fails, none; the error names the failing operation. With `dryRun: true` nothing is written, and the result shows what the plan would do, so the user can review it once instead of approving each call:
+
+```json
+{ "project": "Acme", "dryRun": true, "operations": [
+  { "op": "ticket_create", "title": "SSO", "benefit": 21, "penalty": 13, "estimate": 2, "risk": 1 },
+  { "op": "ticket_update", "title": "Audit Log", "estimate": 3 },
+  { "op": "tag_assign", "ticket": "Login page", "tag": "state:done" },
+  { "op": "relation_create", "source": "SSO", "type": "blocks", "target": "Audit Log" },
+  { "op": "ticket_delete", "title": "Old idea" }
+] }
+```
+
+Operations: `ticket_create`, `ticket_update`, `ticket_delete`, `tag_assign` and `tag_remove` (with `tag` as `prefix:value`; `tag_assign` creates a missing tag), `relation_create` and `relation_remove`, each with the parameters of the tool of that name. At most 1,000 per call. The result lists each operation's outcome (`ticket_update` with the fields it changed) and, under `ranking`, how the ranking changes as `simulate` shows it: the new top tickets and every ticket created, updated, deleted or moved.
+
 ### Export / Import
 
 | Tool              | Description                        | Parameters                                |

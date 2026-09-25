@@ -60,6 +60,7 @@ Feature: MCP Server
       | relation_remove       |
       | relation_list         |
       | relation_list_all     |
+      | apply_changes         |
 
   Scenario: Tools say what they do to the database
     When a client requests the tool list
@@ -106,6 +107,24 @@ Feature: MCP Server
     Then the response should show "(1.5 × 3 + 1.5 × 2) / (1.5 × 5 + 1.5 × 3) = 7.5 / 12 = 0.63"
     And rank 4 of 4, with priority 2 to beat
     And that benefit 21 or penalty 21 would reach rank 2, and no single estimate or risk change would
+
+  # -- Change plans --
+
+  Scenario: Apply a plan in one transaction
+    Given a project "Acme" with tickets A, B and C
+    When a client calls "apply_changes" with a ticket_create, a ticket_update, two tag_assign, a relation_create and a ticket_delete
+    Then all six changes should be made
+    And the response should list each operation's outcome and how the ranking changed
+
+  Scenario: Try a plan without writing it
+    When a client calls "apply_changes" with the same operations and dryRun true
+    Then the response should be the same, with applied false
+    And the tickets, tags, relations and event log should be unchanged
+
+  Scenario: A failing operation changes nothing
+    When a client calls "apply_changes" whose third operation names a ticket that doesn't exist
+    Then the response should be an MCP error "Operation 3 (tag_assign): Ticket "Nope" not found. Nothing was changed."
+    And the first two operations should not have been applied
 
   # -- Questions to the user (elicitation) --
 
