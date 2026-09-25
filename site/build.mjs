@@ -31,7 +31,7 @@ const docs = [
   { file: "cli.md", slug: "cli", label: "CLI", sub: "Every rw command and option." },
   { file: "mcp.md", slug: "mcp", label: "MCP server", sub: "Connect AI assistants and use the tools." },
   { file: "calculations.md", slug: "calculations", label: "Calculations", sub: "Priority, weighted priority and relative weights." },
-  { file: "examples.md", slug: "examples", label: "Examples", sub: "Copy-paste prompts for Claude Code." },
+  { file: "examples.md", slug: "examples", label: "Examples", sub: "Worked scenarios as Claude Code prompts over MCP and as rw commands." },
 ];
 const pageOf = new Map(docs.map((d) => [d.file.toLowerCase(), d.slug ? `/docs/${d.slug}/` : "/docs/"]));
 
@@ -53,6 +53,7 @@ function page({ title, description, active, main }) {
     ["/docs/", "Docs", "docs"],
     ["/docs/cli/", "CLI", "cli"],
     ["/docs/mcp/", "MCP", "mcp"],
+    ["/docs/examples/", "Examples", "examples"],
   ]
     .map(([href, label, key]) => `<a href="${href}"${key === active ? ' aria-current="page"' : ""}>${label}</a>`)
     .join("");
@@ -123,7 +124,7 @@ for (const doc of docs) {
     page({
       title: `${doc.label} — rewelo`,
       description: doc.sub,
-      active: doc.slug === "cli" || doc.slug === "mcp" ? doc.slug : "docs",
+      active: ["cli", "mcp", "examples"].includes(doc.slug) ? doc.slug : "docs",
       main: `<div class="docs">
 <aside class="sidebar"><h4>Docs</h4>${sidebar}${toc ? `<h4>On this page</h4>${toc}` : ""}</aside>
 <article class="prose">${body}

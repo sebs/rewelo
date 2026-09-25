@@ -57,6 +57,14 @@ describe("website (site/build.mjs)", () => {
     assert.ok(examples.includes('href="https://github.com/sebs/rewelo/blob/main/fixtures/stories.csv"'));
   });
 
+  it("shows the examples for MCP and for the CLI, linked from the navigation", () => {
+    const examples = readFileSync(join(out, "docs/examples/index.html"), "utf-8");
+    assert.ok(examples.includes("mcp tool: import_csv"));
+    assert.ok(examples.includes("$ rw import csv backlog.csv --project prio-tool"));
+    assert.ok(examples.includes('<a href="/rewelo/docs/examples/" aria-current="page">Examples</a>'));
+    assert.ok(readFileSync(join(out, "index.html"), "utf-8").includes('href="/rewelo/docs/examples/"'));
+  });
+
   it("adds the leading slash SITE_BASE is missing", () => {
     const other = mkdtempSync(join(tmpdir(), "rw-site-"));
     try {

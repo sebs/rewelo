@@ -146,4 +146,4 @@ The CLI doubles as an MCP server over stdio, letting AI assistants manage projec
 
 ## Examples
 
-See [examples.md](examples.md) for step-by-step usage examples with copy-pasteable prompts for Claude Code, covering CSV import, dependency mapping, and priority calculation with custom weights.
+See [examples.md](examples.md) for step-by-step scenarios, each as a copy-pasteable Claude Code prompt (MCP) and as `rw` commands with their output: CSV import, dependency mapping, custom weights, quick wins, tracking work, scripting, and sharing and backing up a backlog.

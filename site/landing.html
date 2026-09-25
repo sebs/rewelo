@@ -17,6 +17,7 @@ rw project create Acme
 rw ticket create --project Acme --title "Login page" \
   --benefit 8 --penalty 5 --estimate 3 --risk 2
 rw ticket list --project Acme --sort priority</code></pre>
+    <p>Every command is in the <a href="/docs/cli/">CLI reference</a>.</p>
   </div>
   <div>
     <h2>MCP server in Docker</h2>
@@ -25,6 +26,7 @@ rw ticket list --project Acme --sort priority</code></pre>
   -v rw-data:/data ghcr.io/sebs/rewelo serve</code></pre>
     <p>Add it to Claude Desktop or Claude Code as described in the <a href="/docs/mcp/">MCP guide</a>.</p>
   </div>
+  <p class="more">The <a href="/docs/examples/">examples</a> walk through importing, scoring, tracking and reporting on a backlog, each as a Claude Code prompt and as <code>rw</code> commands.</p>
 </section>
 
 <section class="method">
