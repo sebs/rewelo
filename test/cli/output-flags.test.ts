@@ -32,6 +32,21 @@ describe("global output flags (CLI)", () => {
     assert.ok(!priority.includes(" | "));
   });
 
+  it("--quiet wins over --csv for every command, as it does over a table", () => {
+    rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "A, with comma");
+    for (const cmd of [
+      ["project", "diff", "--project", "P", "--since", "2020-01-01"],
+      ["report", "summary", "--project", "P"],
+      ["report", "health", "--project", "P"],
+      ["tag", "list", "--project", "P"],
+      ["config", "weights", "--project", "P"],
+      ["ticket", "list", "--project", "P"],
+      ["calc", "weights", "--project", "P"],
+    ]) {
+      assert.equal(rw("--quiet", "--csv", ...cmd).stdout, rw("--quiet", ...cmd).stdout, cmd.join(" "));
+    }
+  });
+
   it("--json is honoured by delete and assign commands", () => {
     rw("ticket", "create", "--project", "P", "--title", "B");
     assert.deepEqual(JSON.parse(rw("--json", "tag", "assign", "state:wip", "--project", "P", "--ticket", "B").stdout), [

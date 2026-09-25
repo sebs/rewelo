@@ -88,10 +88,10 @@ export function registerTagCommands(program: Command): void {
         const tags = await listTags(db, project.id);
         if (opts.json) {
           console.log(JSON.stringify(tags));
-        } else if (opts.csv) {
-          console.log(formatTable(opts, ["prefix", "value"], tags.map((t) => [t.prefix, t.value])));
         } else if (opts.quiet) {
           tags.forEach((t) => console.log(`${t.prefix}:${t.value}`));
+        } else if (opts.csv) {
+          console.log(formatTable(opts, ["prefix", "value"], tags.map((t) => [t.prefix, t.value])));
         } else if (tags.length === 0) {
           console.log("No tags found.");
         } else {

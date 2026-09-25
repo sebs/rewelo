@@ -43,10 +43,10 @@ export function registerConfigCommands(program: Command): void {
           const config = await getWeights(db, project.id);
           if (opts.json) {
             console.log(JSON.stringify(config));
-          } else if (opts.csv) {
-            console.log(formatTable(opts, ["w1", "w2", "w3", "w4"], [[config.w1, config.w2, config.w3, config.w4]]));
           } else if (opts.quiet) {
             console.log([config.w1, config.w2, config.w3, config.w4].join("\t"));
+          } else if (opts.csv) {
+            console.log(formatTable(opts, ["w1", "w2", "w3", "w4"], [[config.w1, config.w2, config.w3, config.w4]]));
           } else {
             console.log(`Weights for "${project.name}": ${weightList(config)}`);
           }

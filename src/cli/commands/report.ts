@@ -36,10 +36,10 @@ export function registerReportCommands(program: Command): void {
         ];
         if (opts.json) {
           console.log(JSON.stringify(summary));
-        } else if (opts.csv) {
-          console.log(formatTable(opts, ["Section", "Name", "Value"], rows));
         } else if (opts.quiet) {
           rows.forEach((r) => console.log(r.join("\t")));
+        } else if (opts.csv) {
+          console.log(formatTable(opts, ["Section", "Name", "Value"], rows));
         } else {
           console.log(`Project: ${project.name}`);
           console.log(`Total tickets: ${summary.totalTickets}`);
@@ -103,10 +103,10 @@ export function registerReportCommands(program: Command): void {
         const metrics: [string, unknown][] = Object.entries(health);
         if (opts.json) {
           console.log(JSON.stringify(health));
-        } else if (opts.csv) {
-          console.log(formatTable(opts, ["Metric", "Value"], metrics));
         } else if (opts.quiet) {
           metrics.forEach(([name, value]) => console.log(`${name}\t${value ?? ""}`));
+        } else if (opts.csv) {
+          console.log(formatTable(opts, ["Metric", "Value"], metrics));
         } else {
           console.log(`Project: ${project.name}`);
           console.log(`Total: ${health.totalTickets} | Done: ${health.doneTickets} | Open: ${health.openTickets}`);

@@ -123,10 +123,10 @@ export function registerProjectCommands(program: Command): void {
         ];
         if (opts.json) {
           console.log(JSON.stringify(diff));
-        } else if (opts.csv) {
-          console.log(formatTable(opts, ["Change", "Ticket", "Detail"], changes));
         } else if (opts.quiet) {
           changes.forEach((c) => console.log(c.join("\t")));
+        } else if (opts.csv) {
+          console.log(formatTable(opts, ["Change", "Ticket", "Detail"], changes));
         } else {
           if (diff.newTickets.length > 0) {
             console.log(`New tickets (${diff.newTickets.length}):`);
