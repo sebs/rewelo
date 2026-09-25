@@ -74,6 +74,22 @@ describe("MCP simulate and explain_priority", () => {
     assert.deepEqual(r.data.target.options.map((o: { dimension: string; to: number }) => [o.dimension, o.to]), [["benefit", 21], ["penalty", 21]]);
   });
 
+  it("scopes simulate and explain_priority to several tags, as calc_priority does", async () => {
+    await call("tag_assign", { project: "Acme", tickets: ["B", "C", "D"], prefix: "team", value: "core" });
+    await call("tag_assign", { project: "Acme", tickets: ["C", "D"], prefix: "area", value: "api" });
+    const sim = await call("simulate", { project: "Acme", tags: ["team:core", "area:api"] });
+    assert.equal(sim.isError, false, sim.text);
+    assert.deepEqual(sim.data.top.map((t: { title: string }) => t.title), ["D", "C"]);
+    const both = await call("simulate", { project: "Acme", tag: "team:core", tags: ["area:api"] });
+    assert.deepEqual(both.data.top.map((t: { title: string }) => t.title), ["D", "C"]);
+
+    const r = await call("explain_priority", { project: "Acme", title: "C", tags: ["team:core", "area:api"] });
+    assert.equal(r.isError, false, r.text);
+    assert.deepEqual([r.data.rank, r.data.of], [2, 2]);
+    const lacks = await call("explain_priority", { project: "Acme", title: "B", tags: ["team:core", "area:api"] });
+    assert.match(lacks.text, /Ticket "B" does not have the tags team:core, area:api/);
+  });
+
   it("says when the ticket lacks the tag it is ranked within", async () => {
     await call("tag_assign", { project: "Acme", ticket: "D", prefix: "team", value: "core" });
     const r = await call("explain_priority", { project: "Acme", title: "C", tag: "team:core" });

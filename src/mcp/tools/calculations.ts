@@ -62,6 +62,7 @@ export function registerCalculationTools(ctx: McpContext): void {
     {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       tag: z.string().optional().describe("Only rank tickets with this tag (prefix:value)"),
+      tags: z.array(z.string()).optional().describe("Only rank tickets with all of these tags (intersection, also with tag). Each as prefix:value"),
       changes: z.array(z.strictObject(scoreChange)).optional().describe("Hypothetical scores for existing tickets; omitted scores stay"),
       add: z.array(z.strictObject(scoreChange)).optional().describe("Hypothetical new tickets; omitted scores are 1"),
       remove: z.array(z.string()).optional().describe("Titles of tickets to leave out"),
@@ -71,10 +72,10 @@ export function registerCalculationTools(ctx: McpContext): void {
       limit: z.number().int().nonnegative().optional().describe("Max number of changed or moved tickets to return (default 100)"),
     },
     READ,
-    safe(({ project, tag, changes, add, remove, weights, top, limit }) => {
+    safe(({ project, tag, tags, changes, add, remove, weights, top, limit }) => {
       for (const t of add ?? []) validateTicketTitle(t.title);
       return withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await ticketsInScope(db, proj.id, tagList(tag));
+        const tickets = await ticketsInScope(db, proj.id, tagList(tag, tags));
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
         return simulate(tickets, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 });
       });
@@ -88,16 +89,18 @@ export function registerCalculationTools(ctx: McpContext): void {
       project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
       title: z.string().describe("Ticket title"),
       tag: z.string().optional().describe("Rank only among tickets with this tag (prefix:value); the ticket must have it"),
+      tags: z.array(z.string()).optional().describe("Rank only among tickets with all of these tags (intersection, also with tag); the ticket must have them. Each as prefix:value"),
       top: z.number().int().positive().optional().describe("The rank to reach (default 1)"),
     },
     READ,
-    safe(({ project, title, tag, top }) =>
+    safe(({ project, title, tag, tags, top }) =>
       withProject(resolveProject(project), async (db, proj) => {
-        const tickets = await ticketsInScope(db, proj.id, tagList(tag));
+        const scope = tagList(tag, tags);
+        const tickets = await ticketsInScope(db, proj.id, scope);
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
-        if (tag !== undefined && !tickets.some((t) => t.title === title)) {
+        if (scope.length > 0 && !tickets.some((t) => t.title === title)) {
           await resolveTicket(db, proj.id, title);
-          throw new AppError(`Ticket "${title}" does not have the tag ${tag}`);
+          throw new AppError(`Ticket "${title}" does not have the tag${scope.length > 1 ? "s" : ""} ${scope.join(", ")}`);
         }
         return explain(tickets, { w1, w2, w3, w4 }, title, top ?? 1);
       })
