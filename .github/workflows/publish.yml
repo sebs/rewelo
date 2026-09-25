@@ -1,12 +1,18 @@
 name: Publish
 
-# Manually publish a released version to the npm registry.
+# Manually publish a released version to the npm registry, then list it in
+# the MCP Registry (registry.modelcontextprotocol.io) as io.github.sebs/rewelo.
 # Authentication uses npm Trusted Publishing (OIDC): GitHub mints a
 # short-lived token for this run and npm checks it against the trusted
-# publisher configured for the package, so no NPM_TOKEN is stored.
+# publisher configured for the package, so no NPM_TOKEN is stored. The MCP
+# Registry takes the same kind of token: it lets this repository's workflows
+# publish under io.github.sebs, with no setup.
 #
 # One-time setup on npmjs.com: package `rewelo` -> Settings -> Trusted
 # Publisher -> GitHub Actions, repository `sebs/rewelo`, workflow `publish.yml`.
+#
+# Run it again if a step after the npm publish failed: a version already on
+# npm is skipped.
 on:
   workflow_dispatch:
     inputs:
@@ -72,6 +78,10 @@ jobs:
       # `npm install rewelo` keeps installing the newest stable version.
       - name: Publish to npm
         run: |
+          if [ -n "$(npm view "rewelo@$VERSION" version 2>/dev/null || true)" ]; then
+            echo "rewelo@$VERSION is on npm already"
+            exit 0
+          fi
           dist_tag=latest
           case "$VERSION" in *-*) dist_tag=next ;; esac
           current="$(npm view rewelo dist-tags.latest 2>/dev/null || true)"
@@ -81,3 +91,31 @@ jobs:
           fi
           echo "Publishing $VERSION under the \"$dist_tag\" dist-tag (latest is ${current:-not set})"
           npm publish --provenance --access public --tag "$dist_tag"
+
+      # The MCP Registry checks that the npm package just published and the
+      # image release.yml pushed both name io.github.sebs/rewelo (mcpName,
+      # and the Dockerfile's label), so this comes last. Versions released
+      # before server.json existed have none and aren't listed.
+      - name: Install mcp-publisher
+        if: hashFiles('server.json') != ''
+        env:
+          MCP_PUBLISHER_VERSION: 1.8.1
+          # From the release's registry_1.8.1_checksums.txt
+          MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+
+      - name: Publish to the MCP Registry
+        if: hashFiles('server.json') != ''
+        run: |
+          ./mcp-publisher login github-oidc
+          # A version just published can take a moment to show on npm
+          for attempt in 1 2 3 4 5; do
+            if ./mcp-publisher publish; then exit 0; fi
+            echo "Attempt $attempt failed; trying again in 30 seconds"
+            sleep 30
+          done
+          exit 1

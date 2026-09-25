@@ -1,0 +1,82 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sebs/rewelo",
+  "title": "rewelo",
+  "description": "Prioritise a backlog with the relative weight method: score, rank, simulate and plan tickets",
+  "websiteUrl": "https://sebs.github.io/rewelo/",
+  "repository": {
+    "url": "https://github.com/sebs/rewelo",
+    "source": "github"
+  },
+  "version": "0.7.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "rewelo",
+      "version": "0.7.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "RW_DB_PATH",
+          "description": "The SQLite database file. Default: relative-weight.db in the working directory",
+          "format": "filepath",
+          "isRequired": false
+        }
+      ]
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/sebs/rewelo:0.7.0",
+      "runtimeHint": "docker",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeArguments": [
+        {
+          "type": "positional",
+          "value": "--init"
+        },
+        {
+          "type": "positional",
+          "value": "--read-only"
+        },
+        {
+          "type": "named",
+          "name": "--cap-drop",
+          "value": "ALL"
+        },
+        {
+          "type": "named",
+          "name": "--tmpfs",
+          "value": "/tmp"
+        },
+        {
+          "type": "named",
+          "name": "--memory",
+          "value": "256m"
+        },
+        {
+          "type": "named",
+          "name": "--volume",
+          "value": "rw-data:/data",
+          "description": "Keeps the database in the rw-data volume across container restarts"
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ]
+    }
+  ]
+}

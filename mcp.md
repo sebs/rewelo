@@ -2,6 +2,8 @@
 
 Rewelo exposes all functionality as an MCP (Model Context Protocol) server over stdio transport. This lets AI assistants like Claude create projects, manage tickets, assign tags, and calculate priorities directly.
 
+From version 0.7.1 on, rewelo is listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.sebs/rewelo` (the entry is [server.json](server.json)), so clients and directories that read the registry can offer it for installation.
+
 Run it from the published Docker image, as configured below (recommended: it runs with dropped capabilities, a read-only filesystem and a memory limit), or with `rw serve` from the npm package (see [Without Docker](#without-docker)).
 
 ## Prerequisites

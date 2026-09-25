@@ -55,6 +55,8 @@ ENV NODE_OPTIONS="--max-old-space-size=192"
 # without --build-arg APP_VERSION it says "unknown" rather than nothing
 ARG APP_VERSION=unknown
 LABEL org.opencontainers.image.version="${APP_VERSION}"
+# The MCP Registry checks that the image belongs to its entry (server.json)
+LABEL io.modelcontextprotocol.server.name="io.github.sebs/rewelo"
 
 # Drop privileges
 USER rw

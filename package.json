@@ -2,6 +2,7 @@
   "name": "rewelo",
   "version": "0.7.0",
   "description": "Prioritisation tool using the relative weight method with SQLite",
+  "mcpName": "io.github.sebs/rewelo",
   "bin": {
     "rw": "dist/index.js"
   },
@@ -11,6 +12,7 @@
     "site": "node site/build.mjs",
     "test": "node --test --enable-source-maps \"build/test/**/*.test.js\"",
     "start": "node dist/index.js",
+    "version": "node scripts/sync-server-json.mjs && git add server.json",
     "pretest": "node scripts/inject-version.mjs && node scripts/generate-prompts.mjs && tsc -p tsconfig.test.json && node -e \"require('node:fs').cpSync('db', 'build/db', { recursive: true })\""
   },
   "files": [
