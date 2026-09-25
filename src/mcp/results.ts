@@ -14,12 +14,16 @@ export const tooLarge = (size: string, max = MAX_RESULT_BYTES) =>
 // document (CSV, JSON export, HTML) goes out as text only.
 export function textResult(data: unknown): { content: Array<{ type: "text"; text: string }>; structuredContent?: Record<string, unknown> } {
   const text = typeof data === "string" ? data : JSON.stringify(data);
-  const bytes = Buffer.byteLength(text, "utf-8");
-  if (bytes > MAX_RESULT_BYTES) throw new AppError(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
   const content = [{ type: "text" as const, text }];
   // An array is valid here: the SDK wraps it as {result: [...]} for the 2025
   // protocol, whose structuredContent must be an object
-  return typeof data === "string" ? { content } : { content, structuredContent: data as Record<string, unknown> };
+  const result = typeof data === "string" ? { content } : { content, structuredContent: data as Record<string, unknown> };
+  // Measured as sent, both copies and the text's escaping: a 5 MB text went
+  // out as a 10.6 MB message, and the SDK's client drops the connection at
+  // 10 MiB (every later call then fails)
+  const bytes = Buffer.byteLength(JSON.stringify(result), "utf-8");
+  if (bytes > MAX_RESULT_BYTES) throw new AppError(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
+  return result;
 }
 
 // A tool result in its final form, such as a link to a resource
