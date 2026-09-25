@@ -4,8 +4,6 @@ import { getProjectByName, Project } from "../projects/repository.js";
 import { AppError } from "../errors.js";
 import { RateLimiter } from "./limits.js";
 
-type Around = <T>(db: DB, fn: (db: DB) => Promise<T>) => Promise<T>;
-
 /**
  * The server's one database connection, shared for its lifetime (which
  * matters for :memory: databases). Calls run their DB work one at a time:
@@ -21,14 +19,15 @@ export class DbSession {
   constructor(
     private readonly dbPath: string,
     private readonly rateLimiter: RateLimiter,
-    /** Runs around every call's DB work (the channel notes the events it wrote) */
-    private readonly around: Around = (db, fn) => fn(db)
+    /** Given the connection once it is open (the channel watches its writes) */
+    private readonly opened: (db: DB) => void = () => {}
   ) {}
 
   private open(): Promise<DB> {
     this.shared ??= DB.open(this.dbPath)
       .then(async (db) => {
         await migrate(db);
+        this.opened(db);
         return db;
       })
       .catch((err) => {
@@ -48,7 +47,7 @@ export class DbSession {
   // rate limit, but waits its turn like a tool call
   queued = async <T>(fn: (db: DB) => Promise<T>): Promise<T> => {
     const db = await this.open();
-    const run = this.queue.then(() => this.around(db, fn));
+    const run = this.queue.then(() => fn(db));
     this.queue = run.catch(() => {});
     return run;
   };

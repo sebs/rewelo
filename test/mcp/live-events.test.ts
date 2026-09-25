@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
 import { DB } from "../../src/db/connection.js";
@@ -111,6 +112,36 @@ describe("MCP live events", () => {
     assert.equal(channelMessages.length, 1, JSON.stringify(channelMessages));
     assert.equal(channelMessages[0].content, 'New ticket "Login page" in Acme (benefit 13, penalty 5, estimate 3, risk 2).');
     assert.deepEqual({ ...channelMessages[0].meta, sequence: undefined }, { project: "Acme", event: "ticket_created", ticket: "Login page", sequence: undefined });
+  });
+
+  it("pushes changes made elsewhere while one of its own calls waited for the lock", async () => {
+    const { client, channelMessages } = await connect(true);
+    await settle();
+
+    // Another process writes two tickets and holds the write lock a while
+    const child = spawn(process.execPath, ["-e", `
+      const { DB } = require(${JSON.stringify(join(__dirname, "../../src/db/connection.js"))});
+      const { createTicket } = require(${JSON.stringify(join(__dirname, "../../src/tickets/repository.js"))});
+      (async () => {
+        const db = await DB.open(${JSON.stringify(path)});
+        await db.exec("BEGIN IMMEDIATE");
+        await createTicket(db, { projectId: 1, title: "Elsewhere 1" });
+        await createTicket(db, { projectId: 1, title: "Elsewhere 2" });
+        process.stdout.write("locked\\n");
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        await db.exec("COMMIT");
+        await db.close();
+      })();
+    `]);
+    await new Promise((resolve) => child.stdout.once("data", resolve));
+    const exited = new Promise((resolve) => child.once("exit", resolve));
+
+    // This call waits for the other process's lock
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "Mine" } });
+    await exited;
+    await until(() => channelMessages.length >= 2);
+
+    assert.deepEqual(channelMessages.map((m) => m.meta.ticket), ["Elsewhere 1", "Elsewhere 2"]);
   });
 
   it("has no channel unless asked for", async () => {

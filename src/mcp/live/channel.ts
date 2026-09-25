@@ -36,16 +36,22 @@ export class Channel {
 
   constructor(private readonly server: McpServer) {}
 
-  // A session hears about changes made elsewhere, not the ones it made itself
-  noteOwnEvents = async <T>(db: DB, fn: (db: DB) => Promise<T>): Promise<T> => {
-    const from = await lastEventSequence(db);
-    try {
-      return await fn(db);
-    } finally {
-      const to = await lastEventSequence(db);
-      if (to > from) this.ownEvents.push([from, to]);
-    }
-  };
+  // A session hears about changes made elsewhere, not the ones it made itself.
+  // Its own are the events its write transactions add: read while the
+  // transaction holds the write lock, so no other process's events fall in
+  // between (read around a whole call, they did while it waited for a lock)
+  attach(db: DB): void {
+    let from = 0;
+    db.observeTransactions({
+      begun: async () => {
+        from = await lastEventSequence(db);
+      },
+      committing: async () => {
+        const to = await lastEventSequence(db);
+        if (to > from) this.ownEvents.push([from, to]);
+      },
+    });
+  }
 
   private message(content: string, meta: Record<string, string>) {
     return this.server.server.notification({ method: "notifications/claude/channel", params: { content, meta } });

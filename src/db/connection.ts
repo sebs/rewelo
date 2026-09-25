@@ -39,8 +39,17 @@ function sqlite<T>(fn: () => T): T {
   }
 }
 
+/** Told about this connection's write transactions (DB.transaction) */
+export interface TransactionObserver {
+  /** The transaction holds the write lock: no other connection writes until it ends */
+  begun?(): Promise<void> | void;
+  /** The transaction's writes are done and it is about to commit */
+  committing?(): Promise<void> | void;
+}
+
 export class DB {
   private db: DatabaseSync;
+  private observers: TransactionObserver[] = [];
 
   private constructor(db: DatabaseSync) {
     this.db = db;
@@ -96,6 +105,10 @@ export class DB {
     sqlite(() => this.prepare(sql).run(...(params as SQLInputValue[])));
   }
 
+  observeTransactions(observer: TransactionObserver): void {
+    this.observers.push(observer);
+  }
+
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     // Nested call: run inside the already open transaction
     if (this.db.isTransaction) return fn();
@@ -105,7 +118,9 @@ export class DB {
     // SQLite then fails at once instead of honouring the busy timeout.
     await this.exec("BEGIN IMMEDIATE");
     try {
+      for (const o of this.observers) await o.begun?.();
       const result = await fn();
+      for (const o of this.observers) await o.committing?.();
       await this.exec("COMMIT");
       return result;
     } catch (err) {
