@@ -15,7 +15,6 @@ const MAX_CONFIG_BYTES = 64 * 1024;
  */
 export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
   let dir = resolve(startDir);
-  const root = dirname(dir) === dir ? dir : undefined; // will hit root naturally
 
   while (true) {
     const candidate = resolve(dir, CONFIG_FILENAME);

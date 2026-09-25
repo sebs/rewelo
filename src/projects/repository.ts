@@ -1,4 +1,4 @@
-import { DB, Row } from "../db/connection.js";
+import { DB } from "../db/connection.js";
 import { ValidationError } from "../errors.js";
 import { normalizeName } from "../text.js";
 

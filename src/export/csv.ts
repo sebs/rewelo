@@ -1,5 +1,5 @@
 import { DB } from "../db/connection.js";
-import { listTickets, Ticket } from "../tickets/repository.js";
+import { listTickets } from "../tickets/repository.js";
 import { getTicketTags } from "../tags/assignment.js";
 import { priority } from "../calculations/priority.js";
 

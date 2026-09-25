@@ -1,5 +1,4 @@
 import { DB } from "../db/connection.js";
-import { getTicketTags } from "../tags/assignment.js";
 import { listRevisions } from "../revisions/repository.js";
 import { getTagChangeLog } from "../tags/audit.js";
 import { listTags } from "../tags/repository.js";

@@ -33,7 +33,7 @@ describe("backlog health report", () => {
 
   it("separates done from open tickets", async () => {
     const t1 = await createTicket(db, { projectId, title: "Done", benefit: 5, penalty: 3, estimate: 3, risk: 2 });
-    const t2 = await createTicket(db, { projectId, title: "Open", benefit: 8, penalty: 5, estimate: 5, risk: 3 });
+    await createTicket(db, { projectId, title: "Open", benefit: 8, penalty: 5, estimate: 5, risk: 3 });
     const done = await createTag(db, projectId, "state", "done");
     await assignTag(db, t1.id, done.id);
 

@@ -64,7 +64,7 @@ describe("ticket revisions", () => {
       risk: 3,
     });
 
-    const updated = await updateTicket(db, projectId, ticket.id, {
+    await updateTicket(db, projectId, ticket.id, {
       benefit: 5,
       penalty: 3,
     });

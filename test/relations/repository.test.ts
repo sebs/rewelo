@@ -10,7 +10,6 @@ import {
   listRelations,
   listProjectRelations,
 } from "../../src/relations/repository.js";
-import { ValidationError } from "../../src/errors.js";
 
 describe("relations repository", () => {
   let db: DB;

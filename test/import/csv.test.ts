@@ -8,7 +8,6 @@ import { listTags } from "../../src/tags/repository.js";
 import { getTicketTags } from "../../src/tags/assignment.js";
 import { importCsv } from "../../src/import/csv.js";
 import { exportCsv } from "../../src/export/csv.js";
-import { ValidationError } from "../../src/errors.js";
 
 describe("CSV import", () => {
   let db: DB;

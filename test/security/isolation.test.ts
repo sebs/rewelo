@@ -11,7 +11,7 @@ import {
   deleteTicket,
 } from "../../src/tickets/repository.js";
 import { createTag, getTagById } from "../../src/tags/repository.js";
-import { assignTag, getTicketTags } from "../../src/tags/assignment.js";
+import { assignTag } from "../../src/tags/assignment.js";
 import { getProjectTimes } from "../../src/calculations/time.js";
 
 describe("multi-project isolation", () => {
