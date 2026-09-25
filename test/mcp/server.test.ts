@@ -56,6 +56,10 @@ describe("MCP server", () => {
     assert.deepEqual(invalid, []);
   });
 
+  it("keeps sprint membership apart from the state in its prompts: state:done replaces a state:sprint", () => {
+    assert.deepEqual(PROMPTS.filter((p) => p.body.includes("state:sprint")).map((p) => p.name), []);
+  });
+
   it("discovers all registered tools", async () => {
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name).sort();

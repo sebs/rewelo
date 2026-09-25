@@ -35,8 +35,8 @@ Top 3 tickets from `state:backlog` by priority that would fit remaining capacity
 
 ## Sprint Health (if applicable)
 
-If tickets are tagged `state:sprint`:
-- Total sprint tickets vs. completed
+If tickets carry a sprint tag (e.g. `sprint:2026-w39`, as plan-sprint assigns), for the current sprint:
+- Total sprint tickets vs. completed (those also tagged `state:done`)
 - Priority-weighted progress: sum of (priority * done) / sum of priority for all sprint tickets
 - Projected completion based on current throughput
 

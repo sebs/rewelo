@@ -72,4 +72,4 @@ Show the w1–w4 values that drove the ranking, so the team knows how priorities
 
 ## Optional
 
-If the user confirms, tag selected tickets with `state:sprint` using `tag_assign`.
+If the user confirms, tag selected tickets with a tag for this sprint, e.g. `sprint:2026-w39`, using `tag_assign`. Sprint membership gets its own prefix: a ticket holds one value per prefix, so a `state:` value for it would be replaced as soon as work on the ticket starts (`state:wip`) or ends (`state:done`).
