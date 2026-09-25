@@ -3,7 +3,7 @@ import { resolve } from "path";
 import { DB } from "./connection.js";
 import { AppError } from "../errors.js";
 import { collapseSpaces, truncate } from "../text.js";
-import { MAX_TICKET_TITLE } from "../validation/strings.js";
+import { MAX_PROJECT_NAME, MAX_TICKET_TITLE, validateProjectName, validateTicketTitle } from "../validation/strings.js";
 
 // Stored in the SQLite header by create.sql ("RWLO"), so we never mistake
 // another application's database for ours.
@@ -145,6 +145,17 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
       await db.run(`UPDATE ticket_revisions SET description = NULL WHERE is_blank(description)`);
     },
   },
+  {
+    // Older versions accepted titles and project names that today's rules
+    // reject (".", newlines, invisible characters, invalid UTF-8, "a  b"
+    // project names): every command worked on them, but their export could
+    // not be imported again. Give them the nearest name the rules accept.
+    version: 11,
+    run: async (db) => {
+      await retitleTickets(db, acceptedTitle);
+      await renameProjects(db);
+    },
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -262,6 +273,57 @@ async function retitleTickets(db: DB, rewrite: (title: string) => string): Promi
       title,
       t.id
     );
+  }
+}
+
+const EMOJI_PARTS = /[\u200C\u200D\uFE00-\uFE0F\u{E0020}-\u{E007F}]/u;
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+// The title as validateTicketTitle would accept it: line breaks and control
+// characters as spaces, invisible and text-direction characters dropped,
+// broken characters as "?"; "" when nothing acceptable is left
+function acceptedTitle(title: string): string {
+  const cleaned = collapseSpaces(
+    title
+      .replace(LONE_SURROGATE, "?")
+      .replace(/\uFFFD/g, "?")
+      .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ")
+      .replace(/[\p{Cf}\p{Default_Ignorable_Code_Point}\u2800]/gu, (c) => (EMOJI_PARTS.test(c) ? c : ""))
+      .normalize("NFC")
+  ).trim();
+  try {
+    validateTicketTitle(truncate(cleaned, MAX_TICKET_TITLE).trimEnd());
+    return cleaned;
+  } catch {
+    return "";
+  }
+}
+
+// Project names as validateProjectName accepts them, numbering clashes
+// ("a-b-2"): accents dropped, other characters as "-", runs of spaces as one
+async function renameProjects(db: DB): Promise<void> {
+  const projects = await db.all<{ id: number; name: string }>("SELECT id, name FROM projects ORDER BY id");
+  const taken = new Set(projects.map((p) => p.name));
+  const fit = (base: string, suffix: string) => truncate(base, MAX_PROJECT_NAME - suffix.length).trimEnd() + suffix;
+  for (const p of projects) {
+    try {
+      if (validateProjectName(p.name) === p.name) continue;
+    } catch {
+      // renamed below
+    }
+    const cleaned = p.name
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^a-zA-Z0-9 _-]+/g, "-")
+      .replace(/ +/g, " ")
+      .trim();
+    // "-" alone would read as an option on the command line
+    const base = /[a-zA-Z0-9]/.test(cleaned) ? cleaned : "Project";
+    let name = fit(base, "");
+    for (let n = 2; taken.has(name); n++) name = fit(base, `-${n}`);
+    taken.delete(p.name);
+    taken.add(name);
+    await db.run("UPDATE projects SET name = ? WHERE id = ?", name, p.id);
   }
 }
 

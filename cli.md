@@ -24,7 +24,7 @@ The CLI is available as `rw` (via `npm link`) or directly with `node dist/index.
 
 An option that takes one value may be given once; `--title A --title B` is an error. Options marked repeatable, such as `--tag`, collect every value.
 
-Only `project create` and `import json` create the database file; other commands report a missing database instead of creating an empty one. The database uses SQLite's write-ahead log, so commands can read while another `rw` process writes; `<name>.db-wal` and `<name>.db-shm` files appear next to the database while it is in use. Back up with `rw export json`, or copy the `.db` file while no `rw` process runs.
+Only `project create` and `import json` create the database file; other commands report a missing database instead of creating an empty one. The database uses SQLite's write-ahead log, so commands can read while another `rw` process writes; `<name>.db-wal` and `<name>.db-shm` files appear next to the database while it is in use. Back up with `rw export json`, or copy the `.db` file while no `rw` process runs. A database from an older rewelo is upgraded when it is first opened. Titles and project names that older versions accepted but today's rules reject (such as `.`, line breaks, invisible characters or `My  Project`) get the nearest accepted name then; a renamed ticket keeps its old title in its history, and a `.rewelo.json` naming a renamed project needs the new name.
 
 ## Commands
 

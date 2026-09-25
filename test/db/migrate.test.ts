@@ -215,6 +215,29 @@ describe("migrate", () => {
     assert.deepEqual(blank.map((r) => r.title), ["Untitled", "Untitled (2)", "Untitled (3)"]);
   });
 
+  it("renames titles and project names that today's rules reject, so their export imports again", async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    await db.exec(`
+      INSERT INTO projects (id, name) VALUES (1, 'My  Project'), (2, 'My Project'), (3, 'Café/Ops'), (4, '..');
+      INSERT INTO tickets (project_id, title) VALUES
+        (1, '.'), (1, '..'), (1, 'line' || char(10) || 'sep'), (1, 'x' || char(8203) || 'y'),
+        (1, 'rtl' || char(8238) || 'txt'), (1, 'bad' || char(65533) || 'utf'), (1, char(8205)),
+        (1, 'fine 👨‍👩‍👧'), (1, 'line sep');
+      PRAGMA user_version = 10;`);
+
+    await migrate(db);
+    const titles = await db.all<{ title: string }>("SELECT title FROM tickets ORDER BY id");
+    assert.deepEqual(titles.map((r) => r.title), [
+      "Untitled", "Untitled (2)", "line sep (2)", "xy", "rtltxt", "bad?utf", "Untitled (3)", "fine 👨‍👩‍👧", "line sep",
+    ]);
+    const projects = await db.all<{ name: string }>("SELECT name FROM projects ORDER BY id");
+    assert.deepEqual(projects.map((r) => r.name), ["My Project-2", "My Project", "Cafe-Ops", "Project"]);
+    // Only the renamed tickets have a revision with their old title
+    const revisions = await db.all<{ title: string }>("SELECT title FROM ticket_revisions ORDER BY id");
+    assert.equal(revisions.length, 7);
+  });
+
   it("doesn't cut an emoji in half when shortening a title", async () => {
     db = await DB.open(":memory:");
     await migrate(db);

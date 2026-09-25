@@ -6,7 +6,7 @@
 import { ValidationError } from "../errors.js";
 import { collapseSpaces } from "../text.js";
 
-const MAX_PROJECT_NAME = 100;
+export const MAX_PROJECT_NAME = 100;
 export const MAX_TICKET_TITLE = 500;
 const MAX_TICKET_DESCRIPTION = 10_000;
 const MAX_TAG_PREFIX = 50;
