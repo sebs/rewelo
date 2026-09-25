@@ -172,7 +172,7 @@ rw import json <file> --project <name>
 
 `import csv` reads the columns written by `export csv`: `title` (required), `description`, `benefit`, `penalty`, `estimate`, `risk` and `tags`; `value`, `cost` and `priority` are ignored. Any other column is an error.
 
-`import json` creates the project if it does not exist yet, and restores relations and weights when the file has them (weights replace the project's current ones). A file written with `--with-history` also restores each ticket's creation and last update time, revisions and tag changes, so lead and cycle times survive a backup and restore. Imports are all-or-nothing: if any row fails, nothing is imported.
+`import json` creates the project if it does not exist yet, and restores relations and weights when the file has them (weights replace the project's current ones). A file written with `--with-history` also restores each ticket's creation and last update time, revisions and tag changes, and the project's deleted tickets, so lead and cycle times, the event log and `project diff` survive a backup and restore. Imports are all-or-nothing: if any row fails, nothing is imported.
 
 ### relation
 

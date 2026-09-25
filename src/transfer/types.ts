@@ -79,3 +79,13 @@ export interface ImportableTicket {
   tags?: TagPair[];
   history?: ImportableHistory;
 }
+
+/** A deleted ticket, in export json --with-history: what the event log and project diff show of it */
+export interface SerializedDeletion {
+  title: string;
+  /** When the deleted ticket was created (null for deletions before schema 5) */
+  createdAt: string | null;
+  deletedAt: string;
+  /** Position in the original write order (event_order) */
+  sequence?: number;
+}

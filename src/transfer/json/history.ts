@@ -9,7 +9,7 @@ import { checkKeys, parseTags } from "./values.js";
 // ticket_revisions and ticket_tag_changes, with sequence and the tag's name now
 const REVISION_KEYS = ["id", "ticket_id", "title", "description", "benefit", "penalty", "estimate", "risk", "tags", "revised_at", "sequence"];
 const TAG_CHANGE_KEYS = ["id", "ticket_id", "tag_id", "action", "prefix", "value", "changed_at", "tag", "sequence"];
-import type { ImportableHistory, ImportableRevision, ImportableTagChange, TagPair } from "../types.js";
+import type { ImportableHistory, ImportableRevision, ImportableTagChange, TagPair, SerializedDeletion } from "../types.js";
 import { hasUnpairedSurrogate, validateTicketDescription } from "../../validation/strings.js";
 import { normalizeSince } from "../../validation/timestamps.js";
 
@@ -163,10 +163,49 @@ export function checkHistory(history: ImportableHistory, tags: TagPair[]): void 
   }
 }
 
-export type PendingHistoryRow = { ticketId: number; sequence?: number; at: string } & (
-  | { revision: ImportableRevision }
-  | { tagChange: ImportableTagChange }
+export type PendingHistoryRow = { sequence?: number; at: string } & (
+  | { ticketId: number; revision: ImportableRevision }
+  | { ticketId: number; tagChange: ImportableTagChange }
+  | { deletion: SerializedDeletion }
 );
+
+const DELETION_KEYS = ["title", "createdAt", "deletedAt", "sequence"];
+
+/** The deleted tickets export json --with-history writes */
+export function parseDeletions(raw: unknown): SerializedDeletion[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const now = new Date(Date.now() + CLOCK_SKEW_MS).toISOString();
+  return list(raw, "deletions").map((d, i) => {
+    const at = `Deletion ${i + 1}`;
+    checkKeys(d, DELETION_KEYS, at);
+    // As a revision's title: written by the rules of its time
+    if (typeof d.title !== "string" || d.title.length === 0 || d.title.includes("\0") || hasUnpairedSurrogate(d.title) || d.title.length > 10_000) {
+      throw new ValidationError(`${at}: title must be a non-empty string without null bytes or unpaired surrogates`);
+    }
+    const deletedAt = timestamp(d.deletedAt, `${at} deletedAt`);
+    const createdAt = d.createdAt === null || d.createdAt === undefined ? null : timestamp(d.createdAt, `${at} createdAt`);
+    if (deletedAt > now) throw new ValidationError(`${at}: deletedAt is in the future`);
+    if (createdAt !== null && createdAt > deletedAt) throw new ValidationError(`${at}: createdAt is after deletedAt`);
+    return { title: d.title, createdAt, deletedAt, ...sequence(d.sequence, at) };
+  });
+}
+
+/** Deleted tickets as history rows, written in their place among the others */
+export const deletionRows = (deletions: SerializedDeletion[]): PendingHistoryRow[] =>
+  deletions.map((deletion) => ({ sequence: deletion.sequence, at: deletion.deletedAt, deletion }));
+
+// A ticket id no ticket has, for a restored deletion: the exporting
+// database's id could be a live ticket's here. AUTOINCREMENT never hands
+// out a deleted row's id again
+async function deletedTicketId(db: DB, projectId: number): Promise<number> {
+  const [{ id }] = await db.all<{ id: number }>(
+    `INSERT INTO tickets (project_id, title) VALUES (?, ?) RETURNING id`,
+    projectId,
+    `import-${Date.now()}-${Math.random()}`
+  );
+  await db.run(`DELETE FROM tickets WHERE id = ?`, id);
+  return id;
+}
 
 // Put back what `export json --with-history` recorded, so lead and cycle
 // times and the event log survive a backup and restore. The creation time is
@@ -220,6 +259,14 @@ export async function writeHistory(db: DB, projectId: number, rows: PendingHisto
       : a.index - b.index)
     .map(({ row }) => row);
   for (const row of sorted) {
+    if ("deletion" in row) {
+      const d = row.deletion;
+      await db.run(
+        `INSERT INTO ticket_deletions (project_id, ticket_id, title, created_at, deleted_at) VALUES (?, ?, ?, ?, ?)`,
+        projectId, await deletedTicketId(db, projectId), d.title, d.createdAt, d.deletedAt
+      );
+      continue;
+    }
     if ("revision" in row) {
       const r = row.revision;
       await db.run(

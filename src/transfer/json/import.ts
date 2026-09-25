@@ -5,10 +5,10 @@ import { createRelation, relationExists } from "../../relations/repository.js";
 import { assignTag } from "../../tags/assignment.js";
 import { ensureTag } from "../../tags/repository.js";
 import { createTicket, getTicketByTitle } from "../../tickets/repository.js";
-import { PendingHistoryRow, prepareHistory, writeHistory } from "./history.js";
+import { deletionRows, parseDeletions, PendingHistoryRow, prepareHistory, writeHistory } from "./history.js";
 import { parseRelations, parseTickets, parseWeights } from "./parse.js";
 import { checkDepth, checkJsonSize, checkKeys, parseTags, safeParseJson } from "./values.js";
-import type { ImportableTicket, SerializedRelation, SerializedWeights, TagPair } from "../types.js";
+import type { ImportableTicket, SerializedRelation, SerializedWeights, TagPair, SerializedDeletion } from "../types.js";
 import { validateProjectName } from "../../validation/strings.js";
 import { setWeights } from "../../weights/repository.js";
 
@@ -17,7 +17,7 @@ export async function importProjectData(
   projectId: number,
   tickets: ImportableTicket[],
   projectTags?: TagPair[],
-  extras: { relations?: SerializedRelation[]; weights?: SerializedWeights } = {}
+  extras: { relations?: SerializedRelation[]; weights?: SerializedWeights; deletions?: SerializedDeletion[] } = {}
 ): Promise<{ imported: number; tagsCreated: number; relationsCreated: number; weights?: SerializedWeights }> {
   return db.transaction(async () => {
     let tagsCreated = 0;
@@ -64,6 +64,7 @@ export async function importProjectData(
 
       if (t.history) history.push(...(await prepareHistory(db, ticket.id, t.history)));
     }
+    history.push(...deletionRows(extras.deletions ?? []));
     tagsCreated += await writeHistory(db, projectId, history);
 
     for (const [i, r] of (extras.relations ?? []).entries()) {
@@ -101,6 +102,7 @@ interface ImportData {
   tags?: TagPair[];
   relations?: SerializedRelation[];
   weights?: SerializedWeights;
+  deletions?: SerializedDeletion[];
 }
 
 function validateImportData(data: unknown): ImportData {
@@ -112,13 +114,14 @@ function validateImportData(data: unknown): ImportData {
   if (!Array.isArray(obj.tickets)) {
     throw new ValidationError("JSON must contain a 'tickets' array");
   }
-  checkKeys(obj, ["tickets", "tags", "relations", "weights"], "JSON");
+  checkKeys(obj, ["tickets", "tags", "relations", "weights", "deletions"], "JSON");
 
   return {
     tickets: parseTickets(obj.tickets),
     tags: parseTags(obj.tags),
     relations: parseRelations(obj.relations),
     weights: parseWeights(obj.weights),
+    deletions: parseDeletions(obj.deletions),
   };
 }
 
@@ -136,6 +139,7 @@ export async function importJson(
   return importProjectData(db, projectId, data.tickets, data.tags, {
     relations: data.relations,
     weights: data.weights,
+    deletions: data.deletions,
   });
 }
 

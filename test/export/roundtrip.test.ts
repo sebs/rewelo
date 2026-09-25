@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
 import { createProject } from "../../src/projects/repository.js";
-import { createTicket, listTickets, updateTicket } from "../../src/tickets/repository.js";
+import { createTicket, deleteTicket, listTickets, updateTicket } from "../../src/tickets/repository.js";
+import { getProjectDiff } from "../../src/reports/diff.js";
 import { getProjectTimes } from "../../src/reports/times.js";
 import { listRevisions } from "../../src/revisions/repository.js";
 import { getTagChangeLog } from "../../src/tags/audit.js";
@@ -133,6 +134,25 @@ describe("round-trip", () => {
       (await getTagChangeLog(db, copy.id)).map((c) => `${c.action} ${c.value}`),
       (await getTagChangeLog(db, t.id)).map((c) => `${c.action} ${c.value}`)
     );
+  });
+
+  it("JSON round-trip with history keeps deleted tickets: in the event log and project diff", async () => {
+    const keep = await createTicket(db, { projectId, title: "Keep" });
+    const gone = await createTicket(db, { projectId, title: "Gone" });
+    await deleteTicket(db, projectId, gone.id);
+    await db.run("UPDATE tickets SET created_at = '2026-01-01T00:00:00.000Z' WHERE id = ?", keep.id);
+    await db.run("UPDATE ticket_deletions SET created_at = '2026-01-02T00:00:00.000Z', deleted_at = '2026-01-05T00:00:00.000Z'");
+
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    const target = await createProject(db, "Target");
+    await importJson(db, target.id, json);
+
+    const deleted = (await getEventLog(db, target.id)).filter((e) => e.type === "ticket_deleted");
+    assert.deepEqual(deleted.map((e) => [e.ticketTitle, e.timestamp]), [["Gone", "2026-01-05T00:00:00.000Z"]]);
+    // Not the id of a ticket that exists
+    assert.equal((await listTickets(db, target.id)).some((t) => t.id === deleted[0].ticketId), false);
+    assert.deepEqual((await getProjectDiff(db, target.id, "2026-01-03")).deletedTickets.map((t) => t.title), ["Gone"]);
+    assert.deepEqual((await getProjectDiff(db, target.id, "2026-01-01")).deletedTickets, []);
   });
 
   it("JSON import rejects malformed history", async () => {

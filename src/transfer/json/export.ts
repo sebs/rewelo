@@ -4,7 +4,7 @@ import { listRevisions } from "../../revisions/repository.js";
 import { getTagChangeLog } from "../../tags/audit.js";
 import { listTags } from "../../tags/repository.js";
 import { jsonChunks } from "./stream.js";
-import type { SerializedProject, SerializedTicket, TagPair } from "../types.js";
+import type { SerializedProject, SerializedTicket, TagPair, SerializedDeletion } from "../types.js";
 import { getWeights } from "../../weights/repository.js";
 
 export async function exportProjectData(
@@ -74,6 +74,8 @@ export interface ExportedTicket extends SerializedTicket {
 
 export type ExportedProject = SerializedProject & {
   tickets: ExportedTicket[];
+  /** With history: the project's deleted tickets */
+  deletions?: SerializedDeletion[];
 };
 
 /**
@@ -97,9 +99,19 @@ async function readProject(
   db: DB,
   projectId: number,
   options: JsonExportOptions
-): Promise<{ data: SerializedProject; tickets: AsyncIterable<ExportedTicket> }> {
-  const data = await exportProjectData(db, projectId);
-  if (!options.withHistory) return { data, tickets: fromArray(data.tickets) };
+): Promise<{ data: SerializedProject & { deletions?: SerializedDeletion[] }; tickets: AsyncIterable<ExportedTicket> }> {
+  const exported = await exportProjectData(db, projectId);
+  if (!options.withHistory) return { data: exported, tickets: fromArray(exported.tickets) };
+
+  // A deleted ticket's history goes with it; the deletion itself is all the
+  // event log and project diff know of it
+  const deletions = (await db.all<{ title: string; created_at: string | null; deleted_at: string; seq: number | null }>(
+    `SELECT d.title, d.created_at, d.deleted_at, eo.seq FROM ticket_deletions d
+     LEFT JOIN event_order eo ON eo.source = 'deletion' AND eo.row_id = d.id
+     WHERE d.project_id = ? ORDER BY d.id`,
+    projectId
+  )).map((d) => ({ title: d.title, createdAt: d.created_at, deletedAt: d.deleted_at, ...(d.seq !== null ? { sequence: d.seq } : {}) }));
+  const data = { ...exported, deletions };
 
   // Only what pairs tickets with their history: all tickets again,
   // descriptions and all, ran the 192 MB heap out of memory
