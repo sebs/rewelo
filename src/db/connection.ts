@@ -1,3 +1,6 @@
+import { accessSync, constants, statSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
 import { AppError } from "../errors.js";
 import { collapseSpaces, isBlank } from "../text.js";
@@ -28,19 +31,50 @@ const STORAGE_ERRORS: Record<number, string> = {
   26: "The database file is corrupted or is not a SQLite database",
 };
 
-function translate(err: unknown): unknown {
+// readOnly: why the database was opened read-only, if it was
+function translate(err: unknown, readOnly?: string): unknown {
   const errcode = (err as { errcode?: unknown })?.errcode;
   if (typeof errcode !== "number") return err;
-  const message = STORAGE_ERRORS[errcode & 0xff];
+  const message = (errcode & 0xff) === 8 && readOnly ? readOnly : STORAGE_ERRORS[errcode & 0xff];
   return message ? new AppError(message) : err;
 }
 
-function sqlite<T>(fn: () => T): T {
+function sqlite<T>(fn: () => T, readOnly?: string): T {
   try {
     return fn();
   } catch (err) {
-    throw translate(err);
+    throw translate(err, readOnly);
   }
+}
+
+const writable = (path: string) => {
+  try {
+    accessSync(path, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * A database file rewelo can't change, or one in a directory it can't
+ * write: why, or undefined. Reading it in WAL mode needs a -shm file next to
+ * it, which SQLite can't create in a read-only directory ("The database file
+ * is read-only" even for project list), and a read-only file left -wal and
+ * -shm behind. No one can change it either, so it is opened immutable,
+ * without them; unless a -wal holds changes, which that would ignore.
+ */
+function readOnlyReason(dbPath: string): string | undefined {
+  try {
+    if (!statSync(dbPath).isFile() || statSync(`${dbPath}-wal`, { throwIfNoEntry: false })?.size) return undefined;
+  } catch {
+    return undefined;
+  }
+  if (!writable(dirname(resolve(dbPath)))) {
+    return `The database's directory ${dirname(resolve(dbPath))} is read-only: rewelo can read the database but not change it`;
+  }
+  if (!writable(dbPath)) return "The database file is read-only";
+  return undefined;
 }
 
 /** Told about this connection's write transactions (DB.transaction) */
@@ -56,15 +90,21 @@ export class DB {
   private observers: TransactionObserver[] = [];
   private waitForLock: ((ms: number) => Promise<void>) | undefined;
 
-  private constructor(db: DatabaseSync) {
+  private constructor(db: DatabaseSync, private readonly readOnly?: string) {
     this.db = db;
+  }
+
+  private sqlite<T>(fn: () => T): T {
+    return sqlite(fn, this.readOnly);
   }
 
   static async open(dbPath: string): Promise<DB> {
     // Wait up to BUSY_TIMEOUT_MS for another process's lock instead of
     // failing at once with "database is locked" (parallel CLI runs).
+    const readOnly = dbPath === ":memory:" ? undefined : readOnlyReason(dbPath);
+    const location = readOnly ? new URL(`${pathToFileURL(resolve(dbPath))}?immutable=1`) : dbPath;
     return sqlite(() => {
-      const db = new DatabaseSync(dbPath, { timeout: BUSY_TIMEOUT_MS });
+      const db = new DatabaseSync(location, { timeout: BUSY_TIMEOUT_MS, readOnly: readOnly !== undefined });
       db.exec("PRAGMA foreign_keys = ON");
       // SQLite's lower() only folds ASCII ("Ä" stays "Ä"); searches need
       // the same Unicode lowercasing that JavaScript applies to the term.
@@ -77,12 +117,12 @@ export class DB {
       );
       // Blank as the app sees it (Unicode spaces too), for migrations
       db.function("is_blank", { deterministic: true }, (s) => (typeof s === "string" && isBlank(s) ? 1 : 0));
-      return new DB(db);
+      return new DB(db, readOnly);
     });
   }
 
   async exec(sql: string): Promise<void> {
-    sqlite(() => this.db.exec(sql));
+    this.sqlite(() => this.db.exec(sql));
   }
 
   // Prepared statements, reused: preparing the same SQL for every row of a
@@ -103,11 +143,11 @@ export class DB {
     sql: string,
     ...params: unknown[]
   ): Promise<T[]> {
-    return sqlite(() => this.prepare(sql).all(...(params as SQLInputValue[])) as T[]);
+    return this.sqlite(() => this.prepare(sql).all(...(params as SQLInputValue[])) as T[]);
   }
 
   async run(sql: string, ...params: unknown[]): Promise<void> {
-    sqlite(() => this.prepare(sql).run(...(params as SQLInputValue[])));
+    this.sqlite(() => this.prepare(sql).run(...(params as SQLInputValue[])));
   }
 
   observeTransactions(observer: TransactionObserver): void {
@@ -136,7 +176,7 @@ export class DB {
         return;
       } catch (err) {
         const errcode = (err as { errcode?: unknown })?.errcode;
-        if (typeof errcode !== "number" || (errcode & 0xff) !== 5 || Date.now() >= deadline) throw translate(err);
+        if (typeof errcode !== "number" || (errcode & 0xff) !== 5 || Date.now() >= deadline) throw translate(err, this.readOnly);
       }
       await this.waitForLock(delay);
     }

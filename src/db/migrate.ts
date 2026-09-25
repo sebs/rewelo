@@ -184,7 +184,7 @@ export async function migrate(db: DB): Promise<void> {
   } catch (err) {
     // An older schema can only be read after upgrading it, which needs write
     // access: say that rather than just "read-only"
-    if (err instanceof AppError && err.message === "The database file is read-only") {
+    if (err instanceof AppError && err.message.includes("is read-only")) {
       const version = await pragma(db, "user_version");
       throw new AppError(
         `The database uses schema version ${version} and is read-only; open it once with write access so rewelo can upgrade it to version ${SCHEMA_VERSION}`

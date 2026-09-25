@@ -1,11 +1,11 @@
 import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DB } from "../../src/db/connection.js";
 import { migrate } from "../../src/db/migrate.js";
-import { createProject } from "../../src/projects/repository.js";
+import { createProject, listProjects } from "../../src/projects/repository.js";
 import { AppError } from "../../src/errors.js";
 
 async function openAndMigrate(path: string): Promise<DB> {
@@ -41,6 +41,29 @@ describe("storage errors", () => {
     } finally {
       await db.close();
       chmodSync(path, 0o644);
+    }
+    // Reading it left no -wal or -shm behind
+    assert.deepEqual(readdirSync(dir).filter((f) => f.startsWith("ro.db")), ["ro.db"]);
+  });
+
+  it("reads a database in a read-only directory, and says why it can't write", { skip: process.getuid?.() === 0 }, async () => {
+    const ro = join(dir, "ro-dir");
+    mkdirSync(ro);
+    const path = join(ro, "x.db");
+    const setup = await openAndMigrate(path);
+    await createProject(setup, "A");
+    await setup.close();
+    chmodSync(ro, 0o555);
+    try {
+      const db = await openAndMigrate(path);
+      try {
+        assert.deepEqual((await listProjects(db)).map((p) => p.name), ["A"]);
+        await assert.rejects(createProject(db, "B"), /The database's directory .*ro-dir is read-only: rewelo can read the database but not change it/);
+      } finally {
+        await db.close();
+      }
+    } finally {
+      chmodSync(ro, 0o755);
     }
   });
 });
