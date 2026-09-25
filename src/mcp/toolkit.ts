@@ -1,0 +1,55 @@
+import type { McpServer, ServerContext, ToolAnnotations } from "@modelcontextprotocol/server";
+import { z } from "zod";
+import { DB } from "../db/connection.js";
+import { getTicketById, getTicketByTitle, Ticket } from "../tickets/repository.js";
+import { AppError } from "../validation/strings.js";
+import type { ReweloConfig } from "../config.js";
+import type { DbSession } from "./session.js";
+
+// What the modules registering tools, prompts and resources share
+
+export interface McpContext {
+  server: McpServer;
+  /** The .rewelo.json found at startup ({} when there is none, or it is broken) */
+  config: ReweloConfig;
+  /** Register a tool: strict input, its output schema, the payload limit, and write tracking */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tool(name: string, description: string, shape: z.ZodRawShape, annotations: ToolAnnotations, handler: (args: any, ctx: ServerContext) => any): void;
+  withDb: DbSession["withDb"];
+  withProject: DbSession["withProject"];
+  /** The project a call names, or the .rewelo.json default */
+  resolveProject(project: string | undefined): string;
+  /** Whether the client can show the user a form (elicitation) */
+  canAskUser(): boolean;
+}
+
+export async function resolveTicket(db: DB, projectId: number, title?: string, id?: number): Promise<Ticket> {
+  if (!title && id === undefined) throw new AppError("Provide either title or id");
+  if (title && id !== undefined) throw new AppError("Provide either title or id, not both");
+  const ticket = id !== undefined
+    ? await getTicketById(db, projectId, id)
+    : await getTicketByTitle(db, projectId, title!);
+  if (!ticket) throw new AppError(title ? `Ticket "${title}" not found` : `Ticket #${id} not found`);
+  return ticket;
+}
+
+// Every tool says what it does to the database, so a client can run the
+// read-only ones without asking and warn before the destructive ones.
+// Nothing reaches outside the local database (openWorldHint false).
+export const READ: ToolAnnotations = { readOnlyHint: true, openWorldHint: false };
+// Only adds data; an existing title or name is an error, not overwritten
+export const ADDS: ToolAnnotations = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+// Overwrites or removes data
+export const CHANGES: ToolAnnotations = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false };
+// As CHANGES, but a repeated call with the same arguments changes nothing more
+export const CHANGES_IDEMPOTENT: ToolAnnotations = { ...CHANGES, idempotentHint: true };
+export const DELETES: ToolAnnotations = CHANGES_IDEMPOTENT;
+
+// The same message as the CLI's, not zod's bare "Invalid input"
+export const fibonacciScore = z.union(
+  [z.literal(1), z.literal(2), z.literal(3), z.literal(5), z.literal(8), z.literal(13), z.literal(21)],
+  { error: (issue) => `must be a Fibonacci value (1, 2, 3, 5, 8, 13, 21), got ${JSON.stringify(issue.input)}` }
+);
+
+// The tag and tags parameters as the one tag list the use cases take
+export const tagList = (tag: string | undefined, tags: string[] = []): string[] => (tag !== undefined ? [tag] : []).concat(tags);
