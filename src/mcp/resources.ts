@@ -1,5 +1,5 @@
 import { ResourceNotFoundError, ResourceTemplate, type Variables } from "@modelcontextprotocol/server";
-import { priority } from "../calculations/priority.js";
+import { cost, priority, value } from "../calculations/priority.js";
 import { rank } from "../calculations/scenario.js";
 import { weightedPriority } from "../calculations/weighted-priority.js";
 import { exportCsv } from "../export/csv.js";
@@ -115,8 +115,8 @@ export function registerResources(ctx: McpContext): void {
             penalty: t.penalty,
             estimate: t.estimate,
             risk: t.risk,
-            value: t.benefit + t.penalty,
-            cost: t.estimate + t.risk,
+            value: value(t),
+            cost: cost(t),
             priority: priority(t),
             weighted: weightedPriority(t, weights),
             tags: tagLabels(await getTicketTags(db, t.id)),

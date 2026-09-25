@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets, getTicketByTitle, Ticket } from "../tickets/repository.js";
-import { byPriority, exactPriority, priority } from "../calculations/priority.js";
+import { byPriority, cost, exactPriority, priority, value } from "../calculations/priority.js";
 import { AppError, ValidationError } from "../errors.js";
 import { parseTag } from "../validation/strings.js";
 
@@ -45,8 +45,8 @@ export async function queryTickets(
 
   let items: TicketView[] = tickets.map((t) => ({
     ...t,
-    value: t.benefit + t.penalty,
-    cost: t.estimate + t.risk,
+    value: value(t),
+    cost: cost(t),
     priority: priority(t),
   }));
 

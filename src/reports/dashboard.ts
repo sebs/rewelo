@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { byPriority, priority } from "../calculations/priority.js";
+import { byPriority, cost, priority, value } from "../calculations/priority.js";
 import { getDistribution } from "./distribution.js";
 import { getBacklogHealth } from "./health.js";
 import { doneTicketIds } from "../workflow/states.js";
@@ -60,8 +60,8 @@ export async function renderDashboard(
       penalty: t.penalty,
       estimate: t.estimate,
       risk: t.risk,
-      value: t.benefit + t.penalty,
-      cost: t.estimate + t.risk,
+      value: value(t),
+      cost: cost(t),
       priority: priority(t),
     }));
 

@@ -1,6 +1,6 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
-import { exactPriority, round2 } from "../calculations/priority.js";
+import { cost, exactPriority, round2 } from "../calculations/priority.js";
 import { doneTicketIds } from "../workflow/states.js";
 
 export interface BacklogHealth {
@@ -35,7 +35,7 @@ export async function getBacklogHealth(
     } else {
       lowCount++;
     }
-    backlogCost += t.estimate + t.risk;
+    backlogCost += cost(t);
   }
 
   const doneCount = doneIds.size;

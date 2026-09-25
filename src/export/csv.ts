@@ -1,7 +1,7 @@
 import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { getProjectTicketTags } from "../tags/assignment.js";
-import { priority } from "../calculations/priority.js";
+import { cost, priority, value } from "../calculations/priority.js";
 
 // Cells whose first character is one of these can be interpreted as a formula
 // by spreadsheet apps (Excel/Sheets), so we neutralise them with a leading
@@ -58,10 +58,7 @@ export async function exportCsv(
       ];
 
       if (options.withCalculations) {
-        const val = ticket.benefit + ticket.penalty;
-        const cost = ticket.estimate + ticket.risk;
-        const prio = priority(ticket);
-        row.push(String(val), String(cost), prio.toFixed(2));
+        row.push(String(value(ticket)), String(cost(ticket)), priority(ticket).toFixed(2));
       }
 
       lines.push(csvRow(row));
