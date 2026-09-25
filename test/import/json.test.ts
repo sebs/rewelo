@@ -61,6 +61,24 @@ describe("JSON import", () => {
     assert.equal(tags[0].value, "backlog");
   });
 
+  it("rejects unknown keys, which would otherwise be dropped silently (a misspelt score, a key in the wrong case)", async () => {
+    const cases: [unknown, RegExp][] = [
+      [{ tickets: [{ title: "a", benfit: 8 }] }, /Ticket 1: unknown key "benfit"/],
+      [{ tickets: [{ title: "a", Estimate: 5 }] }, /Ticket 1: unknown key "Estimate"/],
+      [{ tickets: [{ title: "a", tags: [{ prefix: "state", valu: "wip" }] }] }, /Ticket 1: tag 1: unknown key "valu"/],
+      [{ tickets: [{ title: "a" }], relation: [] }, /unknown key "relation"/],
+      [{ tickets: [{ title: "a" }], relations: [{ source: "a", type: "blocks", target: "b", note: "x" }] }, /Relation 1: unknown key "note"/],
+      [{ tickets: [{ title: "a" }], weights: { w1: 1, w2: 1, w3: 1, w4: 1, w5: 1 } }, /Weights: unknown key "w5"/],
+      [{ tickets: [{ title: "a" }], weights: { W1: 3, w2: 1, w3: 1, w4: 1 } }, /Weights: unknown key "W1"/],
+      [{ tickets: [{ title: "a" }, { title: "b" }], relations: [{ source: "a", type: "blocks", targt: "b" }] }, /Relation 1: unknown key "targt"/],
+      [{ tickets: [{ title: "a", revisions: [{ title: "a", benefit: 1, penalty: 1, estimate: 1, risk: 1, tags: [], revised_at: "2026-01-01", reason: "x" }] }] }, /Ticket 1: revision 1: unknown key "reason"/],
+    ];
+    for (const [data, message] of cases) {
+      await assert.rejects(importJson(db, projectId, JSON.stringify(data)), message, JSON.stringify(data));
+    }
+    assert.equal((await listTickets(db, projectId)).length, 0);
+  });
+
   it("rejects invalid JSON", async () => {
     await assert.rejects(importJson(db, projectId, "not json"), /Invalid JSON/);
   });

@@ -7,7 +7,7 @@ import { ensureTag } from "../../tags/repository.js";
 import { createTicket, getTicketByTitle } from "../../tickets/repository.js";
 import { PendingHistoryRow, prepareHistory, writeHistory } from "./history.js";
 import { parseRelations, parseTickets, parseWeights } from "./parse.js";
-import { checkDepth, checkJsonSize, parseTags, safeParseJson } from "./values.js";
+import { checkDepth, checkJsonSize, checkKeys, parseTags, safeParseJson } from "./values.js";
 import type { ImportableTicket, SerializedRelation, SerializedWeights, TagPair } from "../types.js";
 import { validateProjectName } from "../../validation/strings.js";
 import { setWeights } from "../../weights/repository.js";
@@ -112,6 +112,7 @@ function validateImportData(data: unknown): ImportData {
   if (!Array.isArray(obj.tickets)) {
     throw new ValidationError("JSON must contain a 'tickets' array");
   }
+  checkKeys(obj, ["tickets", "tags", "relations", "weights"], "JSON");
 
   return {
     tickets: parseTickets(obj.tickets),

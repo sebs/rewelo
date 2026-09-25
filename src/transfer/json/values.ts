@@ -1,4 +1,5 @@
 import { prefixErrors, ValidationError } from "../../errors.js";
+import { truncate } from "../../text.js";
 import type { TagPair } from "../types.js";
 import { validateTagPrefix, validateTagValue } from "../../validation/strings.js";
 
@@ -36,6 +37,17 @@ export function safeParseJson(json: string, label: string = "JSON"): unknown {
   }
 }
 
+/**
+ * Only known keys: an unknown one is a mistake the import would otherwise
+ * drop silently (a misspelt score, "Estimate" for "estimate", "relation")
+ */
+export function checkKeys(obj: Record<string, unknown>, known: readonly string[], where: string): void {
+  const unknown = Object.keys(obj).filter((k) => !known.includes(k));
+  if (unknown.length === 0) return;
+  const names = unknown.slice(0, 5).map((k) => JSON.stringify(truncate(k, 50))).join(", ");
+  throw new ValidationError(`${where}: unknown key${unknown.length > 1 ? "s" : ""} ${names} (known: ${known.join(", ")})`);
+}
+
 export function parseTags(raw: unknown, errorPrefix: string = "Tag"): TagPair[] | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (!Array.isArray(raw)) {
@@ -43,6 +55,8 @@ export function parseTags(raw: unknown, errorPrefix: string = "Tag"): TagPair[] 
   }
   return raw.map((tag, i) => {
     const t = tag as Record<string, unknown>;
+    // A misspelt key explains a missing one: name it first
+    if (t && typeof t === "object" && !Array.isArray(t)) checkKeys(t, ["prefix", "value"], `${errorPrefix} ${i + 1}`);
     if (!t || typeof t !== "object" || typeof t.prefix !== "string" || typeof t.value !== "string") {
       throw new ValidationError(
         `${errorPrefix} ${i + 1}: must be an object with string "prefix" and "value"`

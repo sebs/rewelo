@@ -4,7 +4,10 @@ import { prefixErrors, ValidationError } from "../../errors.js";
 import { isValidRelationType } from "../../relations/types.js";
 import { assertOneValuePerPrefix, MAX_TAGS_PER_TICKET } from "../../tags/assignment.js";
 import { checkHistory, parseHistory } from "./history.js";
-import { parseTags } from "./values.js";
+import { checkKeys, parseTags } from "./values.js";
+
+// A ticket's keys in export json, --with-history included
+const TICKET_KEYS = ["title", "description", "benefit", "penalty", "estimate", "risk", "tags", "createdAt", "updatedAt", "revisions", "tagChanges"];
 import type { ImportableTicket, SerializedRelation, SerializedWeights } from "../types.js";
 import { validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 
@@ -23,6 +26,7 @@ export function parseTickets(
       throw new ValidationError(`${errorPrefix} ${i + 1}: must be an object`);
     }
     const at = `${errorPrefix} ${i + 1}`;
+    checkKeys(t, TICKET_KEYS, at);
     const rawTitle = t.title;
     if (typeof rawTitle !== "string" || rawTitle.length === 0) {
       throw new ValidationError(`${at}: title is required`);
@@ -87,6 +91,8 @@ export function parseRelations(raw: unknown): SerializedRelation[] | undefined {
   if (raw.length > 100_000) throw new ValidationError("Exceeds maximum of 100,000 relations");
   return raw.map((rel, i) => {
     const r = rel as Record<string, unknown>;
+    // A misspelt key explains a missing one: name it first
+    if (r && typeof r === "object" && !Array.isArray(r)) checkKeys(r, ["source", "type", "target"], `Relation ${i + 1}`);
     if (!r || typeof r !== "object" || typeof r.source !== "string" || typeof r.type !== "string" || typeof r.target !== "string") {
       throw new ValidationError(`Relation ${i + 1}: must be an object with string "source", "type" and "target"`);
     }
@@ -100,6 +106,7 @@ export function parseRelations(raw: unknown): SerializedRelation[] | undefined {
 export function parseWeights(raw: unknown): SerializedWeights | undefined {
   if (raw === undefined || raw === null) return undefined;
   const w = raw as Record<string, unknown>;
+  if (typeof raw === "object" && !Array.isArray(raw)) checkKeys(w, ["w1", "w2", "w3", "w4"], "Weights");
   if (typeof raw !== "object" || Array.isArray(raw) || [w.w1, w.w2, w.w3, w.w4].some((v) => typeof v !== "number")) {
     throw new ValidationError('Weights must be an object with numeric "w1", "w2", "w3" and "w4"');
   }

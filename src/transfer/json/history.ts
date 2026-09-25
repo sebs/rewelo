@@ -3,7 +3,12 @@ import { assertFibonacci } from "../../domain/scores.js";
 import { ValidationError } from "../../errors.js";
 import { ensureTag } from "../../tags/repository.js";
 import { isBlank } from "../../text.js";
-import { parseTags } from "./values.js";
+import { checkKeys, parseTags } from "./values.js";
+
+// The keys export json --with-history writes (every version): the rows of
+// ticket_revisions and ticket_tag_changes, with sequence and the tag's name now
+const REVISION_KEYS = ["id", "ticket_id", "title", "description", "benefit", "penalty", "estimate", "risk", "tags", "revised_at", "sequence"];
+const TAG_CHANGE_KEYS = ["id", "ticket_id", "tag_id", "action", "prefix", "value", "changed_at", "tag", "sequence"];
 import type { ImportableHistory, ImportableRevision, ImportableTagChange, TagPair } from "../types.js";
 import { validateTicketDescription } from "../../validation/strings.js";
 import { normalizeSince } from "../../validation/timestamps.js";
@@ -42,6 +47,7 @@ export function parseHistory(t: Record<string, unknown>): ImportableHistory | un
   if (t.revisions !== undefined) {
     history.revisions = list(t.revisions, "revisions").map((r, j) => {
       const at = `revision ${j + 1}`;
+      checkKeys(r, REVISION_KEYS, at);
       const score = (name: string) => {
         // As for the ticket's own scores: no coercion from strings
         if (typeof r[name] !== "number") throw new ValidationError(`${at} ${name} must be a number, got ${JSON.stringify(r[name])}`);
@@ -74,6 +80,7 @@ export function parseHistory(t: Record<string, unknown>): ImportableHistory | un
   if (t.tagChanges !== undefined) {
     history.tagChanges = list(t.tagChanges, "tagChanges").map((c, j) => {
       const at = `tag change ${j + 1}`;
+      checkKeys(c, TAG_CHANGE_KEYS, at);
       if (c.action !== "added" && c.action !== "removed") {
         throw new ValidationError(`${at}: action must be "added" or "removed"`);
       }
