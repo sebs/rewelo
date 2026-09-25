@@ -61,11 +61,13 @@ export function registerProjectCommands(program: Command): void {
     .command("delete <name>")
     .description("delete a project and all its data")
     .option("--force", "skip confirmation")
-    .action(async (name: string, cmdOpts: { force?: boolean }, cmd: Command) => {
+    .action(async (given: string, cmdOpts: { force?: boolean }, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       // Check before asking: confirming the deletion of a missing project is pointless
-      const exists = await withDb(opts, async (db) => (await getProjectByName(db, name)) !== undefined);
-      if (!exists) throw new AppError(`Project "${name}" not found`);
+      const project = await withDb(opts, (db) => getProjectByName(db, given));
+      if (!project) throw new AppError(`Project "${given}" not found`);
+      // The name as stored (" Sp " finds Sp), in the prompt and the result
+      const { name } = project;
       if (!cmdOpts.force) {
         if (!process.stdin.isTTY) {
           throw new AppError(`Refusing to delete project "${name}" without confirmation: pass --force when not running interactively`);

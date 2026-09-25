@@ -32,6 +32,13 @@ describe("global output flags (CLI)", () => {
     assert.ok(!priority.includes(" | "));
   });
 
+  it("project delete reports the project's stored name, not the name as typed", () => {
+    rw("project", "create", " Sq ");
+    assert.deepEqual(JSON.parse(rw("--json", "project", "delete", " Sq ", "--force").stdout), { deleted: true, name: "Sq" });
+    rw("project", "create", "Sr");
+    assert.equal(rw("project", "delete", "  Sr", "--force").stdout, 'Deleted project "Sr"\n');
+  });
+
   it("--quiet wins over --csv for every command, as it does over a table", () => {
     rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "A, with comma");
     for (const cmd of [
