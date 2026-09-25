@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getProjectSummary } from "../../reports/summary.js";
 import { groupByTagPrefix } from "../../reports/group.js";
 import { getDistribution } from "../../reports/distribution.js";
-import { getBacklogHealth } from "../../reports/health.js";
+import { getBacklogHealth, highToLowRatioText } from "../../reports/health.js";
 import { getEventLog } from "../../reports/event-log.js";
 import { renderDashboard } from "../../reports/dashboard.js";
 import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from "../../reports/times.js";
@@ -111,13 +111,7 @@ export function registerReportCommands(program: Command): void {
           console.log(`Project: ${project.name}`);
           console.log(`Total: ${health.totalTickets} | Done: ${health.doneTickets} | Open: ${health.openTickets}`);
           console.log(`High priority: ${health.highPriorityCount} | Low priority: ${health.lowPriorityCount}`);
-          const ratioText =
-            health.highToLowRatio !== null
-              ? String(health.highToLowRatio)
-              : health.highPriorityCount > 0
-              ? "n/a (no low-priority tickets)"
-              : "n/a";
-          console.log(`High:Low ratio: ${ratioText}`);
+          console.log(`High:Low ratio: ${highToLowRatioText(health)}`);
           console.log(`Total backlog cost: ${health.totalBacklogCost}`);
         }
       });

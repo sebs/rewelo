@@ -2,7 +2,7 @@ import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { byPriority, cost, priority, value } from "../calculations/priority.js";
 import { getDistribution } from "./distribution.js";
-import { getBacklogHealth } from "./health.js";
+import { getBacklogHealth, highToLowRatioText } from "./health.js";
 import { doneTicketIds } from "../workflow/states.js";
 import { listProjectRelations } from "../relations/repository.js";
 import { getWeights } from "../weights/repository.js";
@@ -102,12 +102,6 @@ export async function renderDashboard(
     )
     .join("");
 
-  const ratioText =
-    health.highToLowRatio !== null
-      ? String(health.highToLowRatio)
-      : health.highPriorityCount > 0
-        ? "n/a (no low-priority tickets)" // same wording as rw report health
-        : "n/a";
 
   const relationRows =
     relations
@@ -172,7 +166,7 @@ ${generated}
   <div class="card"><span class="k">Open</span><span class="v">${health.openTickets}</span></div>
   <div class="card"><span class="k">High priority</span><span class="v">${health.highPriorityCount}</span></div>
   <div class="card"><span class="k">Low priority</span><span class="v">${health.lowPriorityCount}</span></div>
-  <div class="card"><span class="k">High:Low</span><span class="v">${ratioText}</span></div>
+  <div class="card"><span class="k">High:Low</span><span class="v">${highToLowRatioText(health)}</span></div>
   <div class="card"><span class="k">Backlog cost</span><span class="v">${health.totalBacklogCost}</span></div>
 </div>
 

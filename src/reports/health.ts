@@ -13,6 +13,12 @@ export interface BacklogHealth {
   totalBacklogCost: number;
 }
 
+/** The high:low ratio as rw shows it, with why there is none */
+export function highToLowRatioText(health: BacklogHealth): string {
+  if (health.highToLowRatio !== null) return String(health.highToLowRatio);
+  return health.highPriorityCount > 0 ? "n/a (no low-priority tickets)" : "n/a";
+}
+
 export async function getBacklogHealth(
   db: DB,
   projectId: number,
