@@ -1,6 +1,7 @@
 import { round2 } from "./priority.js";
 import { exactWeightedPriority, weightedPriority } from "./weighted-priority.js";
 import { AppError } from "../errors.js";
+import { collapseSpaces, normalizeName } from "../text.js";
 import { validateWeights, withOverrides, type Weights } from "../domain/weights.js";
 import { DIMENSIONS, FIBONACCI, type Dimension, type Scores } from "../domain/scores.js";
 
@@ -98,24 +99,37 @@ export function compareRankings<T extends Scored, K, C extends string>(
   };
 }
 
+/**
+ * The ticket with this title, found as getTicketByTitle finds it: trimmed
+ * and NFC, and with runs of spaces collapsed unless a ticket has the exact form
+ */
+export function findTicket<T extends Scored>(tickets: T[], title: string): T | undefined {
+  const exact = normalizeName(title);
+  return tickets.find((t) => t.title === exact) ?? tickets.find((t) => t.title === collapseSpaces(exact));
+}
+
 export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: Scenario, options: { top: number; limit: number }): ScenarioResult {
   const byTitle = new Map(tickets.map((t) => [t.title, t]));
-  const mustExist = (title: string) => {
-    if (!byTitle.has(title)) throw new AppError(`Ticket "${title}" not found`);
+  // Titles as given, matched to the stored ones
+  const stored = (title: string) => {
+    const ticket = findTicket(tickets, title);
+    if (!ticket) throw new AppError(`Ticket "${title}" not found`);
+    return ticket.title;
   };
-  const removed = new Set(scenario.remove ?? []);
-  removed.forEach(mustExist);
+  const removed = new Set((scenario.remove ?? []).map(stored));
   const changed = new Map<string, Scored>();
   for (const change of scenario.changes ?? []) {
-    mustExist(change.title);
-    if (removed.has(change.title)) throw new AppError(`Ticket "${change.title}" is both changed and removed`);
-    if (changed.has(change.title)) throw new AppError(`Ticket "${change.title}" is changed twice`);
-    changed.set(change.title, { ...byTitle.get(change.title)!, ...definedScores(change) });
+    const title = stored(change.title);
+    if (removed.has(title)) throw new AppError(`Ticket "${change.title}" is both changed and removed`);
+    if (changed.has(title)) throw new AppError(`Ticket "${change.title}" is changed twice`);
+    changed.set(title, { ...byTitle.get(title)!, ...definedScores(change) });
   }
   const added: Scored[] = [];
   for (const t of scenario.add ?? []) {
-    if (byTitle.has(t.title) || added.some((a) => a.title === t.title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
-    added.push({ title: t.title, benefit: 1, penalty: 1, estimate: 1, risk: 1, ...definedScores(t) });
+    // As a new ticket's title is stored
+    const title = collapseSpaces(normalizeName(t.title));
+    if (findTicket(tickets, title) || added.some((a) => a.title === title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
+    added.push({ title, benefit: 1, penalty: 1, estimate: 1, risk: 1, ...definedScores(t) });
   }
   const scenarioWeights = withOverrides(baselineWeights, scenario.weights);
   validateWeights(scenarioWeights);
@@ -161,7 +175,7 @@ export interface Explanation {
 }
 
 export function explain(tickets: Scored[], weights: Weights, title: string, top: number): Explanation {
-  const ticket = tickets.find((t) => t.title === title);
+  const ticket = findTicket(tickets, title);
   if (!ticket) throw new AppError(`Ticket "${title}" not found`);
   const rankOf = (variant: Scored) => rank(tickets.map((t) => (t === ticket ? variant : t)), weights).indexOf(variant) + 1;
   const current = rankOf(ticket);
@@ -192,7 +206,7 @@ export function explain(tickets: Scored[], weights: Weights, title: string, top:
   }
 
   return {
-    title,
+    title: ticket.title,
     scores: { benefit: ticket.benefit, penalty: ticket.penalty, estimate: ticket.estimate, risk: ticket.risk },
     weights,
     weightedValue: round2(weightedValue),

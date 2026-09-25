@@ -1,7 +1,7 @@
 import { inputRequired, inputResponse } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { relativeWeights, ticketsInScope, weightedRanking } from "../../app/priorities.js";
-import { explain, simulate } from "../../calculations/scenario.js";
+import { explain, findTicket, simulate } from "../../calculations/scenario.js";
 import { calibrate, parseSuggestion, scoringPrompt } from "../../reports/calibration.js";
 import { getDistribution } from "../../reports/distribution.js";
 import { listTickets } from "../../tickets/repository.js";
@@ -95,7 +95,7 @@ export function registerCalculationTools(ctx: McpContext): void {
         const scope = tagList(tag, tags);
         const tickets = await ticketsInScope(db, proj.id, scope);
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
-        if (scope.length > 0 && !tickets.some((t) => t.title === title)) {
+        if (scope.length > 0 && !findTicket(tickets, title)) {
           await resolveTicket(db, proj.id, title);
           throw new AppError(`Ticket "${title}" does not have the tag${scope.length > 1 ? "s" : ""} ${scope.join(", ")}`);
         }

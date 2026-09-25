@@ -90,6 +90,16 @@ describe("MCP simulate and explain_priority", () => {
     assert.match(lacks.text, /Ticket "B" does not have the tags team:core, area:api/);
   });
 
+  it("finds tickets by title as the other tools do: trimmed, spaces collapsed", async () => {
+    await call("tag_assign", { project: "Acme", tickets: ["A", "B"], prefix: "team", value: "core" });
+    const explained = await call("explain_priority", { project: "Acme", title: " B ", tags: ["team:core"] });
+    assert.equal(explained.isError, false, explained.text);
+    assert.equal(explained.data.title, "B");
+    const sim = await call("simulate", { project: "Acme", remove: ["A "], changes: [{ title: " C", estimate: 1 }] });
+    assert.equal(sim.isError, false, sim.text);
+    assert.deepEqual(sim.data.tickets.filter((t: { change?: string }) => t.change).map((t: { title: string; change: string }) => [t.title, t.change]), [["C", "scores"], ["A", "removed"]]);
+  });
+
   it("says when the ticket lacks the tag it is ranked within", async () => {
     await call("tag_assign", { project: "Acme", ticket: "D", prefix: "team", value: "core" });
     const r = await call("explain_priority", { project: "Acme", title: "C", tag: "team:core" });
