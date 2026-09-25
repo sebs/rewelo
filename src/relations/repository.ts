@@ -253,14 +253,22 @@ export async function listRelations(
   // An inverse row is an internal mirror: report the id of the relation it
   // mirrors, the one relation_list_all shows
   const forwardOf = new Map(allRelationTypes().map((rt) => [rt.inverse, rt.forward]));
+  const isInverse = (type: string) => !forward.has(type) && !symmetric.has(type);
+  // The rows mirrored are the forward rows pointing at this ticket: all of
+  // them in one query, by source and type, not one query per inverse row
+  const mirrored = new Map<string, number>();
+  if (rows.some((r) => isInverse(r.relation_type))) {
+    const pointing = await db.all<{ id: number; source_id: number; relation_type: string }>(
+      `SELECT id, source_id, relation_type FROM ticket_relations WHERE project_id = ? AND target_id = ?`,
+      projectId,
+      ticketId
+    );
+    for (const m of pointing) mirrored.set(`${m.source_id}:${m.relation_type}`, m.id);
+  }
   const result: RelationView[] = [];
   for (const r of rows) {
     const otherId = r.source_id === ticketId ? r.target_id : r.source_id;
-    let id = r.id;
-    if (!forward.has(r.relation_type) && !symmetric.has(r.relation_type)) {
-      const mirrored = await findRelation(db, projectId, r.target_id, r.source_id, forwardOf.get(r.relation_type)!);
-      if (mirrored) id = mirrored.id;
-    }
+    const id = isInverse(r.relation_type) ? mirrored.get(`${r.target_id}:${forwardOf.get(r.relation_type)}`) ?? r.id : r.id;
     result.push({
       id,
       relation_type: r.relation_type,
