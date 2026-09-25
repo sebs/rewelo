@@ -97,7 +97,7 @@ export async function importProjectData(
   });
 }
 
-interface ImportData {
+export interface ImportData {
   tickets: ImportableTicket[];
   tags?: TagPair[];
   relations?: SerializedRelation[];
@@ -125,17 +125,23 @@ function validateImportData(data: unknown): ImportData {
   };
 }
 
+/** A JSON import's content, read and checked without a database */
+export function parseImportJson(json: string): ImportData {
+  checkJsonSize(json, "JSON");
+  const parsed = safeParseJson(json, "JSON");
+  checkDepth(parsed);
+  return validateImportData(parsed);
+}
+
 export async function importJson(
   db: DB,
   projectId: number,
   json: string
 ): Promise<Awaited<ReturnType<typeof importProjectData>>> {
-  checkJsonSize(json, "JSON");
+  return importData(db, projectId, parseImportJson(json));
+}
 
-  const parsed = safeParseJson(json, "JSON");
-  checkDepth(parsed);
-  const data = validateImportData(parsed);
-
+function importData(db: DB, projectId: number, data: ImportData) {
   return importProjectData(db, projectId, data.tickets, data.tags, {
     relations: data.relations,
     weights: data.weights,
@@ -151,10 +157,19 @@ export async function importJsonAsProject(
   projectName: string,
   json: string
 ): Promise<Awaited<ReturnType<typeof importJson>> & { projectCreated: boolean }> {
+  return importDataAsProject(db, projectName, parseImportJson(json));
+}
+
+/** importJsonAsProject for content parseImportJson has read */
+export async function importDataAsProject(
+  db: DB,
+  projectName: string,
+  data: ImportData
+): Promise<Awaited<ReturnType<typeof importJson>> & { projectCreated: boolean }> {
   return db.transaction(async () => {
     const existing = await getProjectByName(db, projectName);
     const project = existing ?? (await createProject(db, validateProjectName(projectName)));
-    const result = await importJson(db, project.id, json);
+    const result = await importData(db, project.id, data);
     return { ...result, projectCreated: !existing };
   });
 }

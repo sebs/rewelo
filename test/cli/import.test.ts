@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -25,6 +25,17 @@ describe("rw import (CLI)", () => {
     writeFileSync(join(dir, "ok.csv"), "title\nA\n");
     const r = importCsv(join(dir, "ok.csv"));
     assert.ok(r.stdout.includes("Imported 1 ticket\n"));
+  });
+
+  it("leaves no new database behind when import json fails, and names the missing file", () => {
+    writeFileSync(join(dir, "bad.json"), "{");
+    for (const [file, message] of [["nonexist.json", /nonexist\.json does not exist/], ["bad.json", /Invalid JSON/]] as const) {
+      const fresh = join(dir, `fresh-${file}.db`);
+      const r = runCli(["--db", fresh, "import", "json", join(dir, file), "--project", "X"]);
+      assert.equal(r.code, 1, file);
+      assert.match(r.stderr, message, file);
+      assert.equal(existsSync(fresh), false, `${file}: ${fresh} was created`);
+    }
   });
 
   it("says a UTF-16 file is UTF-16, instead of missing columns or invalid JSON", () => {

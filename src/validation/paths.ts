@@ -118,7 +118,7 @@ export function validateImportPath(filePath: string, allowed: string[] = [".json
   try {
     real = realpathSync(resolved);
   } catch {
-    throw new ValidationError("Import file does not exist or is not accessible");
+    throw new ValidationError(`Import file ${filePath} does not exist or is not accessible`);
   }
 
   // Must be a regular file
@@ -129,7 +129,7 @@ export function validateImportPath(filePath: string, allowed: string[] = [".json
     }
   } catch (e) {
     if (e instanceof ValidationError) throw e;
-    throw new ValidationError("Import file does not exist or is not accessible");
+    throw new ValidationError(`Import file ${filePath} does not exist or is not accessible`);
   }
 
   // Both the path as typed and a symlink's target must have an allowed

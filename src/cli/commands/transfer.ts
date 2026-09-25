@@ -3,7 +3,7 @@ import { exportCsv } from "../../transfer/csv/export.js";
 import { writeJsonExport } from "../../transfer/json/export.js";
 import { toFile, toStdout } from "../../transfer/json/stream.js";
 import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "../../transfer/csv/import.js";
-import { importJsonAsProject } from "../../transfer/json/import.js";
+import { importDataAsProject, parseImportJson } from "../../transfer/json/import.js";
 import { MAX_JSON_SIZE_BYTES } from "../../transfer/json/values.js";
 import { validateExportPath, validateImportPath } from "../../validation/paths.js";
 import { describeFsError } from "../../errors.js";
@@ -84,9 +84,11 @@ export function registerTransferCommands(program: Command): void {
     .action(async (file: string, cmdOpts: ProjectOptions, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       const name = resolveProjectName(cmdOpts.project);
+      // Read and check the file before the database is created: a failed
+      // import must not leave a new, empty database behind
+      const data = parseImportJson(readImportFile(validateImportPath(file, [".json"]), MAX_JSON_SIZE_BYTES));
       await withDb(opts, async (db) => {
-        const json = readImportFile(validateImportPath(file, [".json"]), MAX_JSON_SIZE_BYTES);
-        const result = await importJsonAsProject(db, name, json);
+        const result = await importDataAsProject(db, name, data);
         const { relationsCreated: n, weights: w } = result;
         printResult(opts, result, [
           ...(result.projectCreated ? [`Created project "${name}"`] : []),
