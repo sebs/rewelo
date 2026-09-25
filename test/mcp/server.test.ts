@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
+import { PROMPTS } from "../../src/mcp/prompts.generated.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -31,6 +32,13 @@ describe("MCP server", () => {
 
   afterEach(async () => {
     await cleanup();
+  });
+
+  it("doesn't tell models to create a tag before tag_assign, which creates missing tags", async () => {
+    const { tools } = await client.listTools();
+    const texts = [...tools.map((t) => `${t.name}: ${t.description}`), ...PROMPTS.map((p) => `prompt ${p.name}: ${p.body}`)];
+    const stale = texts.filter((t) => /required before using tag_assign|create the tag first/i.test(t));
+    assert.deepEqual(stale.map((t) => t.split(":")[0]), []);
   });
 
   it("discovers all registered tools", async () => {

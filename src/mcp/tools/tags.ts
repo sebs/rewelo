@@ -11,7 +11,7 @@ export function registerTagTools(ctx: McpContext): void {
 
   tool(
     "tag_create",
-    "Create a tag (prefix:value). Required before using tag_assign. Prefix and value must be lowercase alphanumeric/hyphens. Must be unique per project.",
+    "Create a tag (prefix:value) without assigning it; tag_assign creates missing tags itself. Prefix and value must be lowercase alphanumeric/hyphens. Must be unique per project.",
     {
       ...PROJECT_ARG,
       prefix: z.string().describe("Tag prefix"),

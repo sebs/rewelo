@@ -72,4 +72,4 @@ Show the w1–w4 values that drove the ranking, so the team knows how priorities
 
 ## Optional
 
-If the user confirms, tag selected tickets with `state:sprint` using `tag_assign` (create the tag first if it does not exist).
+If the user confirms, tag selected tickets with `state:sprint` using `tag_assign`.
