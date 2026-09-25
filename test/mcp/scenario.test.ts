@@ -66,6 +66,20 @@ describe("MCP simulate and explain_priority", () => {
     assert.equal(title.isError, true);
   });
 
+  it("ranks only the open tickets: a done ticket is no part of what to do next", async () => {
+    await call("tag_assign", { project: "Acme", ticket: "A", tags: [{ prefix: "state", value: "done" }] });
+    const explained = await call("explain_priority", { project: "Acme", title: "B" });
+    assert.equal(explained.isError, false, explained.text);
+    assert.deepEqual([explained.data.rank, explained.data.of, explained.data.target.reached], [1, 3, true]);
+    const simulated = await call("simulate", { project: "Acme" });
+    assert.deepEqual(simulated.data.top.map((t: { title: string }) => t.title), ["B", "D", "C"]);
+    for (const [name, args] of [["explain_priority", { title: "A" }], ["simulate", { remove: ["A"] }], ["simulate", { changes: [{ title: "A", risk: 5 }] }]] as const) {
+      const r = await call(name, { project: "Acme", ...args });
+      assert.equal(r.isError, true, name);
+      assert.match(r.text, /Ticket "A" is done \(state:done\); only open tickets are ranked/);
+    }
+  });
+
   it("explains a priority and what it takes to reach the top 2", async () => {
     const r = await call("explain_priority", { project: "Acme", title: "C", top: 2 });
     assert.equal(r.isError, false, r.text);

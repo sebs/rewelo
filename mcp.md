@@ -206,7 +206,7 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 
 `suggest_scores` helps score a new ticket relative to the project's own backlog before `ticket_create`. For a title (and description) it returns the most similar existing tickets with their scores, possible duplicates; for each dimension and each Fibonacci score, the existing ticket closest to the new one, as a reference point ("Login page has estimate 5"); and the project's score distribution. With `sample: true`, and when the client supports MCP sampling, it also asks the client's model for scores and returns them as `suggestion` (`sampling` says whether that worked: `used`, `unsupported` or `failed`). Claude Code doesn't support sampling; there, the calling model scores from the references itself.
 
-`simulate` and `explain_priority` rank as `calc_priority` does: by weighted priority, with the project's weights. They do the arithmetic on the server, so a model doesn't recalculate priorities itself:
+`simulate` and `explain_priority` rank as `calc_priority` does: by weighted priority, with the project's weights. They rank the open tickets only, as the backlog resource does: a ticket tagged `state:done` is no part of what to do next, and naming one is an error. They do the arithmetic on the server, so a model doesn't recalculate priorities itself:
 
 ```json
 // What if C were estimated 1 instead of 5, a new ticket came in, and A were dropped?

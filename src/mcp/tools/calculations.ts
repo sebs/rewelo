@@ -11,12 +11,22 @@ import { listTickets } from "../../tickets/repository.js";
 import { AppError } from "../../errors.js";
 import { parseTag, validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 import { getWeights } from "../../weights/repository.js";
+import { doneTicketIds } from "../../workflow/states.js";
 import { fibonacciScore, READ, resolveTicket, tagList, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
+// What-if questions are about what to do next: done tickets take no part
+// in the ranking, as in the backlog resource, the summary and the dashboard
+async function openInScope(db: DB, projectId: number, scope: string[]): Promise<{ open: Ticket[]; done: Ticket[] }> {
+  const tickets = await ticketsInScope(db, projectId, scope);
+  const doneIds = await doneTicketIds(db, projectId);
+  return { open: tickets.filter((t) => !doneIds.has(t.id)), done: tickets.filter((t) => doneIds.has(t.id)) };
+}
+
 // A ticket the tools rank within a tag scope: one outside it that exists
-// is outside the scope, not "not found"
-async function requireInScope(db: DB, projectId: number, tickets: Ticket[], title: string, scope: string[]): Promise<void> {
-  if (scope.length === 0 || findTicket(tickets, title)) return;
+// is outside the scope, not "not found", and a done one is done
+async function requireInScope(db: DB, projectId: number, { open, done }: { open: Ticket[]; done: Ticket[] }, title: string, scope: string[]): Promise<void> {
+  if (findTicket(done, title)) throw new AppError(`Ticket "${title}" is done (state:done); only open tickets are ranked`);
+  if (scope.length === 0 || findTicket(open, title)) return;
   const ticket = await resolveTicket(db, projectId, title); // not found
   // The scope tags it lacks, not the ones it has
   const held = new Set((await getTicketTags(db, ticket.id)).map((t) => `${t.prefix}:${t.value}`));
@@ -69,7 +79,7 @@ export function registerCalculationTools(ctx: McpContext): void {
 
   tool(
     "simulate",
-    "What-if: rank the tickets as calc_priority does, under hypothetical score changes, new or removed tickets and weights, and compare with the current ranking. Nothing is written; use ticket_update to apply a scenario. Returns the scenario's top tickets and every ticket that is changed, added, removed or moves, with its rank and priority before and after.",
+    "What-if: rank the open tickets (not state:done) as calc_priority does, under hypothetical score changes, new or removed tickets and weights, and compare with the current ranking. Nothing is written; use ticket_update to apply a scenario. Returns the scenario's top tickets and every ticket that is changed, added, removed or moves, with its rank and priority before and after.",
     {
       ...PROJECT_ARG,
       tag: z.string().optional().describe("Only rank tickets with this tag (prefix:value)"),
@@ -87,19 +97,19 @@ export function registerCalculationTools(ctx: McpContext): void {
       for (const t of add ?? []) validateTicketTitle(t.title);
       return inProject(project, async (db, proj) => {
         const scope = tagList(tag, tags);
-        const tickets = await ticketsInScope(db, proj.id, scope);
+        const tickets = await openInScope(db, proj.id, scope);
         for (const title of [...(remove ?? []), ...(changes ?? []).map((c: { title: string }) => c.title)]) {
           await requireInScope(db, proj.id, tickets, title, scope);
         }
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
-        return simulate(tickets, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 });
+        return simulate(tickets.open, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 });
       });
     }
   );
 
   tool(
     "explain_priority",
-    "Explain one ticket's priority: the formula with its scores and the project's weights, its rank as calc_priority ranks, and what it would take to reach the top N: the priority to beat, and the smallest change of each single score that gets there.",
+    "Explain one ticket's priority: the formula with its scores and the project's weights, its rank among the open tickets (not state:done) as calc_priority ranks, and what it would take to reach the top N: the priority to beat, and the smallest change of each single score that gets there.",
     {
       ...PROJECT_ARG,
       title: z.string().describe("Ticket title"),
@@ -111,10 +121,10 @@ export function registerCalculationTools(ctx: McpContext): void {
     ({ project, title, tag, tags, top }) =>
       inProject(project, async (db, proj) => {
         const scope = tagList(tag, tags);
-        const tickets = await ticketsInScope(db, proj.id, scope);
+        const tickets = await openInScope(db, proj.id, scope);
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
         await requireInScope(db, proj.id, tickets, title, scope);
-        return explain(tickets, { w1, w2, w3, w4 }, title, top ?? 1);
+        return explain(tickets.open, { w1, w2, w3, w4 }, title, top ?? 1);
       })
   );
 
