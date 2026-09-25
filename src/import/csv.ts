@@ -3,7 +3,7 @@ import { createTicket } from "../tickets/repository.js";
 import { ensureTag } from "../tags/repository.js";
 import { assertOneValuePerPrefix, assignTag, MAX_TAGS_PER_TICKET } from "../tags/assignment.js";
 import { assertScores } from "../domain/scores.js";
-import { ValidationError } from "../errors.js";
+import { prefixErrors, prefixValidationErrors, ValidationError } from "../errors.js";
 import { parseTagPair, validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { TagPair } from "../serialization/export-project.js";
 
@@ -161,28 +161,26 @@ function parseRows(csv: string): CsvRow[] {
       row[h] = h === "title" || h === "description" ? field : field.trim();
     });
 
-    let benefit: number, penalty: number, estimate: number, risk: number;
-    try {
-      benefit = parseScore(row.benefit, "benefit");
-      penalty = parseScore(row.penalty, "penalty");
-      estimate = parseScore(row.estimate, "estimate");
-      risk = parseScore(row.risk, "risk");
-      assertScores({ benefit, penalty, estimate, risk });
-    } catch (e) {
-      throw new ValidationError(`Row ${rowNumber}: ${(e as Error).message}`);
-    }
+    const at = `Row ${rowNumber}`;
+    const { benefit, penalty, estimate, risk } = prefixErrors(at, () => {
+      const scores = {
+        benefit: parseScore(row.benefit, "benefit"),
+        penalty: parseScore(row.penalty, "penalty"),
+        estimate: parseScore(row.estimate, "estimate"),
+        risk: parseScore(row.risk, "risk"),
+      };
+      assertScores(scores);
+      return scores;
+    });
 
-    let title: string;
-    try {
-      title = validateTicketTitle(stripCsvFormulaGuard(row.title ?? ""));
+    const title = prefixErrors(at, () => {
+      const valid = validateTicketTitle(stripCsvFormulaGuard(row.title ?? ""));
       validateTicketDescription(stripCsvFormulaGuard(row.description ?? ""));
-    } catch (e) {
-      throw new ValidationError(`Row ${rowNumber}: ${(e as Error).message}`);
-    }
+      return valid;
+    });
 
-    let tags: TagPair[];
-    try {
-      tags = (row.tags ?? "")
+    const tags: TagPair[] = prefixErrors(at, () => {
+      const pairs = (row.tags ?? "")
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean)
@@ -190,11 +188,10 @@ function parseRows(csv: string): CsvRow[] {
           const { prefix, value } = parseTagPair(raw);
           return { prefix: validateTagPrefix(prefix), value: validateTagValue(value) };
         });
-      if (tags.length > MAX_TAGS_PER_TICKET) throw new ValidationError(`at most ${MAX_TAGS_PER_TICKET} tags per ticket`);
-      assertOneValuePerPrefix(tags);
-    } catch (e) {
-      throw new ValidationError(`Row ${rowNumber}: ${(e as Error).message}`);
-    }
+      if (pairs.length > MAX_TAGS_PER_TICKET) throw new ValidationError(`at most ${MAX_TAGS_PER_TICKET} tags per ticket`);
+      assertOneValuePerPrefix(pairs);
+      return pairs;
+    });
 
     rows.push({
       row: rowNumber,
@@ -232,9 +229,9 @@ export async function importCsv(
         throw new ValidationError(`Row ${row.row}: title "${row.title}" is the same as row ${earlier}'s`);
       }
       firstRow.set(row.title, row.row);
-      let ticket;
-      try {
-        ticket = await createTicket(db, {
+      // e.g. a title already taken, in the project or earlier in the file
+      const ticket = await prefixValidationErrors(`Row ${row.row}`, () =>
+        createTicket(db, {
           projectId,
           title: row.title,
           description: row.description || undefined,
@@ -242,12 +239,8 @@ export async function importCsv(
           penalty: row.penalty,
           estimate: row.estimate,
           risk: row.risk,
-        });
-      } catch (e) {
-        // e.g. a title already taken, in the project or earlier in the file
-        if (e instanceof ValidationError) throw new ValidationError(`Row ${row.row}: ${e.message}`);
-        throw e;
-      }
+        })
+      );
 
       for (const { prefix, value } of row.tags) {
         const { tag } = await ensureTag(db, projectId, prefix, value);

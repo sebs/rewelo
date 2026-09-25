@@ -5,7 +5,7 @@ import { assignTag } from "../tags/assignment.js";
 import { createRelation, relationExists } from "../relations/repository.js";
 import { setWeights } from "../weights/repository.js";
 import { getTicketByTitle } from "../tickets/repository.js";
-import { ValidationError } from "../errors.js";
+import { prefixValidationErrors, ValidationError } from "../errors.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
 
 export interface ImportableRevision {
@@ -83,9 +83,9 @@ export async function importProjectData(
         throw new ValidationError(`Ticket ${i + 1}: title "${t.title}" is the same as ticket ${earlier + 1}'s`);
       }
       firstTicket.set(t.title, i);
-      let ticket;
-      try {
-        ticket = await createTicket(db, {
+      // e.g. a title already taken, in the project or earlier in the file
+      const ticket = await prefixValidationErrors(`Ticket ${i + 1}`, () =>
+        createTicket(db, {
           projectId,
           title: t.title,
           description: t.description ?? undefined,
@@ -93,12 +93,8 @@ export async function importProjectData(
           penalty: t.penalty,
           estimate: t.estimate,
           risk: t.risk,
-        });
-      } catch (e) {
-        // e.g. a title already taken, in the project or earlier in the file
-        if (e instanceof ValidationError) throw new ValidationError(`Ticket ${i + 1}: ${e.message}`);
-        throw e;
-      }
+        })
+      );
 
       if (t.tags) {
         for (const tagDef of t.tags) {
@@ -120,15 +116,10 @@ export async function importProjectData(
       }
       // A relation the project has already is kept, not an error
       const exists = await relationExists(db, projectId, source.id, target.id, r.type);
-      try {
-        if (!exists) {
-          await createRelation(db, projectId, source.id, target.id, r.type);
-          relationsCreated++;
-        }
-      } catch (e) {
+      if (!exists) {
         // e.g. a self-relation, or one contradicting an earlier relation
-        if (e instanceof ValidationError) throw new ValidationError(`Relation ${i + 1}: ${e.message}`);
-        throw e;
+        await prefixValidationErrors(`Relation ${i + 1}`, () => createRelation(db, projectId, source.id, target.id, r.type));
+        relationsCreated++;
       }
     }
 

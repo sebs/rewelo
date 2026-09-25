@@ -1,5 +1,5 @@
 import { assertFibonacci, assertScores } from "../domain/scores.js";
-import { ValidationError } from "../errors.js";
+import { prefixErrors, ValidationError } from "../errors.js";
 import { isBlank } from "../text.js";
 import { validateTagPrefix, validateTagValue, validateTicketDescription, validateTicketTitle } from "../validation/strings.js";
 import type { SerializedRelation, SerializedWeights, TagPair } from "./export-project.js";
@@ -52,11 +52,8 @@ export function parseTags(raw: unknown, errorPrefix: string = "Tag"): TagPair[] 
         `${errorPrefix} ${i + 1}: must be an object with string "prefix" and "value"`
       );
     }
-    try {
-      return { prefix: validateTagPrefix(t.prefix), value: validateTagValue(t.value) };
-    } catch (e) {
-      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
-    }
+    const { prefix, value } = t;
+    return prefixErrors(`${errorPrefix} ${i + 1}`, () => ({ prefix: validateTagPrefix(prefix), value: validateTagValue(value) }));
   });
 }
 
@@ -74,56 +71,47 @@ export function parseTickets(
     if (!t || typeof t !== "object") {
       throw new ValidationError(`${errorPrefix} ${i + 1}: must be an object`);
     }
-    if (typeof t.title !== "string" || t.title.length === 0) {
-      throw new ValidationError(`${errorPrefix} ${i + 1}: title is required`);
+    const at = `${errorPrefix} ${i + 1}`;
+    const rawTitle = t.title;
+    if (typeof rawTitle !== "string" || rawTitle.length === 0) {
+      throw new ValidationError(`${at}: title is required`);
     }
 
     // Missing scores default to 1, as in CSV import and ticket create.
     // Anything else must be a JSON number: Number() would read true as 1,
     // "5" and [3] as numbers and "0x5" as 5.
-    let benefit: number, penalty: number, estimate: number, risk: number;
-    try {
+    const { benefit, penalty, estimate, risk } = prefixErrors(at, () => {
       const score = (field: string) => {
         const v = t[field];
         if (v === undefined || v === null) return 1;
         if (typeof v !== "number") throw new ValidationError(`${field} must be a number, got ${JSON.stringify(v)}`);
         return v;
       };
-      benefit = score("benefit");
-      penalty = score("penalty");
-      estimate = score("estimate");
-      risk = score("risk");
-      assertScores({ benefit, penalty, estimate, risk });
-    } catch (e) {
-      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
-    }
+      const scores = { benefit: score("benefit"), penalty: score("penalty"), estimate: score("estimate"), risk: score("risk") };
+      assertScores(scores);
+      return scores;
+    });
 
-    const tags = parseTags(t.tags, `${errorPrefix} ${i + 1}: tag`);
-    try {
+    const tags = parseTags(t.tags, `${at}: tag`);
+    prefixErrors(at, () => {
       if (tags && tags.length > MAX_TAGS_PER_TICKET) throw new ValidationError(`at most ${MAX_TAGS_PER_TICKET} tags per ticket`);
       if (tags) assertOneValuePerPrefix(tags);
-    } catch (e) {
-      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
-    }
+    });
 
-    let title: string;
-    try {
-      title = validateTicketTitle(t.title);
+    const title = prefixErrors(at, () => {
+      const valid = validateTicketTitle(rawTitle);
       if (t.description !== undefined && t.description !== null && typeof t.description !== "string") {
         throw new ValidationError(`description must be a string, got ${JSON.stringify(t.description)}`);
       }
       if (typeof t.description === "string") validateTicketDescription(t.description);
-    } catch (e) {
-      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
-    }
+      return valid;
+    });
 
-    let history: ImportableHistory | undefined;
-    try {
-      history = parseHistory(t);
-      if (history) checkHistory(history, tags ?? []);
-    } catch (e) {
-      throw new ValidationError(`${errorPrefix} ${i + 1}: ${(e as Error).message}`);
-    }
+    const history = prefixErrors(at, () => {
+      const parsed = parseHistory(t);
+      if (parsed) checkHistory(parsed, tags ?? []);
+      return parsed;
+    });
 
     tickets.push({
       title,
@@ -165,11 +153,7 @@ export function parseWeights(raw: unknown): SerializedWeights | undefined {
     throw new ValidationError('Weights must be an object with numeric "w1", "w2", "w3" and "w4"');
   }
   const weights = { w1: w.w1 as number, w2: w.w2 as number, w3: w.w3 as number, w4: w.w4 as number };
-  try {
-    validateWeights(weights);
-  } catch (e) {
-    throw new ValidationError(`Weights: ${(e as Error).message}`);
-  }
+  prefixErrors("Weights", () => validateWeights(weights));
   return weights;
 }
 

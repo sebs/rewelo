@@ -34,6 +34,32 @@ export function describeFsError(err: unknown, action: "read" | "write", path: st
   return problem ? new AppError(`Cannot ${action} ${path}: ${problem.toLowerCase()}`) : (err as Error);
 }
 
+/**
+ * fn's result; any error it throws becomes a ValidationError with where in
+ * front of its message ("Row 3: benefit must be ..."): for checking input.
+ */
+export function prefixErrors<T>(where: string, fn: () => T): T {
+  try {
+    return fn();
+  } catch (e) {
+    throw new ValidationError(`${where}: ${(e as Error).message}`);
+  }
+}
+
+/**
+ * fn's result; a ValidationError it throws gets where in front of its
+ * message, anything else passes on as it is: for writes, where a failing
+ * database must not pass for bad input.
+ */
+export async function prefixValidationErrors<T>(where: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof ValidationError) throw new ValidationError(`${where}: ${e.message}`);
+    throw e;
+  }
+}
+
 export function sanitizeError(err: unknown): string {
   // AppError (and its subclass ValidationError) carry user-safe messages
   if (err instanceof AppError) {
