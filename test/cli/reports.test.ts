@@ -20,6 +20,10 @@ describe("rw report (CLI)", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  it("report group names the prefix it searched for when it finds nothing", () => {
+    assert.equal(rw("report", "group", "--project", "P", "--prefix", " Nope ").stdout, 'No tickets with "nope:" tags found.\n');
+  });
+
   it("summary heads the top list with the number of tickets shown", () => {
     rw("ticket", "create", "--project", "P", "--title", "A");
     rw("ticket", "create", "--project", "P", "--title", "B");

@@ -63,9 +63,11 @@ export function registerReportCommands(program: Command): void {
     .action(async (cmdOpts: ProjectOptions & { prefix: string }, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       await withProject(opts, cmdOpts.project, async (db, project) => {
-        printRows(opts, await groupByTagPrefix(db, project.id, validateTagPrefix(cmdOpts.prefix)), {
+        // The prefix as it is stored and searched: trimmed, lowercase
+        const prefix = validateTagPrefix(cmdOpts.prefix);
+        printRows(opts, await groupByTagPrefix(db, project.id, prefix), {
           quiet: (g) => `${g.value}\t${g.ticketCount}\t${g.averagePriority.toFixed(2)}`,
-          empty: `No tickets with "${cmdOpts.prefix}:" tags found.`,
+          empty: `No tickets with "${prefix}:" tags found.`,
           headers: ["Value", "Tickets", "Avg Priority"],
           row: (g) => [g.value, String(g.ticketCount), g.averagePriority.toFixed(2)],
         });
