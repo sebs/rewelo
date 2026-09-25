@@ -62,6 +62,8 @@ const weights = z.object({
 
 const deleted = z.object({ deleted: z.literal(true) });
 
+const weightValues = z.object({ w1: z.number(), w2: z.number(), w3: z.number(), w4: z.number() });
+
 export const outputSchemas = {
   server_version: z.object({ version: z.string() }),
 
@@ -114,6 +116,46 @@ export const outputSchemas = {
     relativeEstimate: z.number(),
     relativeRisk: z.number(),
   })),
+
+  simulate: z.object({
+    baselineWeights: weightValues,
+    scenarioWeights: weightValues,
+    total: z.number().int().describe("Tickets in the scenario's ranking"),
+    moved: z.number().int().describe("Tickets whose rank changed, not counting added and removed ones"),
+    top: z.array(z.object({ rank: z.number().int(), title: z.string(), priority: z.number() })),
+    tickets: z.array(z.object({
+      title: z.string(),
+      baselineRank: z.number().int().nullable(),
+      scenarioRank: z.number().int().nullable(),
+      rankChange: z.number().int().nullable().describe("Positions moved up (negative: down); null for added and removed tickets"),
+      baselinePriority: z.number().nullable(),
+      scenarioPriority: z.number().nullable(),
+      change: z.enum(["scores", "added", "removed"]).optional().describe("How the scenario touches this ticket itself"),
+    })),
+  }),
+  explain_priority: z.object({
+    title: z.string(),
+    scores: z.object({ benefit: score, penalty: score, estimate: score, risk: score }),
+    weights: weightValues,
+    weightedValue: z.number().describe("w1 × benefit + w2 × penalty"),
+    weightedCost: z.number().describe("w3 × estimate + w4 × risk"),
+    formula: z.string(),
+    priority: z.number(),
+    rank: z.number().int(),
+    of: z.number().int(),
+    target: z.object({
+      top: z.number().int(),
+      reached: z.boolean(),
+      priorityToBeat: z.number().nullable().describe("Priority of the ticket holding that rank now"),
+      options: z.array(z.object({
+        dimension: z.enum(["benefit", "penalty", "estimate", "risk"]),
+        from: score,
+        to: score,
+        priority: z.number(),
+        rank: z.number().int(),
+      })).describe("The smallest change of one score that reaches the rank, per score where one does"),
+    }),
+  }),
 
   report_summary: z.object({
     totalTickets: z.number().int(),
@@ -177,7 +219,7 @@ export const outputSchemas = {
     imported: z.number().int(),
     tagsCreated: z.number().int(),
     relationsCreated: z.number().int(),
-    weights: z.object({ w1: z.number(), w2: z.number(), w3: z.number(), w4: z.number() }).optional()
+    weights: weightValues.optional()
       .describe("The file's weights, which replaced the project's"),
     projectCreated: z.boolean(),
   }),

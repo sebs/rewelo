@@ -43,6 +43,8 @@ Feature: MCP Server
       | weight_reset          |
       | calc_priority         |
       | calc_weights          |
+      | simulate              |
+      | explain_priority      |
       | report_summary        |
       | report_times          |
       | report_health         |
@@ -89,6 +91,21 @@ Feature: MCP Server
     Given a project "Acme" exists with tickets
     When a client calls "calc_priority" with project "Acme"
     Then the response should contain tickets with their calculated priorities
+
+  # -- What-if --
+
+  Scenario: Simulate a change without writing it
+    Given a project "Acme" with tickets A (3.67), B (2), D (1.5) and C (0.63)
+    When a client calls "simulate" with C's estimate and risk changed to 1
+    Then the response should rank C second, up 2, and B and D each down 1
+    And the tickets in the database should be unchanged
+
+  Scenario: Explain what it takes to reach the top
+    Given a project "Acme" with tickets A (3.67), B (2), D (1.5) and C (0.63)
+    When a client calls "explain_priority" for C with top 2
+    Then the response should show "(1.5 × 3 + 1.5 × 2) / (1.5 × 5 + 1.5 × 3) = 7.5 / 12 = 0.63"
+    And rank 4 of 4, with priority 2 to beat
+    And that benefit 21 or penalty 21 would reach rank 2, and no single estimate or risk change would
 
   # -- Questions to the user (elicitation) --
 

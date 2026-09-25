@@ -198,6 +198,19 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 |-------------------|------------------------------------|-------------------------------------------|
 | `calc_priority`   | Weighted priorities for all tickets, or those with a tag | `project?`, `tag?`, `w1?`, `w2?`, `w3?`, `w4?` |
 | `calc_weights`    | Relative weights as share of total (fraction 0–1) | `project?`, `tag?`                      |
+| `simulate`        | What-if ranking under hypothetical scores, tickets and weights; writes nothing | `project?`, `tag?`, `changes?`, `add?`, `remove?`, `weights?`, `top?`, `limit?` |
+| `explain_priority`| One ticket's formula, rank, and what it takes to reach the top N | `project?`, `title`, `tag?`, `top?` |
+
+`simulate` and `explain_priority` rank as `calc_priority` does: by weighted priority, with the project's weights. They do the arithmetic on the server, so a model doesn't recalculate priorities itself:
+
+```json
+// What if C were estimated 1 instead of 5, a new ticket came in, and A were dropped?
+{ "project": "Acme", "changes": [{ "title": "C", "estimate": 1 }], "add": [{ "title": "SSO", "benefit": 13, "estimate": 5 }], "remove": ["A"] }
+```
+
+`simulate` returns the scenario's top tickets (`top`, default 10) and every ticket that the scenario changes, adds or removes, or that moves, with its rank and priority before and after and `rankChange` (positive: up). Omitted scores of an added ticket are 1; omitted weights keep the project's. Nothing is written: apply a scenario with `ticket_update`.
+
+`explain_priority` returns the formula with the ticket's numbers, e.g. `(1.5 × 3 + 1.5 × 2) / (1.5 × 5 + 1.5 × 3) = 7.5 / 12 = 0.63`, its rank, and for the rank `top` (default 1): the priority of the ticket holding it now, and per score the smallest change of that one score that reaches it (for example estimate 5 → 2).
 
 ### Relations
 

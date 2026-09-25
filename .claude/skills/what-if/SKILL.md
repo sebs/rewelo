@@ -2,7 +2,7 @@
 name: what-if
 description: Simulate priority changes without modifying real data
 argument-hint: "[project]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__calc_priority, mcp__rewelo__report_summary, mcp__rewelo__ticket_update
+allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__calc_priority, mcp__rewelo__simulate, mcp__rewelo__explain_priority, mcp__rewelo__report_summary, mcp__rewelo__ticket_update
 ---
 
 # What-If Scenario Simulation
@@ -26,13 +26,9 @@ Examples:
 
 ## For each scenario
 
-1. Take the baseline data
-2. Apply the hypothetical change **in memory only** (do NOT call `ticket_update`)
-3. Recalculate priorities using the relative weight formula:
-   - Value = Benefit + Penalty
-   - Cost = Estimate + Risk
-   - Priority = Value / Cost
-4. Compare against baseline
+1. Call `simulate` with the hypothetical change: `changes` for new scores of existing tickets, `add` for new tickets, `remove` for dropped ones, `weights` for other weights. It writes nothing (do NOT call `ticket_update`).
+2. Don't recalculate priorities yourself: `simulate` returns the ranks and priorities before and after, and `rankChange` for every ticket that moved.
+3. For "what would it take for X to reach the top N?", call `explain_priority` with `title` and `top`: it shows the formula and the smallest single score change that gets there.
 
 ## Output
 

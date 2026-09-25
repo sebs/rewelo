@@ -41,6 +41,7 @@ import {
   calculateAllRelativeWeights,
 } from "../calculations/relative-weights.js";
 import { exactWeightedPriority, weightedPriority } from "../calculations/weighted-priority.js";
+import { explain, simulate } from "../calculations/scenario.js";
 import { getWeights, setWeights, resetWeights, validateWeights } from "../weights/repository.js";
 import { getProjectTimes, timesReport } from "../calculations/time.js";
 import { exportCsv } from "../export/csv.js";
@@ -905,6 +906,62 @@ export function createMcpServer(
           relativeEstimate: t.relativeEstimate,
           relativeRisk: t.relativeRisk,
         }));
+      })
+    )
+  );
+
+  const scoreChange = {
+    title: z.string().describe("Ticket title"),
+    benefit: fibonacciScore.optional(),
+    penalty: fibonacciScore.optional(),
+    estimate: fibonacciScore.optional(),
+    risk: fibonacciScore.optional(),
+  };
+
+  tool(
+    "simulate",
+    "What-if: rank the tickets as calc_priority does, under hypothetical score changes, new or removed tickets and weights, and compare with the current ranking. Nothing is written; use ticket_update to apply a scenario. Returns the scenario's top tickets and every ticket that is changed, added, removed or moves, with its rank and priority before and after.",
+    {
+      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      tag: z.string().optional().describe("Only rank tickets with this tag (prefix:value)"),
+      changes: z.array(z.strictObject(scoreChange)).optional().describe("Hypothetical scores for existing tickets; omitted scores stay"),
+      add: z.array(z.strictObject(scoreChange)).optional().describe("Hypothetical new tickets; omitted scores are 1"),
+      remove: z.array(z.string()).optional().describe("Titles of tickets to leave out"),
+      weights: z.strictObject({ w1: z.number().optional(), w2: z.number().optional(), w3: z.number().optional(), w4: z.number().optional() })
+        .optional().describe("Hypothetical weights; omitted ones keep the project's"),
+      top: z.number().int().positive().optional().describe("How many of the scenario's top tickets to list (default 10)"),
+      limit: z.number().int().nonnegative().optional().describe("Max number of changed or moved tickets to return (default 100)"),
+    },
+    READ,
+    safe(({ project, tag, changes, add, remove, weights, top, limit }) => {
+      for (const t of add ?? []) validateTicketTitle(t.title);
+      return withProject(resolveProject(project), async (db, proj) => {
+        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
+        const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
+        return simulate(tickets, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 });
+      });
+    })
+  );
+
+  tool(
+    "explain_priority",
+    "Explain one ticket's priority: the formula with its scores and the project's weights, its rank as calc_priority ranks, and what it would take to reach the top N: the priority to beat, and the smallest change of each single score that gets there.",
+    {
+      project: z.string().optional().describe("Project name (falls back to .rewelo.json)"),
+      title: z.string().describe("Ticket title"),
+      tag: z.string().optional().describe("Rank only among tickets with this tag (prefix:value); the ticket must have it"),
+      top: z.number().int().positive().optional().describe("The rank to reach (default 1)"),
+    },
+    READ,
+    safe(({ project, title, tag, top }) =>
+      withProject(resolveProject(project), async (db, proj) => {
+        const tickets = await listTickets(db, proj.id, { includeTags: tag !== undefined ? [parseTag(tag)] : [], withDescription: false });
+        const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
+        if (tag !== undefined && !tickets.some((t) => t.title === title)) {
+          await resolveTicket(db, proj.id, title);
+          throw new AppError(`Ticket "${title}" does not have the tag ${tag}`);
+        }
+        return explain(tickets, { w1, w2, w3, w4 }, title, top ?? 1);
       })
     )
   );
