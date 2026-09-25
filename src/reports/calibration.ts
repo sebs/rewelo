@@ -110,16 +110,38 @@ export interface Suggestion {
 }
 
 /** The scores in a model's answer, or undefined when it has none that are valid */
-export function parseSuggestion(answer: string): Suggestion | undefined {
-  const json = /\{[\s\S]*\}/.exec(answer)?.[0];
-  if (!json) return undefined;
-  let data: Record<string, unknown>;
-  try {
-    data = JSON.parse(json);
-  } catch {
-    return undefined;
+// Each {...} in a text with balanced braces (braces in JSON strings don't
+// count), in order: models write prose around their JSON, braces included
+function* jsonObjects(text: string): Generator<string> {
+  for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {
+    let depth = 0;
+    let inString = false;
+    for (let i = start; i < text.length; i++) {
+      const c = text[i];
+      if (inString) {
+        if (c === "\\") i++;
+        else if (c === '"') inString = false;
+      } else if (c === '"') inString = true;
+      else if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) {
+        yield text.slice(start, i + 1);
+        break;
+      }
+    }
   }
-  if (!DIMENSIONS.every((d) => typeof data[d] === "number" && isFibonacci(data[d]))) return undefined;
-  const { benefit, penalty, estimate, risk, reasoning } = data as unknown as Suggestion;
-  return { benefit, penalty, estimate, risk, ...(typeof reasoning === "string" ? { reasoning: truncate(reasoning, 1000) } : {}) };
+}
+
+export function parseSuggestion(answer: string): Suggestion | undefined {
+  for (const json of jsonObjects(answer)) {
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(json);
+    } catch {
+      continue;
+    }
+    if (!data || !DIMENSIONS.every((d) => typeof data[d] === "number" && isFibonacci(data[d]))) continue;
+    const { benefit, penalty, estimate, risk, reasoning } = data as unknown as Suggestion;
+    return { benefit, penalty, estimate, risk, ...(typeof reasoning === "string" ? { reasoning: truncate(reasoning, 1000) } : {}) };
+  }
+  return undefined;
 }

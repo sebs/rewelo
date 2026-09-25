@@ -26,6 +26,17 @@ describe("calibrate", () => {
     assert.deepEqual([similar[0].benefit, similar[0].estimate], [8, 5]);
   });
 
+  it("finds the scores in an answer with braces around them", () => {
+    const scores = '{"benefit": 5, "penalty": 3, "estimate": 2, "risk": 1}';
+    for (const answer of [
+      `Considering {Big} and the rest: ${scores}`,
+      "```json\n" + scores + "\n```\nNote: the {estimate} is low",
+      `{"note": "nested {braces}"} then ${scores}`,
+    ]) {
+      assert.deepEqual(parseSuggestion(answer), { benefit: 5, penalty: 3, estimate: 2, risk: 1 }, answer);
+    }
+  });
+
   it("cuts excerpts and the model's reasoning between characters, not inside an emoji", () => {
     const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
     const { references } = calibrate([ticket("Party", 1, 1, "x".repeat(199) + "🎉 tail")], "Party");
