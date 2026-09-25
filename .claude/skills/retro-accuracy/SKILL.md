@@ -2,7 +2,7 @@
 name: retro-accuracy
 description: Compare original estimates against actual outcomes to find scoring biases
 argument-hint: "[project]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__ticket_history, mcp__rewelo__report_times, mcp__rewelo__calc_priority, mcp__rewelo__tag_list
+allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__ticket_history, mcp__rewelo__event_log, mcp__rewelo__report_times, mcp__rewelo__calc_priority, mcp__rewelo__tag_list
 ---
 
 # Retrospective Accuracy Tracker
@@ -13,10 +13,9 @@ Analyze estimation accuracy for completed tickets in project **$0**.
 
 1. Use `ticket_list` to get all tickets tagged `state:done`
 2. Use `ticket_history` for each completed ticket to get:
-   - Original scores (first revision)
-   - Final scores (if updated during work)
-   - Tag transition timestamps
-3. Use `report_times` for cycle time data
+   - Original scores (the first revision holds the scores before the first update; with no revisions, the scores never changed)
+   - Final scores (the ticket's current ones)
+3. Use `report_times` for cycle time data, and `event_log` (`tag_added`/`tag_removed` events with their timestamps) for when tickets entered `state:wip` and `state:done`: `ticket_history` has no tag changes
 
 ## Analysis
 
