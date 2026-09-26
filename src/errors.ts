@@ -67,6 +67,12 @@ export function sanitizeError(err: unknown): string {
   }
 
   if (err instanceof Error) {
+    // process.cwd() in a directory deleted since (to look for .rewelo.json
+    // and resolve relative paths): not a missing file, as it said
+    const { code, syscall } = err as NodeJS.ErrnoException;
+    if (code === "ENOENT" && syscall === "uv_cwd") {
+      return "The current directory no longer exists (it was deleted or moved): change to an existing directory";
+    }
     // File system errors: say what went wrong (without the path), since
     // "please try again" never helps with e.g. a permission problem
     const fsProblem = FS_ERRORS[(err as NodeJS.ErrnoException).code ?? ""];

@@ -1,5 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { sanitizeError, AppError, ValidationError } from "../src/errors.js";
 
 describe("sanitizeError", () => {
@@ -33,5 +37,18 @@ describe("sanitizeError", () => {
 
   it("explains foreign key failures instead of hiding them as internal errors", () => {
     assert.match(sanitizeError(new Error("FOREIGN KEY constraint failed")), /no longer exists/);
+  });
+
+  it("says the current directory is gone, not that a file is missing", () => {
+    const err = Object.assign(new Error("ENOENT: no such file or directory, uv_cwd"), { code: "ENOENT", syscall: "uv_cwd" });
+    assert.equal(sanitizeError(err), "The current directory no longer exists (it was deleted or moved): change to an existing directory");
+  });
+
+  it("says so for rw run in a deleted directory", { skip: process.platform === "win32" }, () => {
+    const dir = mkdtempSync(join(tmpdir(), "rw-gone-"));
+    const bin = resolve(__dirname, "../src/index.js");
+    const r = spawnSync("sh", ["-c", `cd "${dir}" && rmdir "${dir}" && exec "${process.execPath}" "${bin}" --db /nonexistent/x.db ticket list`], { encoding: "utf-8" });
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /The current directory no longer exists/);
   });
 });
