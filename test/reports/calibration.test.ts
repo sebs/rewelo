@@ -32,6 +32,10 @@ describe("calibrate", () => {
       `Considering {Big} and the rest: ${scores}`,
       "```json\n" + scores + "\n```\nNote: the {estimate} is low",
       `{"note": "nested {braces}"} then ${scores}`,
+      // A stray quote in the prose, inside or outside braces
+      `Title "Fix {login" -> ${scores}`,
+      `The ticket {"Fix login} is similar. ${scores}`,
+      `He said "hi and {then} ${scores}`,
     ]) {
       assert.deepEqual(parseSuggestion(answer), { benefit: 5, penalty: 3, estimate: 2, risk: 1 }, answer);
     }

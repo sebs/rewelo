@@ -111,25 +111,29 @@ export interface Suggestion {
 
 /** The scores in a model's answer, or undefined when it has none that are valid */
 // Each {...} in a text with balanced braces (braces in JSON strings don't
-// count), in the order they start: models write prose around their JSON,
-// braces included. One pass: scanning again from every "{" took 5 s for an
-// answer of 60,000 unbalanced braces, blocking the server meanwhile.
+// count), in order: models write prose around their JSON, braces and quotes
+// included. Each object is scanned from its own "{", with a string state of
+// its own: one pass over the whole text lost the scores after a stray quote
+// in the prose. Only a "{" followed by a quote can start an object with
+// keys, and the answer read is at most MAX_ANSWER_LENGTH long, which bounds
+// the scans (60 KB of braces took 5 s)
 function* jsonObjects(text: string): Generator<string> {
-  const open: number[] = []; // where the braces not yet closed start
-  const found: Array<[number, number]> = [];
-  let inString = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inString) {
-      if (c === "\\") i++;
-      else if (c === '"') inString = false;
-    } else if (c === "{") open.push(i);
-    // Quotes outside any braces are prose
-    else if (c === '"' && open.length > 0) inString = true;
-    else if (c === "}" && open.length > 0) found.push([open.pop()!, i]);
+  for (const start of text.matchAll(/\{(?=\s*")/g)) {
+    let depth = 0;
+    let inString = false;
+    for (let i = start.index; i < text.length; i++) {
+      const c = text[i];
+      if (inString) {
+        if (c === "\\") i++;
+        else if (c === '"') inString = false;
+      } else if (c === '"') inString = true;
+      else if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) {
+        yield text.slice(start.index, i + 1);
+        break;
+      }
+    }
   }
-  found.sort((a, b) => a[0] - b[0]);
-  for (const [start, end] of found) yield text.slice(start, end + 1);
 }
 
 // The answer is asked for with maxTokens 400 (some 1,600 characters), but a
