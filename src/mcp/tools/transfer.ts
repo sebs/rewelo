@@ -30,10 +30,10 @@ export function registerTransferTools(ctx: McpContext): void {
 
   tool(
     "export_json",
-    "Export a project as JSON: tickets, tags, relations and weights, and with withHistory each ticket's revisions and tag changes. Use for backups of a single project; import_json restores it. Over 5 MB, returns a link to the resource with the export instead.",
+    "Export a project as JSON: tickets, tags, relations and weights; with withHistory also each ticket's createdAt, updatedAt, revisions and tagChanges, and the project's deleted tickets (deletions), so lead and cycle times and the event log survive a restore. Use for backups of a single project; import_json restores it. Over 5 MB, returns a link to the resource with the export instead.",
     {
       ...PROJECT_ARG,
-      withHistory: z.boolean().optional().describe("Include revisions and audit log"),
+      withHistory: z.boolean().optional().describe("Include each ticket's creation and update time, revisions and tag changes, and the deleted tickets"),
     },
     READ,
     ({ project, withHistory }) =>
@@ -62,7 +62,7 @@ export function registerTransferTools(ctx: McpContext): void {
 
   tool(
     "import_json",
-    "Import a project from JSON as export_json writes it: {tickets: [{title, description?, benefit?, penalty?, estimate?, risk?, tags?: [{prefix, value}]}], tags?, relations?: [{source, type, target}], weights?: {w1, w2, w3, w4}}. Tags are created as needed and the project if it does not exist. Relations are added, and weights in the file replace the project's; the result reports relationsCreated and the weights set.",
+    "Import a project from JSON as export_json writes it: {tickets: [{title, description?, benefit?, penalty?, estimate?, risk?, tags?: [{prefix, value}], createdAt?, updatedAt?, revisions?, tagChanges?}], tags?, relations?: [{source, type, target}], weights?: {w1, w2, w3, w4}, deletions?: [{title, createdAt, deletedAt}]}. The history keys (createdAt, updatedAt, revisions, tagChanges, deletions) come from export_json with withHistory: pass them back as they are. Unknown keys are refused. Tags are created as needed and the project if it does not exist. Relations are added, and weights in the file replace the project's; the result reports relationsCreated and the weights set.",
     {
       ...PROJECT_ARG,
       json: z.string().describe("JSON content"),

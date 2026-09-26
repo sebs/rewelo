@@ -294,6 +294,8 @@ Operations: `ticket_create`, `ticket_update`, `ticket_delete`, `tag_assign` and 
 
 Only `tickets` and each ticket's `title` are required; scores default to 1. Tags are `{prefix, value}` objects, not `"prefix:value"` strings. An import adds the relations and replaces the project's weights with the file's, and its result says so (`relationsCreated`, `weights`).
 
+With `withHistory`, `export_json` also writes each ticket's `createdAt`, `updatedAt`, `revisions` and `tagChanges`, and the project's deleted tickets as `deletions` (`title`, `createdAt`, `deletedAt`). `import_json` restores them, so lead and cycle times, the event log and `project_diff` survive a backup and restore; pass them back as the export wrote them. Keys the format doesn't have are refused (`Ticket 1: unknown key "benfit" (known: …)`): a misspelt key isn't dropped silently.
+
 ## Resources
 
 Resources are context a user attaches to a conversation without a tool call; in Claude Code, type `@rewelo:` and pick one. Names in the URI are percent-encoded (`My Project` is `My%20Project`), and clients can autocomplete the project and the ticket title.
