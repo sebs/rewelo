@@ -308,7 +308,7 @@ Resources are context a user attaches to a conversation without a tool call; in 
 | `rewelo://{project}/dashboard/{limit}` | The dashboard with at most `limit` rows per table                                        | `text/html`        |
 | `rewelo://{project}/export/{format}`  | The export as `export_csv` or `export_json` returns it; `format` is `csv`, `csv-with-calculations`, `json` or `json-with-history` | `text/csv`, `application/json` |
 
-The resource list offers a backlog and a dashboard per project; tickets and exports aren't listed, as a project can have thousands of tickets. Reading a resource counts against the same rate limit as a tool call. The backlog and a ticket, which are meant as context for the model, are limited to 5 MB like a tool result; dashboards and exports, which a client fetches on its own, to 32 MB.
+The resource list offers a backlog and a dashboard per project; tickets and exports aren't listed, as a project can have thousands of tickets. Reading a resource counts against the same rate limit as a tool call. The backlog and a ticket, which are meant as context for the model, are limited to 5 MB like a tool result; dashboards and exports, which a client fetches on its own, to 10 MB. Both are measured as sent, with the text JSON-escaped: a message over 10 MiB makes the official TypeScript SDK's stdio client drop the connection.
 
 `export_csv`, `export_json` and `report_dashboard` return their document inline up to 5 MB. Over that, they return a `resource_link` to the matching resource above instead of an error, so a client can fetch the document without it going through the model's context.
 
@@ -382,7 +382,7 @@ Result:
 | `Rate limit exceeded (100 calls per second). Try again in N s.` | Tool calls start at most 100 per second; calls beyond that wait their turn, and a call that would wait more than 10 seconds is refused. |
 | `Request payload too large` | A tool call's text arguments may total at most 1 MB; split an import into several calls. |
 | `Request too large: a message may be at most 4 MB` | A JSON-RPC message over 4 MB is dropped unread (and noted on stderr); the server goes on serving. Split the call. |
-| `The result is too large` | Tool results are limited to 5 MB as sent: the data goes out twice, as JSON text and as `structuredContent`, so about 2.5 MB of it. Page through `ticket_list` with `limit` and `offset` (it returns 100 tickets by default). Exports and dashboards over 5 MB come as a link to a resource, which may be up to 32 MB; beyond that, export or render with the `rw` CLI, which writes files. |
+| `The result is too large` | Tool results are limited to 5 MB as sent: the data goes out twice, as JSON text and as `structuredContent`, so about 2.5 MB of it. Page through `ticket_list` with `limit` and `offset` (it returns 100 tickets by default). Exports and dashboards over 5 MB come as a link to a resource, which may be up to 10 MB; beyond that, export or render with the `rw` CLI, which writes files. |
 
 To check the server by hand, see [Verifying the Server](#verifying-the-server).
 

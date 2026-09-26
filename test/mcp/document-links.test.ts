@@ -31,6 +31,11 @@ describe("MCP links to documents over 5 MB", () => {
     await db.transaction(async () => {
       for (let i = 0; i < TICKETS; i++) await db.run("INSERT INTO tickets (project_id, title) VALUES (1, ?)", `${i} ${"x".repeat(480)}`);
     });
+    // 7 MB of quotes, which go out as over 10 MB: escaped in the message
+    await client.callTool({ name: "project_create", arguments: { name: "Quotes" } });
+    await db.transaction(async () => {
+      for (let i = 0; i < 700; i++) await db.run("INSERT INTO tickets (project_id, title, description) VALUES (2, ?, ?)", `q${i}`, '"'.repeat(10_000));
+    });
     await db.close();
   });
 
@@ -76,6 +81,10 @@ describe("MCP links to documents over 5 MB", () => {
     const content = await read(resource.uri);
     assert.equal(content.mimeType, "text/html");
     assert.doesNotMatch(content.text, /Showing \d+ of/);
+  });
+
+  it("refuses a document over 10 MB as sent, which would drop the SDK's stdio client", async () => {
+    await assert.rejects(read("rewelo://Quotes/export/csv"), /The result is too large \(\d+\.\d MB, max 10 MB\)/);
   });
 
   it("rejects an unknown export format or limit", async () => {

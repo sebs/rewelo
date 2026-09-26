@@ -7,8 +7,10 @@ import { MAX_RESULT_BYTES, ToolResult, tooLarge } from "./results.js";
 
 // Documents (exports, dashboards) are read as resources, which a client
 // fetches on its own instead of putting them into the model's context: they
-// may be larger. The whole document is still one message in memory.
-export const MAX_DOCUMENT_BYTES = 32_000_000;
+// may be larger. Each is still one JSON-RPC message, and the SDK's stdio
+// client drops the connection over 10 MiB (10,485,760 bytes): 32 MB ended
+// the session of a client following export_json's link
+export const MAX_DOCUMENT_BYTES = 10_000_000;
 
 // Thrown while a document is built, once it is over its limit
 class DocumentTooLarge extends AppError {}
@@ -30,8 +32,10 @@ export async function jsonExport(db: DB, projectId: number, withHistory: boolean
   return text;
 }
 
+// Measured as sent: the text JSON-escaped in the message (a quote, a
+// backslash or a line break takes two bytes)
 export function checkDocumentSize(text: string, maxBytes: number): string {
-  const bytes = Buffer.byteLength(text, "utf-8");
+  const bytes = Buffer.byteLength(JSON.stringify(text), "utf-8");
   if (bytes > maxBytes) throw new DocumentTooLarge(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`, maxBytes));
   return text;
 }
