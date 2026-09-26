@@ -19,6 +19,8 @@ npm test
 
 Tests use in-memory SQLite databases, so no setup is needed beyond `npm install`.
 
+The repository's `.mcp.json` runs the MCP server from this checkout's build (`node dist/index.js serve`), so Claude Code in the repository talks to the code you are working on: run `npm run build` after a change and restart the server (`/mcp`). Its database is `relative-weight.db` in the repository root, which git ignores.
+
 ## Project Structure
 
 ```
