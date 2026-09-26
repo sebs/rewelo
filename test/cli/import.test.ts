@@ -48,6 +48,21 @@ describe("rw import (CLI)", () => {
     assert.match(created.stdout, /^Created project "Sp"$/m);
   });
 
+  it("points at the DuckDB database of rewelo 0.4 next to a database that doesn't exist yet", () => {
+    const vol = join(dir, "volume");
+    mkdirSync(vol);
+    writeFileSync(join(vol, "relative-weight.duckdb"), Buffer.concat([Buffer.alloc(8), Buffer.from("DUCK")]));
+    const db = join(vol, "relative-weight.db");
+    const read = runCli(["--db", db, "project", "list"]);
+    assert.equal(read.code, 1);
+    assert.match(read.stderr, /relative-weight\.duckdb, a database of rewelo 0\.4 or older, does\. Export each project .*npx rewelo@0\.4\.2/s);
+    const created = runCli(["--db", db, "project", "create", "New"]);
+    assert.equal(created.code, 0);
+    assert.match(created.stderr, /^Warning: creating .*relative-weight\.db next to .*relative-weight\.duckdb/);
+    // Once the new database exists, it is used without a word
+    assert.equal(runCli(["--db", db, "project", "list"]).stderr, "");
+  });
+
   it("says a NUL byte in a UTF-8 file is a NUL byte, not UTF-16", () => {
     writeFileSync(join(dir, "nul.csv"), "title,description\nabc,de\0f\n");
     writeFileSync(join(dir, "nulbom.csv"), "\uFEFFtitle,description\nabc,de\0f\n");
