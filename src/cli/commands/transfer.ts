@@ -90,10 +90,10 @@ export function registerTransferCommands(program: Command): void {
     .option(...PROJECT_OPTION)
     .action(async (file: string, cmdOpts: ProjectOptions, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
-      const name = resolveProjectName(cmdOpts.project);
       // Check the name and the file before the database is created: a
-      // failed import must not leave a new, empty database behind
-      validateProjectName(name);
+      // failed import must not leave a new, empty database behind. The name
+      // as it is stored (" Sp " is Sp), in the output too
+      const name = validateProjectName(resolveProjectName(cmdOpts.project));
       const data = parseImportJson(readImportFile(validateImportPath(file, [".json"]), MAX_JSON_SIZE_BYTES));
       await withDb(opts, async (db) => {
         const result = await importDataAsProject(db, name, data);

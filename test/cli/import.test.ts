@@ -42,6 +42,10 @@ describe("rw import (CLI)", () => {
     assert.equal(r.code, 1);
     assert.match(r.stderr, /Project name must contain only/);
     assert.equal(existsSync(fresh), false, `${fresh} was created`);
+
+    // Named as stored
+    const created = runCli(["--db", join(dir, "named.db"), "import", "json", join(dir, "good.json"), "--project", " Sp "]);
+    assert.match(created.stdout, /^Created project "Sp"$/m);
   });
 
   it("says a UTF-16 file is UTF-16, instead of missing columns or invalid JSON", () => {
