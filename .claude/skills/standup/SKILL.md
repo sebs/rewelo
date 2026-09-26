@@ -31,7 +31,7 @@ Tickets tagged `state:blocked` (if tag exists).
 Show: title, how long blocked, priority score.
 
 ### Up Next
-Top 3 tickets from `state:backlog` by priority that would fit remaining capacity.
+Top 3 open tickets by priority that would fit remaining capacity: `ticket_list` with `excludeTags: ["state:wip", "state:done", "state:blocked"]` and `sort: "priority"`. Open is as plan-sprint has it: a ticket without a state tag is in the backlog too, as new tickets have none until someone tags them.
 
 ## Sprint Health (if applicable)
 
