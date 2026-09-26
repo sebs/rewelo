@@ -232,7 +232,7 @@ describe("migrate", () => {
     db = await DB.open(":memory:");
     await migrate(db);
     await db.exec(`
-      INSERT INTO projects (id, name) VALUES (1, 'My  Project'), (2, 'My Project'), (3, 'Café/Ops'), (4, '..');
+      INSERT INTO projects (id, name) VALUES (1, 'My  Project'), (2, 'My Project'), (3, 'Café/Ops'), (4, '..'), (5, '#1 backlog'), (6, '@team');
       INSERT INTO tickets (project_id, title) VALUES
         (1, '.'), (1, '..'), (1, 'line' || char(10) || 'sep'), (1, 'x' || char(8203) || 'y'),
         (1, 'rtl' || char(8238) || 'txt'), (1, 'bad' || char(65533) || 'utf'), (1, char(8205)),
@@ -245,7 +245,8 @@ describe("migrate", () => {
       "Untitled", "Untitled (2)", "line sep (2)", "xy", "rtltxt", "bad?utf", "Untitled (3)", "fine 👨‍👩‍👧", "line sep",
     ]);
     const projects = await db.all<{ name: string }>("SELECT name FROM projects ORDER BY id");
-    assert.deepEqual(projects.map((r) => r.name), ["My Project-2", "My Project", "Cafe-Ops", "Project"]);
+    // Nothing that reads as an option on the command line
+    assert.deepEqual(projects.map((r) => r.name), ["My Project-2", "My Project", "Cafe-Ops", "Project", "1 backlog", "team"]);
     // Only the renamed tickets have a revision with their old title
     const revisions = await db.all<{ title: string }>("SELECT title FROM ticket_revisions ORDER BY id");
     assert.equal(revisions.length, 7);

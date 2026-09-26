@@ -327,8 +327,10 @@ async function renameProjects(db: DB): Promise<void> {
       .replace(/\p{M}/gu, "")
       .replace(/[^a-zA-Z0-9 _-]+/g, "-")
       .replace(/ +/g, " ")
-      .trim();
-    // "-" alone would read as an option on the command line
+      .trim()
+      // A leading "-" reads as an option on the command line ("#1" was "-1",
+      // "@team" "-team", which rw project delete took for options)
+      .replace(/^[- ]+/, "");
     const base = /[a-zA-Z0-9]/.test(cleaned) ? cleaned : "Project";
     let name = fit(base, "");
     for (let n = 2; taken.has(name); n++) name = fit(base, `-${n}`);
