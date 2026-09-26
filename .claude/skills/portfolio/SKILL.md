@@ -11,7 +11,7 @@ Generate a cross-project portfolio analysis.
 ## Data collection
 
 1. Use `project_list` to get all projects
-2. For each project, use `ticket_list` and `calc_priority` to get tickets and priorities (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
+2. For each project, get the **active tickets** with `ticket_list` and `excludeTags: ["state:done"]`: its items carry value, cost and priority (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them). `calc_priority` ranks done tickets too, so don't take the metrics below from it
 3. Use `report_summary` for each project
 
 ## Portfolio metrics
@@ -19,7 +19,7 @@ Generate a cross-project portfolio analysis.
 For each project, calculate:
 - **Total Value**: sum of (benefit + penalty) across active tickets
 - **Total Cost**: sum of (estimate + risk) across active tickets
-- **Average Priority**: mean priority score
+- **Average Priority**: mean priority of the active tickets
 - **Ticket Count**: total active tickets
 - **Completion Rate**: tickets tagged `state:done` / total tickets
 
