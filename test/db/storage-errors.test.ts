@@ -1,6 +1,6 @@
 import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DB } from "../../src/db/connection.js";
@@ -44,6 +44,32 @@ describe("storage errors", () => {
     }
     // Reading it left no -wal or -shm behind
     assert.deepEqual(readdirSync(dir).filter((f) => f.startsWith("ro.db")), ["ro.db"]);
+  });
+
+  it("judges a symbolically linked database by the file it links to", { skip: process.getuid?.() === 0 || process.platform === "win32" }, async () => {
+    // A link in a read-only directory to a writable file writes; a link in a
+    // writable directory to a file in a read-only one only reads
+    for (const [linkDir, realDir, writes] of [["ro-link", "rw-real", true], ["rw-link", "ro-real", false]] as const) {
+      mkdirSync(join(dir, linkDir));
+      mkdirSync(join(dir, realDir));
+      const setup = await openAndMigrate(join(dir, realDir, "real.db"));
+      await setup.close();
+      symlinkSync(join("..", realDir, "real.db"), join(dir, linkDir, "link.db"));
+      const readOnly = writes ? linkDir : realDir;
+      chmodSync(join(dir, readOnly), 0o555);
+      try {
+        const db = await openAndMigrate(join(dir, linkDir, "link.db"));
+        try {
+          if (writes) await createProject(db, "P");
+          else await assert.rejects(createProject(db, "P"), /The database's directory .*ro-real is read-only/);
+          assert.deepEqual((await listProjects(db)).map((p) => p.name), writes ? ["P"] : []);
+        } finally {
+          await db.close();
+        }
+      } finally {
+        chmodSync(join(dir, readOnly), 0o755);
+      }
+    }
   });
 
   it("reads a database in a read-only directory, and says why it can't write", { skip: process.getuid?.() === 0 }, async () => {

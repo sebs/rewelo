@@ -1,4 +1,4 @@
-import { accessSync, constants, statSync } from "node:fs";
+import { accessSync, constants, realpathSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
@@ -65,15 +65,19 @@ const writable = (path: string) => {
  * without them; unless a -wal holds changes, which that would ignore.
  */
 function readOnlyReason(dbPath: string): string | undefined {
+  // Through a symbolic link, SQLite opens the file it points to and keeps
+  // -wal and -shm next to that: judge that file and its directory
+  let real: string;
   try {
-    if (!statSync(dbPath).isFile() || statSync(`${dbPath}-wal`, { throwIfNoEntry: false })?.size) return undefined;
+    real = realpathSync(dbPath);
+    if (!statSync(real).isFile() || statSync(`${real}-wal`, { throwIfNoEntry: false })?.size) return undefined;
   } catch {
     return undefined;
   }
-  if (!writable(dirname(resolve(dbPath)))) {
-    return `The database's directory ${dirname(resolve(dbPath))} is read-only: rewelo can read the database but not change it`;
+  if (!writable(dirname(real))) {
+    return `The database's directory ${dirname(real)} is read-only: rewelo can read the database but not change it`;
   }
-  if (!writable(dbPath)) return "The database file is read-only";
+  if (!writable(real)) return "The database file is read-only";
   return undefined;
 }
 
