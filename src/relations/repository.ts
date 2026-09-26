@@ -26,6 +26,38 @@ const ORDER: Record<string, 1 | -1> = { blocks: 1, precedes: 1, "depends-on": -1
 const firstOf = (r: Pick<Relation, "source_id" | "target_id" | "relation_type">): number | undefined =>
   r.relation_type in ORDER ? (ORDER[r.relation_type] === 1 ? r.source_id : r.target_id) : undefined;
 
+// The ordering relations that lead from one ticket to another (each
+// ticket before the next), or undefined when none do
+async function orderingPath(db: DB, projectId: number, from: number, to: number): Promise<Relation[] | undefined> {
+  const relations = await db.all<Relation>(
+    `SELECT * FROM ticket_relations WHERE project_id = ? AND relation_type IN (${Object.keys(ORDER).map(() => "?").join(", ")})`,
+    projectId,
+    ...Object.keys(ORDER)
+  );
+  const after = new Map<number, Array<{ ticket: number; relation: Relation }>>();
+  for (const r of relations) {
+    const first = firstOf(r)!;
+    const second = first === r.source_id ? r.target_id : r.source_id;
+    after.set(first, [...(after.get(first) ?? []), { ticket: second, relation: r }]);
+  }
+  // Breadth first, so the path named is a shortest one
+  const reachedBy = new Map<number, Relation | null>([[from, null]]);
+  for (const queue = [from]; queue.length > 0; ) {
+    const ticket = queue.shift()!;
+    if (ticket === to) {
+      const path: Relation[] = [];
+      for (let r = reachedBy.get(to); r; r = reachedBy.get(firstOf(r)!)) path.unshift(r);
+      return path;
+    }
+    for (const next of after.get(ticket) ?? []) {
+      if (reachedBy.has(next.ticket)) continue;
+      reachedBy.set(next.ticket, next.relation);
+      queue.push(next.ticket);
+    }
+  }
+  return undefined;
+}
+
 // "C" blocks "A", by titles: "the target blocks the source" read backwards
 // when the new relation was given by its inverse name (is-blocked-by)
 async function describe(db: DB, relation: Relation): Promise<string> {
@@ -119,6 +151,13 @@ export async function createRelation(
       const opposite = ordering.find((r) => firstOf(r) !== first);
       if (opposite) {
         throw new ValidationError(`This contradicts an existing relation: ${await describe(db, opposite)}`);
+      }
+      // Nor may they close a cycle through other tickets (A blocks B, B
+      // blocks C, C blocks A): no ticket in it could be started first
+      const path = await orderingPath(db, projectId, first === sourceId ? targetId : sourceId, first);
+      if (path) {
+        const chain = await Promise.all(path.map((r) => describe(db, r)));
+        throw new ValidationError(`This would close a cycle with the existing relations ${chain.join(", ")}`);
       }
     }
 

@@ -64,6 +64,19 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketA, ticketB, "precedes");
   });
 
+  it("rejects an order that closes a cycle through other tickets", async () => {
+    await createRelation(db, projectId, ticketA, ticketB, "blocks");
+    await createRelation(db, projectId, ticketC, ticketB, "depends-on"); // B before C
+    await assert.rejects(
+      createRelation(db, projectId, ticketC, ticketA, "precedes"),
+      /would close a cycle with the existing relations "Auth service" blocks "Login page", "Signup flow" depends-on "Login page"/
+    );
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketC, "depends-on"), /would close a cycle/);
+    // The same order, or relations that order nothing, are fine
+    await createRelation(db, projectId, ticketA, ticketC, "precedes");
+    await createRelation(db, projectId, ticketC, ticketA, "relates-to");
+  });
+
   it("creates depends-on / is-depended-on-by", async () => {
     await createRelation(db, projectId, ticketB, ticketA, "depends-on");
     const relB = await listRelations(db, projectId, ticketB);

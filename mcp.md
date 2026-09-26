@@ -228,6 +228,8 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 
 Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
 
+A relation that contradicts an existing one (`B blocks A` next to `A blocks B` or `A depends-on B`) is refused, and so is one that closes a cycle of ordering relations (`blocks`, `precedes`, `depends-on`) through other tickets.
+
 ### Reports
 
 | Tool              | Description                        | Parameters                                |

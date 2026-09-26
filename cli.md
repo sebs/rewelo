@@ -185,7 +185,7 @@ rw relation list-all --project <name>
 
 Relation types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
 
-A relation can't contradict an existing one: `B blocks A` is refused when `A blocks B` exists, and so are `A depends-on B` and `B precedes A`, which put the two tickets in the opposite order.
+A relation can't contradict an existing one: `B blocks A` is refused when `A blocks B` exists, and so are `A depends-on B` and `B precedes A`, which put the two tickets in the opposite order. Nor can the ordering relations (`blocks`, `precedes`, `depends-on`) close a cycle through other tickets: with `A blocks B` and `B blocks C`, `C blocks A` is refused, as no ticket in it could be started first.
 
 ### report
 
