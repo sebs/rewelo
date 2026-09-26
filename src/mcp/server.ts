@@ -170,11 +170,13 @@ export async function startMcpServer(dbPath: string, options?: { channel?: boole
   // Over its limit the SDK's transport closes, and the server stopped without
   // a word: drop such a message instead, answer it with an error, go on
   const input = process.stdin.pipe(
-    limitLines(MAX_MESSAGE_BYTES, (id) => {
+    limitLines(MAX_MESSAGE_BYTES, (dropped) => {
       const message = `Request too large: a message may be at most ${MAX_MESSAGE_BYTES / 1024 / 1024} MB (a tool call's text arguments at most 1 MB)`;
       console.error(`rewelo: ${message}; it was dropped`);
-      // id null: a request whose id couldn't be read (JSON-RPC 2.0)
-      void transport.send({ jsonrpc: "2.0", id: id ?? null, error: { code: -32600, message } } as unknown as JSONRPCMessage).catch(() => {});
+      // A notification gets no answer; id null: a request whose id couldn't
+      // be read (JSON-RPC 2.0)
+      if ("notification" in dropped) return;
+      void transport.send({ jsonrpc: "2.0", id: dropped.id, error: { code: -32600, message } } as unknown as JSONRPCMessage).catch(() => {});
     })
   );
   const transport = new StdioServerTransport(input, process.stdout);
