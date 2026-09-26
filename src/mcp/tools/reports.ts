@@ -39,10 +39,10 @@ export function registerReportTools(ctx: McpContext): void {
 
   tool(
     "report_health",
-    "Assess backlog health: high/low priority ratio, open ticket count, total cost. highToLowRatio is null when all tickets are high priority.",
+    "Assess backlog health: high/low priority ratio, open ticket count, total cost. highToLowRatio is null when no open ticket is low priority, also when there are no open tickets.",
     {
       ...PROJECT_ARG,
-      threshold: z.number().optional().describe("High priority threshold (default 1.5), compared with the exact value/cost, not the rounded priority"),
+      threshold: z.number().optional().describe("High priority threshold, greater than 0 (default 1.5), compared with the exact value/cost, not the rounded priority"),
     },
     READ,
     ({ project, threshold }) =>

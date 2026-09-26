@@ -40,9 +40,9 @@ describe("rw calc (CLI)", () => {
   });
 
   it("health shows no ratio consistently in text and JSON when there are no low-priority tickets", () => {
-    const text = rw("report", "health", "--project", "P", "--threshold", "-1").stdout;
+    const text = rw("report", "health", "--project", "P", "--threshold", "0.01").stdout;
     assert.ok(text.includes("High:Low ratio: n/a (no low-priority tickets)"));
-    const json = JSON.parse(rw("--json", "report", "health", "--project", "P", "--threshold", "-1").stdout);
+    const json = JSON.parse(rw("--json", "report", "health", "--project", "P", "--threshold", "0.01").stdout);
     assert.partialDeepStrictEqual(json, { highToLowRatio: null, lowPriorityCount: 0 });
   });
 

@@ -2,6 +2,7 @@ import { DB } from "../db/connection.js";
 import { listTickets } from "../tickets/repository.js";
 import { cost, exactPriority, round2 } from "../calculations/priority.js";
 import { doneTicketIds } from "../workflow/states.js";
+import { ValidationError } from "../errors.js";
 
 export interface BacklogHealth {
   totalTickets: number;
@@ -24,6 +25,10 @@ export async function getBacklogHealth(
   projectId: number,
   highThreshold: number = 1.5
 ): Promise<BacklogHealth> {
+  // Every priority is over 0: a threshold of 0 or less counts all as high
+  if (!(highThreshold > 0) || !Number.isFinite(highThreshold)) {
+    throw new ValidationError(`The high priority threshold must be a number greater than 0, got ${highThreshold}`);
+  }
   const tickets = await listTickets(db, projectId, { withDescription: false });
 
   const doneIds = await doneTicketIds(db, projectId);

@@ -63,6 +63,12 @@ describe("backlog health report", () => {
     assert.equal(health.highToLowRatio, null);
   });
 
+  it("refuses a threshold of 0 or less: every priority is over 0", async () => {
+    for (const threshold of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await assert.rejects(getBacklogHealth(db, projectId, threshold), /threshold must be a number greater than 0/);
+    }
+  });
+
   it("rounds the high:low ratio half up", async () => {
     for (let i = 0; i < 41; i++) await createTicket(db, { projectId, title: `h${i}`, benefit: 21, penalty: 21 });
     for (let i = 0; i < 40; i++) await createTicket(db, { projectId, title: `l${i}`, estimate: 21, risk: 21 });
