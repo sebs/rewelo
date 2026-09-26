@@ -32,5 +32,5 @@ The following are in scope:
 
 - All database queries use parameterised statements
 - Input validation on all user-facing boundaries (CLI arguments, MCP tool parameters)
-- Error messages are sanitised to never expose SQL, file paths, or stack traces
+- Error messages are sanitised to never expose SQL or stack traces. They name file paths where that is the point of the message: the database, import or export file, or `.rewelo.json` the user or the configuration gave, and the directory that makes a database read-only. Over MCP these are the server's own paths, which its client configured
 - The Docker image runs as a non-root user and keeps its database and SQLite's temporary files on the `/data` volume, so it works with a read-only root filesystem. Dropped capabilities, the read-only filesystem and the memory limit are `docker run` options: use `--cap-drop=ALL --read-only --memory=256m`, as in the configuration in [mcp.md](mcp.md)
