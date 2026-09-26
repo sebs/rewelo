@@ -3,7 +3,7 @@ import { DB } from "../db/connection.js";
 import { migrate } from "../db/migrate.js";
 import { getProjectByName, Project } from "../projects/repository.js";
 import { AppError, ValidationError } from "../errors.js";
-import { duckDbMigration, legacyDuckDb, validateDbPath } from "../validation/paths.js";
+import { validateDbPath } from "../validation/paths.js";
 import { warnIfNoVolume } from "../volume.js";
 import { loadConfig } from "../config.js";
 
@@ -43,12 +43,9 @@ export async function withDb<T>(
   const dbPath = resolveDbPath(opts);
   // Only commands that add data create the database: a mistyped --db for
   // e.g. project list used to leave a new empty database behind
-  const legacy = legacyDuckDb(dbPath);
   if (!create && dbPath !== ":memory:" && !existsSync(dbPath)) {
-    if (legacy) throw new AppError(`Database ${dbPath} does not exist, but ${legacy}, a database of rewelo 0.4 or older, does. ${duckDbMigration(legacy)}`);
     throw new AppError(`Database ${dbPath} does not exist. Create a project first (rw project create <name>), or check --db / RW_DB_PATH.`);
   }
-  if (legacy) console.error(`Warning: creating ${dbPath} next to ${legacy}, a database of rewelo 0.4 or older, whose projects it won't have. ${duckDbMigration(legacy)}`);
   warnIfNoVolume(dbPath);
   const db = await DB.open(dbPath);
   try {

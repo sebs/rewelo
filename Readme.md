@@ -140,8 +140,6 @@ docker run --rm -i -v rw-data:/data ghcr.io/sebs/rewelo:latest serve
 
 Use a named volume (`rw-data`) or a bind mount to persist the database across container restarts. Without one, the database stays inside the container and is lost when it is removed (with `--read-only` it can't be written at all); rw warns about this on stderr.
 
-rewelo 0.4 and older kept their data in DuckDB (`relative-weight.duckdb`, also on the images' `/data` volume); since 0.5 it is SQLite (`relative-weight.db`), and an old file isn't read. rw points it out when it finds one next to a database that doesn't exist yet. To bring the projects over, export each with `npx rewelo@0.4.2 --db relative-weight.duckdb export json --project <name> --output <name>.json`, then `rw import json <name>.json --project <name>`.
-
 ## MCP Server
 
 The CLI doubles as an MCP server over stdio, letting AI assistants manage projects, tickets, tags, and calculations directly. See [mcp.md](mcp.md) for client configuration, available tools, and troubleshooting.

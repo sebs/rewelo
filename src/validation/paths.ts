@@ -4,7 +4,7 @@
  */
 
 import { resolve, extname, dirname } from "path";
-import { existsSync, lstatSync, statSync, realpathSync } from "fs";
+import { lstatSync, statSync, realpathSync } from "fs";
 import { ValidationError } from "../errors.js";
 
 // resolve() is lexical: "file.json/../x.json" and "missing/../x.db" resolve
@@ -23,25 +23,6 @@ function assertParentAsWritten(filePath: string, what: string): void {
   if (!isDir) throw new ValidationError(`${what} directory does not exist`);
 }
 
-/** How to bring a DuckDB database (rewelo 0.4 and older) over */
-export const duckDbMigration = (duckDbPath: string) =>
-  `Export each project with the last DuckDB release, rewelo 0.4.2 (rw export json):\n` +
-  `  npx rewelo@0.4.2 --db ${duckDbPath} export json --project <name> --output <name>.json\n` +
-  `then import it into a .db file:\n` +
-  `  rw import json <name>.json --project <name>`;
-
-/**
- * The DuckDB database of rewelo 0.4 and older next to a database that
- * doesn't exist yet (relative-weight.duckdb for relative-weight.db), as
- * the Docker images before 0.5 left on their volume: its projects aren't in
- * the new database
- */
-export function legacyDuckDb(dbPath: string): string | undefined {
-  if (dbPath === ":memory:" || existsSync(dbPath)) return undefined;
-  const legacy = dbPath.slice(0, -extname(dbPath).length) + ".duckdb";
-  return existsSync(legacy) ? legacy : undefined;
-}
-
 export function validateDbPath(dbPath: string): string {
   if (dbPath === ":memory:") return dbPath;
 
@@ -53,7 +34,12 @@ export function validateDbPath(dbPath: string): string {
   const ext = extname(resolved).toLowerCase();
 
   if (ext === ".duckdb") {
-    throw new ValidationError(`DuckDB databases are no longer supported. ${duckDbMigration(dbPath)}`);
+    throw new ValidationError(
+      `DuckDB databases are no longer supported. Export each project with the last DuckDB release, rewelo 0.4.2 (rw export json):\n` +
+        `  npx rewelo@0.4.2 --db ${dbPath} export json --project <name> --output <name>.json\n` +
+        `then import it into a .db file:\n` +
+        `  rw import json <name>.json --project <name>`
+    );
   }
 
   if (ext !== ".db") {
