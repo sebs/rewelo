@@ -8,12 +8,12 @@
     "url": "https://github.com/sebs/rewelo",
     "source": "github"
   },
-  "version": "0.7.2",
+  "version": "0.7.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "rewelo",
-      "version": "0.7.2",
+      "version": "0.7.3",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
@@ -35,7 +35,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/sebs/rewelo:0.7.2",
+      "identifier": "ghcr.io/sebs/rewelo:0.7.3",
       "runtimeHint": "docker",
       "transport": {
         "type": "stdio"

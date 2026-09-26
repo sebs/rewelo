@@ -1,6 +1,6 @@
 {
   "name": "rewelo",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Prioritisation tool using the relative weight method with SQLite",
   "mcpName": "io.github.sebs/rewelo",
   "bin": {
