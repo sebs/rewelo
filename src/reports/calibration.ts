@@ -111,28 +111,34 @@ export interface Suggestion {
 
 /** The scores in a model's answer, or undefined when it has none that are valid */
 // Each {...} in a text with balanced braces (braces in JSON strings don't
-// count), in order: models write prose around their JSON, braces included
+// count), in the order they start: models write prose around their JSON,
+// braces included. One pass: scanning again from every "{" took 5 s for an
+// answer of 60,000 unbalanced braces, blocking the server meanwhile.
 function* jsonObjects(text: string): Generator<string> {
-  for (let start = text.indexOf("{"); start !== -1; start = text.indexOf("{", start + 1)) {
-    let depth = 0;
-    let inString = false;
-    for (let i = start; i < text.length; i++) {
-      const c = text[i];
-      if (inString) {
-        if (c === "\\") i++;
-        else if (c === '"') inString = false;
-      } else if (c === '"') inString = true;
-      else if (c === "{") depth++;
-      else if (c === "}" && --depth === 0) {
-        yield text.slice(start, i + 1);
-        break;
-      }
-    }
+  const open: number[] = []; // where the braces not yet closed start
+  const found: Array<[number, number]> = [];
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+    } else if (c === "{") open.push(i);
+    // Quotes outside any braces are prose
+    else if (c === '"' && open.length > 0) inString = true;
+    else if (c === "}" && open.length > 0) found.push([open.pop()!, i]);
   }
+  found.sort((a, b) => a[0] - b[0]);
+  for (const [start, end] of found) yield text.slice(start, end + 1);
 }
 
+// The answer is asked for with maxTokens 400 (some 1,600 characters), but a
+// client needn't keep to it: read no more than this. Parsing every level of
+// 300,000 characters of nested objects took over a minute.
+const MAX_ANSWER_LENGTH = 16_000;
+
 export function parseSuggestion(answer: string): Suggestion | undefined {
-  for (const json of jsonObjects(answer)) {
+  for (const json of jsonObjects(answer.slice(0, MAX_ANSWER_LENGTH))) {
     let data: Record<string, unknown>;
     try {
       data = JSON.parse(json);

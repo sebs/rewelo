@@ -37,6 +37,16 @@ describe("calibrate", () => {
     }
   });
 
+  it("reads a large answer quickly: in one pass, and only its start", () => {
+    const scores = '{"benefit": 5, "penalty": 3, "estimate": 2, "risk": 1}';
+    const started = Date.now();
+    assert.equal(parseSuggestion("{".repeat(200_000)), undefined);
+    assert.deepEqual(parseSuggestion("{".repeat(10_000) + scores), { benefit: 5, penalty: 3, estimate: 2, risk: 1 });
+    // Every level valid JSON: only the start of such an answer is read
+    assert.equal(parseSuggestion('{"a":'.repeat(50_000) + "1" + "}".repeat(50_000)), undefined);
+    assert.ok(Date.now() - started < 1000, `took ${Date.now() - started} ms`);
+  });
+
   it("cuts excerpts and the model's reasoning between characters, not inside an emoji", () => {
     const loneSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
     const { references } = calibrate([ticket("Party", 1, 1, "x".repeat(199) + "🎉 tail")], "Party");
