@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -42,6 +42,14 @@ describe("rw import (CLI)", () => {
     assert.equal(r.code, 1);
     assert.match(r.stderr, /Project name must contain only/);
     assert.equal(existsSync(fresh), false, `${fresh} was created`);
+
+    // Nor when it fails inside the database, on a relation to a missing ticket
+    writeFileSync(join(dir, "bad-relation.json"), JSON.stringify({ tickets: [{ title: "A" }], relations: [{ source: "A", type: "blocks", target: "Zed" }] }));
+    const late = join(dir, "fresh-late.db");
+    const failed = runCli(["--db", late, "import", "json", join(dir, "bad-relation.json"), "--project", "P"]);
+    assert.equal(failed.code, 1);
+    assert.match(failed.stderr, /Relation 1: ticket "Zed" not found/);
+    assert.deepEqual(readdirSync(dir).filter((f) => f.startsWith("fresh-late")), []);
 
     // Named as stored
     const created = runCli(["--db", join(dir, "named.db"), "import", "json", join(dir, "good.json"), "--project", " Sp "]);

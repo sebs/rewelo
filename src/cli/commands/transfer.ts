@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { existsSync, rmSync, statSync } from "node:fs";
 import { Command } from "commander";
 import { exportCsv } from "../../transfer/csv/export.js";
 import { writeJsonExport } from "../../transfer/json/export.js";
@@ -9,7 +9,7 @@ import { MAX_JSON_SIZE_BYTES } from "../../transfer/json/values.js";
 import { validateExportPath, validateImportPath } from "../../validation/paths.js";
 import { validateProjectName } from "../../validation/strings.js";
 import { describeFsError } from "../../errors.js";
-import { resolveProjectName, withDb, withProject, type GlobalOptions } from "../context.js";
+import { resolveDbPath, resolveProjectName, withDb, withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, type ProjectOptions } from "../options.js";
 import { printResult, reportWritten } from "../output.js";
 import { readImportFile, writeFile } from "../files.js";
@@ -95,6 +95,10 @@ export function registerTransferCommands(program: Command): void {
       // as it is stored (" Sp " is Sp), in the output too
       const name = validateProjectName(resolveProjectName(cmdOpts.project));
       const data = parseImportJson(readImportFile(validateImportPath(file, [".json"]), MAX_JSON_SIZE_BYTES));
+      // A failure inside the database (a relation to a missing ticket)
+      // happens after it is created: then remove it again
+      const dbPath = resolveDbPath(opts);
+      const created = dbPath !== ":memory:" && !existsSync(dbPath);
       await withDb(opts, async (db) => {
         const result = await importDataAsProject(db, name, data);
         const { relationsCreated: n, weights: w } = result;
@@ -105,6 +109,9 @@ export function registerTransferCommands(program: Command): void {
           ...(result.relationsSkipped ?? []).map((r) => `Skipped relation "${r.source}" ${r.type} "${r.target}": ${r.reason}`),
           ...(w ? [`Set the weights to w1=${w.w1} w2=${w.w2} w3=${w.w3} w4=${w.w4}`] : []),
         ]);
-      }, { create: true });
+      }, { create: true }).catch((err) => {
+        if (created) for (const suffix of ["", "-wal", "-shm"]) rmSync(dbPath + suffix, { force: true });
+        throw err;
+      });
     });
 }
