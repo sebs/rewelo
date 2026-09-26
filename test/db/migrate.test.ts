@@ -63,6 +63,19 @@ describe("migrate", () => {
     assert.deepEqual(await tables(), ["tickets"]);
   });
 
+  it("refuses a foreign database with only views, or only its own user_version", async () => {
+    db = await DB.open(":memory:");
+    await db.exec("CREATE VIEW settings AS SELECT 1 AS theme");
+    await assert.rejects(migrate(db), /not a rewelo database/);
+    assert.deepEqual(await tables(), []);
+    await db.close();
+
+    db = await DB.open(":memory:");
+    await db.exec("PRAGMA user_version = 7");
+    await assert.rejects(migrate(db), /not a rewelo database/);
+    assert.deepEqual(await tables(), []);
+  });
+
   it("refuses a foreign database with a same-named projects table", async () => {
     db = await DB.open(":memory:");
     await db.exec("CREATE TABLE projects (pid, label)");

@@ -205,7 +205,12 @@ async function upgrade(db: DB): Promise<void> {
         )
       ).map((r) => r.name);
 
-      if (appId === 0 && tables.length === 0) {
+      // Empty: no views, triggers or indexes either, and no user_version
+      // another application set (such a file was taken over)
+      const [{ objects }] = await db.all<{ objects: number }>(
+        "SELECT count(*) AS objects FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
+      );
+      if (appId === 0 && objects === 0 && (await pragma(db, "user_version")) === 0) {
         await db.exec(readFileSync(schemaPath(), "utf-8"));
         return;
       }
