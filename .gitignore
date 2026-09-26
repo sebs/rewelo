@@ -5,8 +5,6 @@ dist/
 *.tsbuildinfo
 .env
 .env.*
-*.duckdb
-*.duckdb.wal
 *.db
 *.db-journal
 *.db-wal

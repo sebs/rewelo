@@ -19,18 +19,12 @@ describe("validateDbPath", () => {
 
   it("accepts the .db extension in any case", () => {
     assert.ok(validateDbPath("./DATA.DB").includes("DATA.DB"));
-    assert.throws(() => validateDbPath("./old.DUCKDB"), /rw export json/);
   });
 
   it("rejects non-.db extensions", () => {
     assert.throws(() => validateDbPath("./data.sqlite"), /\.db extension/);
     assert.throws(() => validateDbPath("./data.txt"), /\.db extension/);
-  });
-
-  it("rejects legacy .duckdb files with a migration hint", () => {
-    assert.throws(() => validateDbPath("./data.duckdb"), /rw export json/);
-    // The hint names the last DuckDB release exactly: this build may share its version number
-    assert.throws(() => validateDbPath("./data.duckdb"), /npx rewelo@0\.4\.2/);
+    assert.throws(() => validateDbPath("./data.duckdb"), /\.db extension/);
   });
 
   it("rejects null bytes", () => {

@@ -33,15 +33,6 @@ export function validateDbPath(dbPath: string): string {
   const resolved = resolve(dbPath);
   const ext = extname(resolved).toLowerCase();
 
-  if (ext === ".duckdb") {
-    throw new ValidationError(
-      `DuckDB databases are no longer supported. Export each project with the last DuckDB release, rewelo 0.4.2 (rw export json):\n` +
-        `  npx rewelo@0.4.2 --db ${dbPath} export json --project <name> --output <name>.json\n` +
-        `then import it into a .db file:\n` +
-        `  rw import json <name>.json --project <name>`
-    );
-  }
-
   if (ext !== ".db") {
     throw new ValidationError("Database file must have .db extension");
   }

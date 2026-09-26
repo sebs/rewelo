@@ -1,7 +1,5 @@
 node_modules
 build
-*.duckdb
-*.duckdb.wal
 *.db
 *.db-journal
 *.db-wal
