@@ -92,9 +92,10 @@ export function registerProjectCommands(program: Command): void {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       await withProject(opts, cmdOpts.project, async (db, project) => {
         const revisions = await listProjectRevisions(db, project.id, cmdOpts.since, cmdOpts.limit, cmdOpts.offset);
+        const none = revisions.length === 0 && (await listProjectRevisions(db, project.id, cmdOpts.since, 1)).length === 0;
         printRows(opts, revisions, {
           quiet: (r) => `${r.revised_at}\t${r.ticket_title}`,
-          empty: emptyPage("revisions", cmdOpts),
+          empty: emptyPage("revisions", cmdOpts, none),
           headers: ["Ticket", "Title (at revision)", "B", "P", "E", "R", "Revised At"],
           row: (r) => [
             r.ticket_title, r.title, String(r.benefit), String(r.penalty),

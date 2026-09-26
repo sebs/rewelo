@@ -93,9 +93,11 @@ export function printRows<T>(opts: OutputOptions, items: T[], view: RowsView<T>)
 
 /**
  * What an empty page of a paged list says: --limit 0 and an offset past the
- * end show nothing, which is not the same as there being nothing
+ * end show nothing, which is not the same as there being nothing (`none`:
+ * there is nothing at all, on any page)
  */
-export function emptyPage(what: string, page: { limit?: number; offset?: number }): string {
+export function emptyPage(what: string, page: { limit?: number; offset?: number }, none: boolean): string {
+  if (none) return `No ${what} found.`;
   if (page.limit === 0) return `No ${what} shown (--limit 0).`;
   if (page.offset) return `No ${what} after the first ${page.offset}.`;
   return `No ${what} found.`;

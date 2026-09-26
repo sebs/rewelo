@@ -34,5 +34,9 @@ describe("rw ticket history and project history (CLI)", () => {
     assert.equal(text("project", "history", "--project", "P", "--offset", "100"), "No revisions after the first 100.");
     rw("ticket", "create", "--project", "P", "--title", "New");
     assert.equal(text("ticket", "history", "--project", "P", "--title", "New"), "No revisions found.");
+    // A page of nothing at all is nothing, not a page past the end
+    assert.equal(text("ticket", "history", "--project", "P", "--title", "New", "--offset", "10"), "No revisions found.");
+    assert.equal(text("ticket", "history", "--project", "P", "--title", "New", "--limit", "0"), "No revisions found.");
+    assert.equal(text("project", "history", "--project", "P", "--since", "2099-01-01", "--offset", "5"), "No revisions found.");
   });
 });

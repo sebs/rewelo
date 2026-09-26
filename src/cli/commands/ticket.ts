@@ -149,9 +149,11 @@ export function registerTicketCommands(program: Command): void {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       await withProject(opts, cmdOpts.project, async (db, project) => {
         const ticket = await requireTicket(db, project.id, cmdOpts.title);
-        printRows(opts, await listRevisions(db, ticket.id, cmdOpts.limit, cmdOpts.offset), {
+        const revisions = await listRevisions(db, ticket.id, cmdOpts.limit, cmdOpts.offset);
+        const none = revisions.length === 0 && (await listRevisions(db, ticket.id, 1)).length === 0;
+        printRows(opts, revisions, {
           quiet: (r) => r.revised_at,
-          empty: emptyPage("revisions", cmdOpts),
+          empty: emptyPage("revisions", cmdOpts, none),
           headers: ["#", "Title", "B", "P", "E", "R", "Tags", "Revised At"],
           // The revision's place in the whole history, on any page
           row: (r, i) => [
