@@ -62,6 +62,11 @@ describe("MCP prompts", () => {
     assert.doesNotMatch(body, /\$\d|allowed-tools/);
   });
 
+  it("refuses an argument the prompt doesn't have, as tools refuse unknown parameters", async () => {
+    const client = await connect();
+    await assert.rejects(client.getPrompt({ name: "plan-sprint", arguments: { project: "Acme", capacity: "30" } }), /capacity/);
+  });
+
   it("uses the default project, or asks for one, when the project is left out", async () => {
     const withDefault = await connect();
     assert.match(text(await withDefault.getPrompt({ name: "standup", arguments: {} })), /summary for project \*\*rewelo\*\*/);

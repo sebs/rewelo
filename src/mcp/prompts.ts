@@ -24,7 +24,9 @@ export function registerPrompts(ctx: McpContext): void {
         return [arg, schema.optional()];
       })
     );
-    server.registerPrompt(prompt.name, { description: prompt.description, argsSchema: z.object(args) }, (values: Record<string, string | undefined>) => ({
+    // Strict, as the tools: a misspelt argument (capacity for
+    // capacity-points) was dropped, and the prompt said "(not given)"
+    server.registerPrompt(prompt.name, { description: prompt.description, argsSchema: z.strictObject(args) }, (values: Record<string, string | undefined>) => ({
       messages: [
         {
           role: "user" as const,

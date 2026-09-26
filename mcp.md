@@ -334,7 +334,7 @@ To try it, add `--channel` after `serve` in the server's arguments, and start Cl
 
 ## Prompts
 
-The server also offers prompts: ready-made instructions for common backlog work, which a client shows as commands (in Claude Code, for example, `/mcp__rewelo__plan-sprint Acme 30`). Each one tells the model which tools to call and how to present the result.
+The server also offers prompts: ready-made instructions for common backlog work, which a client shows as commands (in Claude Code, for example, `/mcp__rewelo__plan-sprint Acme 30`). Each one tells the model which tools to call and how to present the result. An argument a prompt doesn't have is an error, as for tools.
 
 | Prompt           | What it does                                                     | Arguments                        |
 |------------------|------------------------------------------------------------------|----------------------------------|
