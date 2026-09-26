@@ -63,7 +63,10 @@ describe("rw import (CLI)", () => {
     writeFileSync(join(dir, "le.csv"), utf16("title,benefit\r\ncafe,3\r\n", [0xff, 0xfe]));
     writeFileSync(join(dir, "le.json"), utf16('{"tickets":[{"title":"x"}]}', [0xff, 0xfe]));
     writeFileSync(join(dir, "nobom.csv"), utf16("title\nx\n", []));
-    for (const [kind, file] of [["csv", "le.csv"], ["json", "le.json"], ["csv", "nobom.csv"]]) {
+    // Mostly non-ASCII: only the start shows NUL bytes
+    writeFileSync(join(dir, "ja.csv"), utf16("title\n" + "日本語のチケット\n".repeat(50), []));
+    writeFileSync(join(dir, "ja.json"), utf16('{"tickets":[' + '{"title":"日本語のチケット"},'.repeat(40) + '{"title":"x"}]}', []));
+    for (const [kind, file] of [["csv", "le.csv"], ["json", "le.json"], ["csv", "nobom.csv"], ["csv", "ja.csv"], ["json", "ja.json"]]) {
       const r = runCli(["--db", db, "import", kind, join(dir, file), "--project", "P"]);
       assert.equal(r.code, 1, file);
       assert.match(r.stderr, /is UTF-16; save it as UTF-8/, file);
