@@ -2,7 +2,7 @@
 name: reprioritize
 description: Reassess backlog priorities after a significant event
 argument-hint: "[project] [event-description]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__calc_priority, mcp__rewelo__ticket_update, mcp__rewelo__report_summary
+allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__simulate, mcp__rewelo__ticket_update, mcp__rewelo__report_summary
 ---
 
 # Continuous Reprioritization
@@ -12,8 +12,8 @@ Reassess priorities for project **$0** in light of: **$1**
 ## Procedure
 
 1. Use `ticket_list` to fetch all active tickets (exclude `state:done`) (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
-2. Use `calc_priority` to get the current ranking as the **baseline**
-3. Analyze the event described by the user
+2. Analyze the event described by the user
+3. Once you have chosen new scores, call `simulate` with them as `changes`: it ranks the open tickets (not `state:done`) by weighted priority with the project's weights, before and after, and returns each ticket's rank and priority in both. That is the **baseline** and the proposal, among the same tickets. Don't take the baseline from `calc_priority`: it ranks done tickets too, so its ranks don't match the active tickets'
 
 ## Reassessment
 
