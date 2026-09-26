@@ -40,6 +40,14 @@ describe("rw ticket history and project history (CLI)", () => {
     }
   });
 
+  it("keeps each event on one line when its details hold a line separator", () => {
+    rw("ticket", "update", "--project", "P", "--title", "C", "--description", "line1\u2028line2");
+    rw("ticket", "update", "--project", "P", "--title", "C", "--benefit", "13");
+    const out = rw("report", "event-log", "--project", "P").stdout;
+    assert.doesNotMatch(out, /[\u2028\u2029\u0080-\u009f]/);
+    assert.match(out, /line1\\u2028line2/);
+  });
+
   it("doesn't claim there are no revisions for --limit 0 or a page past the end", () => {
     const text = (...args: string[]) => rw(...args).stdout.trim();
     assert.equal(text("ticket", "history", "--project", "P", "--title", "C", "--limit", "0"), "No revisions shown (--limit 0).");

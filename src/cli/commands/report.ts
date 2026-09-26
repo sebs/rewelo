@@ -173,7 +173,9 @@ export function registerReportCommands(program: Command): void {
           const width = Math.max(...titles.map(displayWidth));
           for (const [i, e] of events.entries()) {
             const ticket = titles[i] + " ".repeat(width - displayWidth(titles[i]));
-            console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${ticket}  ${detail(e)}`);
+            // The details quote titles and descriptions: JSON leaves U+2028,
+            // U+2029 and C1 controls raw, which broke the line in two
+            console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${ticket}  ${escapeControls(detail(e))}`);
           }
         }
       });
