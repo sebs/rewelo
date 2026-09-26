@@ -49,7 +49,8 @@ export function getRelationType(name: string): RelationType {
   const rt = BY_FORWARD.get(normalizeRelationType(name));
   if (rt) return rt;
   throw new ValidationError(
-    `Unknown relation type "${name}". Valid types: ${RELATION_TYPES.map((r) => r.forward).join(", ")}`
+    // The inverse names, as relation list shows them, are accepted as well
+    `Unknown relation type "${name}". Valid types: ${RELATION_TYPES.map((r) => (r.symmetric ? r.forward : `${r.forward} (or ${r.inverse})`)).join(", ")}`
   );
 }
 

@@ -226,7 +226,7 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 | `relation_list`   | List all relations for a ticket    | `project?`, `ticket`                       |
 | `relation_list_all` | List every relation in a project | `project?`                                 |
 
-Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
+Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`. Each asymmetric type has an inverse name, which listings show from the other ticket's side and which is accepted as well: `is-blocked-by`, `is-depended-on-by`, `is-duplicated-by`, `is-superseded-by`, `follows`, `is-tested-by`, `is-implemented-by`, `is-addressed-by`, `is-split-from`, `is-informed-by`. `A is-blocked-by B` is `B blocks A`.
 
 A relation that contradicts an existing one (`B blocks A` next to `A blocks B` or `A depends-on B`) is refused, and so is one that closes a cycle of ordering relations (`blocks`, `precedes`, `depends-on`) through other tickets.
 

@@ -183,7 +183,7 @@ rw relation list --project <name> --ticket <title>
 rw relation list-all --project <name>
 ```
 
-Relation types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`.
+Relation types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`. Each asymmetric type has an inverse name, which listings show from the other ticket's side and which is accepted as well: `is-blocked-by`, `is-depended-on-by`, `is-duplicated-by`, `is-superseded-by`, `follows`, `is-tested-by`, `is-implemented-by`, `is-addressed-by`, `is-split-from`, `is-informed-by`. `A is-blocked-by B` is `B blocks A`.
 
 A relation can't contradict an existing one: `B blocks A` is refused when `A blocks B` exists, and so are `A depends-on B` and `B precedes A`, which put the two tickets in the opposite order. Nor can the ordering relations (`blocks`, `precedes`, `depends-on`) close a cycle through other tickets: with `A blocks B` and `B blocks C`, `C blocks A` is refused, as no ticket in it could be started first.
 

@@ -184,6 +184,9 @@ describe("relations repository", () => {
 
   it("rejects unknown relation type", async () => {
     await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "banana"), /Unknown relation type/);
+    // The error names the inverse names, which are accepted too
+    await assert.rejects(createRelation(db, projectId, ticketA, ticketB, "is-preceded-by"), /blocks \(or is-blocked-by\), .*precedes \(or follows\), .*see-also$/);
+    await createRelation(db, projectId, ticketA, ticketB, "follows");
   });
 
   it("deleting a ticket removes all its relations", async () => {
