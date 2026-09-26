@@ -55,6 +55,14 @@ describe("MCP simulate and explain_priority", () => {
     assert.deepEqual(r.data.top.map((t: { title: string }) => t.title), ["D", "C"]);
   });
 
+  it("doesn't list a change to the scores a ticket has already", async () => {
+    for (const changes of [[{ title: "A" }], [{ title: "A", benefit: 8, risk: 1 }]]) {
+      const r = await call("simulate", { project: "Acme", changes });
+      assert.equal(r.isError, false, r.text);
+      assert.deepEqual(r.data.tickets, []);
+    }
+  });
+
   it("rejects invalid scenarios", async () => {
     const unknown = await call("simulate", { project: "Acme", remove: ["Z"] });
     assert.equal(unknown.isError, true);

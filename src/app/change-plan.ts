@@ -121,7 +121,8 @@ export async function applyChanges(
     // The open tickets, as simulate ranks them: a done ticket is no part of
     // what to do next, and closing one takes it out of the ranking
     const doneBefore = await doneTicketIds(db, projectId);
-    const before = (await listTickets(db, projectId, { withDescription: false })).filter((t) => !doneBefore.has(t.id));
+    const beforeFull = await listTickets(db, projectId);
+    const before = beforeFull.filter((t) => !doneBefore.has(t.id));
     const results = [];
     const changes = new Map<number, TicketChange>();
     for (const [i, op] of operations.entries()) {
@@ -130,6 +131,14 @@ export async function applyChanges(
       } catch (err) {
         throw new AppError(`Operation ${i + 1} (${op.op}): ${sanitizeError(err)}. Nothing was changed.`);
       }
+    }
+    // Updated in one operation and back in another (benefit 21, then 1
+    // again): the plan leaves it as it was, and it isn't listed
+    const fields = ["title", "description", "benefit", "penalty", "estimate", "risk"] as const;
+    const was = new Map(beforeFull.map((t) => [t.id, t]));
+    for (const t of await listTickets(db, projectId)) {
+      const old = was.get(t.id);
+      if (changes.get(t.id) === "updated" && old && fields.every((f) => old[f] === t[f])) changes.delete(t.id);
     }
     const doneAfter = await doneTicketIds(db, projectId);
     const all = await listTickets(db, projectId, { withDescription: false });

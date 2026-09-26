@@ -151,8 +151,10 @@ export function simulate(
   const scenarioWeights = withOverrides(baselineWeights, scenario.weights);
   validateWeights(scenarioWeights);
 
+  // A change to the scores a ticket has already changes nothing, and isn't one
+  const changesScores = (title: string) => DIMENSIONS.some((d) => changed.get(title)![d] !== byTitle.get(title)![d]);
   const changes = new Map<string, "scores" | "added" | "removed">([
-    ...[...changed.keys()].map((title) => [title, "scores"] as const),
+    ...[...changed.keys()].filter(changesScores).map((title) => [title, "scores"] as const),
     ...added.map((t) => [t.title, "added"] as const),
     ...[...removed].map((title) => [title, "removed"] as const),
   ]);

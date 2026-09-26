@@ -48,6 +48,17 @@ describe("MCP apply_changes", () => {
     assert.deepEqual(r.data.ranking.tickets, []);
   });
 
+  it("doesn't list a ticket whose updates cancel out", async () => {
+    const r = await call("apply_changes", { project: "Acme", dryRun: true, operations: [
+      { op: "ticket_update", title: "C", benefit: 21 },
+      { op: "ticket_update", title: "C", benefit: 3 },
+      { op: "ticket_update", title: "B", description: "y" },
+      { op: "ticket_update", title: "B", description: "  " },
+    ] });
+    assert.equal(r.isError, false, r.text);
+    assert.deepEqual(r.data.ranking.tickets, []);
+  });
+
   it("ranks the open tickets as simulate does: closing a ticket takes it out, reopening puts it back", async () => {
     const closed = await call("apply_changes", { project: "Acme", dryRun: true, operations: [{ op: "tag_assign", ticket: "A", tag: "state:done" }] });
     assert.equal(closed.isError, false, closed.text);
