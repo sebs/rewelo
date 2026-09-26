@@ -10,7 +10,7 @@ import { getProjectTicketTags, getTicketTags } from "../tags/assignment.js";
 import { listTickets } from "../tickets/repository.js";
 import { sanitizeError, AppError } from "../errors.js";
 import { getWeights } from "../weights/repository.js";
-import { checkDocumentSize, dashboard, jsonExport, MAX_DOCUMENT_BYTES, resourceUri } from "./documents.js";
+import { checkDocumentSize, dashboard, jsonExport, MAX_DASHBOARD_ROWS, MAX_DOCUMENT_BYTES, resourceUri } from "./documents.js";
 import { MAX_RESULT_BYTES, shorten } from "./results.js";
 import { completers } from "./completions.js";
 import { resolveTicket, type McpContext } from "./toolkit.js";
@@ -162,7 +162,9 @@ export function registerResources(ctx: McpContext): void {
         "text/html",
         () => {
           const limit = variable(vars, "limit");
-          if (!/^\d{1,9}$/.test(limit)) throw new AppError(`Invalid limit "${limit}": expected a whole number`);
+          if (!/^\d+$/.test(limit) || Number(limit) > MAX_DASHBOARD_ROWS) {
+            throw new AppError(`Invalid limit "${limit}": expected a whole number up to ${MAX_DASHBOARD_ROWS}`);
+          }
           return withProject(variable(vars, "project"), (db, proj) => dashboard(db, proj, Number(limit)));
         },
         MAX_DOCUMENT_BYTES

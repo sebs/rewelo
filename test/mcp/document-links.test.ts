@@ -90,5 +90,11 @@ describe("MCP links to documents over 5 MB", () => {
   it("rejects an unknown export format or limit", async () => {
     await assert.rejects(read("rewelo://Big%20Project/export/xml"), /Unknown export format "xml": use csv, csv-with-calculations, json, json-with-history/);
     await assert.rejects(read("rewelo://Big%20Project/dashboard/lots"), /Invalid limit "lots"/);
+    await assert.rejects(read("rewelo://Big%20Project/dashboard/1000000000"), /Invalid limit "1000000000": expected a whole number up to 999999999/);
+    // The tool takes the same limits, so its link can always be read
+    const tooMany = await client.callTool({ name: "report_dashboard", arguments: { project: "Big Project", limit: 10_000_000_000 } });
+    assert.equal(tooMany.isError, true);
+    const most = await link("report_dashboard", { limit: 999_999_999 });
+    assert.equal((await read(most.uri)).mimeType, "text/html");
   });
 });

@@ -12,6 +12,11 @@ import { MAX_RESULT_BYTES, textResult, ToolResult, TooLarge, tooLarge } from "./
 export const MAX_DOCUMENT_BYTES = 10_000_000;
 
 
+// The most rows per table a dashboard takes, in report_dashboard and in the
+// resource it links to alike: a larger limit was taken by the tool, and its
+// link then refused
+export const MAX_DASHBOARD_ROWS = 999_999_999;
+
 export const resourceUri = (project: string, path: string) => `rewelo://${encodeURIComponent(project)}/${path}`;
 
 // The export as export_json and the export resource return it, given up

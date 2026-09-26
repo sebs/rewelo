@@ -7,7 +7,7 @@ import { groupByTagPrefix } from "../../reports/group.js";
 import { getBacklogHealth } from "../../reports/health.js";
 import { getProjectSummary } from "../../reports/summary.js";
 import { validateTagPrefix } from "../../validation/strings.js";
-import { dashboard, documentOrLink, resourceUri } from "../documents.js";
+import { dashboard, documentOrLink, MAX_DASHBOARD_ROWS, resourceUri } from "../documents.js";
 import { READ, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerReportTools(ctx: McpContext): void {
@@ -76,7 +76,7 @@ export function registerReportTools(ctx: McpContext): void {
     "Render a self-contained HTML dashboard (tickets, distribution, health, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it.",
     {
       ...PROJECT_ARG,
-      limit: z.number().int().nonnegative().optional().describe("Rows per table (default 500)"),
+      limit: z.number().int().nonnegative().max(MAX_DASHBOARD_ROWS).optional().describe("Rows per table (default 500)"),
     },
     READ,
     ({ project, limit }) =>
