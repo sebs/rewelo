@@ -36,6 +36,12 @@ describe("rw import (CLI)", () => {
       assert.match(r.stderr, message, file);
       assert.equal(existsSync(fresh), false, `${file}: ${fresh} was created`);
     }
+    writeFileSync(join(dir, "good.json"), '{"tickets":[{"title":"a"}]}');
+    const fresh = join(dir, "fresh-name.db");
+    const r = runCli(["--db", fresh, "import", "json", join(dir, "good.json"), "--project", "bad/name"]);
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, /Project name must contain only/);
+    assert.equal(existsSync(fresh), false, `${fresh} was created`);
   });
 
   it("says a UTF-16 file is UTF-16, instead of missing columns or invalid JSON", () => {

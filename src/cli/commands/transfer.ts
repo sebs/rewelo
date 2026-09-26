@@ -7,6 +7,7 @@ import { importCsv, MAX_SIZE_BYTES as MAX_CSV_BYTES } from "../../transfer/csv/i
 import { importDataAsProject, parseImportJson } from "../../transfer/json/import.js";
 import { MAX_JSON_SIZE_BYTES } from "../../transfer/json/values.js";
 import { validateExportPath, validateImportPath } from "../../validation/paths.js";
+import { validateProjectName } from "../../validation/strings.js";
 import { describeFsError } from "../../errors.js";
 import { resolveProjectName, withDb, withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, type ProjectOptions } from "../options.js";
@@ -90,8 +91,9 @@ export function registerTransferCommands(program: Command): void {
     .action(async (file: string, cmdOpts: ProjectOptions, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       const name = resolveProjectName(cmdOpts.project);
-      // Read and check the file before the database is created: a failed
-      // import must not leave a new, empty database behind
+      // Check the name and the file before the database is created: a
+      // failed import must not leave a new, empty database behind
+      validateProjectName(name);
       const data = parseImportJson(readImportFile(validateImportPath(file, [".json"]), MAX_JSON_SIZE_BYTES));
       await withDb(opts, async (db) => {
         const result = await importDataAsProject(db, name, data);
