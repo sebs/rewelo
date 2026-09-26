@@ -6,6 +6,9 @@ import { truncate } from "../text.js";
 // ticket_list 13.7 MB and export_json 19.6 MB, far more than a client can use
 export const MAX_RESULT_BYTES = 5_000_000;
 
+/** A result or document over its size limit */
+export class TooLarge extends AppError {}
+
 export const tooLarge = (size: string, max = MAX_RESULT_BYTES) =>
   `The result is too large (${size}, max ${max / 1_000_000} MB). Narrow it (limit, offset, filters), or use the rw CLI, which writes exports and dashboards to files.`;
 
@@ -22,7 +25,7 @@ export function textResult(data: unknown): { content: Array<{ type: "text"; text
   // out as a 10.6 MB message, and the SDK's client drops the connection at
   // 10 MiB (every later call then fails)
   const bytes = Buffer.byteLength(JSON.stringify(result), "utf-8");
-  if (bytes > MAX_RESULT_BYTES) throw new AppError(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
+  if (bytes > MAX_RESULT_BYTES) throw new TooLarge(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`));
   return result;
 }
 

@@ -2,8 +2,7 @@ import { DB } from "../db/connection.js";
 import { Project } from "../projects/repository.js";
 import { writeJsonExport } from "../transfer/json/export.js";
 import { renderDashboard } from "../reports/dashboard.js";
-import { AppError } from "../errors.js";
-import { MAX_RESULT_BYTES, ToolResult, tooLarge } from "./results.js";
+import { MAX_RESULT_BYTES, textResult, ToolResult, TooLarge, tooLarge } from "./results.js";
 
 // Documents (exports, dashboards) are read as resources, which a client
 // fetches on its own instead of putting them into the model's context: they
@@ -12,8 +11,6 @@ import { MAX_RESULT_BYTES, ToolResult, tooLarge } from "./results.js";
 // the session of a client following export_json's link
 export const MAX_DOCUMENT_BYTES = 10_000_000;
 
-// Thrown while a document is built, once it is over its limit
-class DocumentTooLarge extends AppError {}
 
 export const resourceUri = (project: string, path: string) => `rewelo://${encodeURIComponent(project)}/${path}`;
 
@@ -26,7 +23,7 @@ export async function jsonExport(db: DB, projectId: number, withHistory: boolean
     for await (const chunk of chunks) {
       text += chunk;
       // UTF-16 units, at most the bytes: over this is over in bytes too
-      if (text.length > maxBytes) throw new DocumentTooLarge(tooLarge(`over ${maxBytes / 1_000_000} MB`, maxBytes));
+      if (text.length > maxBytes) throw new TooLarge(tooLarge(`over ${maxBytes / 1_000_000} MB`, maxBytes));
     }
   });
   return text;
@@ -36,16 +33,18 @@ export async function jsonExport(db: DB, projectId: number, withHistory: boolean
 // backslash or a line break takes two bytes)
 export function checkDocumentSize(text: string, maxBytes: number): string {
   const bytes = Buffer.byteLength(JSON.stringify(text), "utf-8");
-  if (bytes > maxBytes) throw new DocumentTooLarge(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`, maxBytes));
+  if (bytes > maxBytes) throw new TooLarge(tooLarge(`${(bytes / 1_000_000).toFixed(1)} MB`, maxBytes));
   return text;
 }
 
-// A document too large for a tool result: a link to the resource with it
+// A document too large for a tool result: a link to the resource with it.
+// Too large is what the tool result would be (textResult), not the document
+// alone: one a few bytes under 5 MB failed as "too large" instead
 export async function documentOrLink(build: () => Promise<string>, uri: string, name: string, mimeType: string) {
   try {
-    return checkDocumentSize(await build(), MAX_RESULT_BYTES);
+    return new ToolResult(textResult(checkDocumentSize(await build(), MAX_RESULT_BYTES)));
   } catch (err) {
-    if (!(err instanceof DocumentTooLarge)) throw err;
+    if (!(err instanceof TooLarge)) throw err;
     return new ToolResult({
       content: [
         {

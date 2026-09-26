@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_RESULT_BYTES, textResult } from "../../src/mcp/results.js";
+import { MAX_RESULT_BYTES, textResult, ToolResult } from "../../src/mcp/results.js";
+import { documentOrLink } from "../../src/mcp/documents.js";
 
 describe("textResult", () => {
   it("limits the result as sent: the data twice, and the text escaped", () => {
@@ -20,5 +21,17 @@ describe("textResult", () => {
     // 3.6 MB with its newlines escaped: twice over the limit if it were sent twice
     const csv = "title\n" + "abc,def,ghi\n".repeat(300_000);
     assert.equal(textResult(csv).content[0].text, csv);
+  });
+
+  it("links a document whenever the tool result would be too large, also just under 5 MB", async () => {
+    // Under 5 MB as the document is measured, just over as the tool result
+    // (whose envelope adds a few bytes)
+    for (const text of ["x".repeat(MAX_RESULT_BYTES - 10), '"'.repeat(2_600_000)]) {
+      const result = await documentOrLink(async () => text, "rewelo://P/export/csv", "CSV export", "text/csv");
+      assert.ok(result instanceof ToolResult);
+      assert.equal((result.result.content as Array<{ type: string }>)[1]?.type, "resource_link");
+    }
+    const small = await documentOrLink(async () => "title\nA\n", "rewelo://P/export/csv", "CSV export", "text/csv");
+    assert.equal((small.result.content as Array<{ text: string }>)[0].text, "title\nA\n");
   });
 });
