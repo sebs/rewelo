@@ -2,7 +2,7 @@
 name: what-if
 description: Simulate priority changes without modifying real data
 argument-hint: "[project]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__calc_priority, mcp__rewelo__simulate, mcp__rewelo__explain_priority, mcp__rewelo__report_summary, mcp__rewelo__ticket_update
+allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__simulate, mcp__rewelo__explain_priority, mcp__rewelo__report_summary, mcp__rewelo__ticket_update
 ---
 
 # What-If Scenario Simulation
@@ -11,8 +11,8 @@ Explore prioritization scenarios for project **$0** without changing real data.
 
 ## Setup
 
-1. Use `ticket_list` and `calc_priority` to get the current baseline ranking (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
-2. Store this as the **baseline** for comparison
+1. Call `simulate` with no changes for the current ranking of the open tickets: it is the **baseline** each scenario is compared with. Don't take it from `calc_priority`, which ranks done tickets too, while `simulate` ranks the open ones (not `state:done`)
+2. Use `ticket_list` for the tickets' scores, to name them in scenarios (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
 
 ## Interactive loop
 
