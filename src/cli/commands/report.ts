@@ -12,7 +12,7 @@ import { displayWidth } from "../../display-width.js";
 import { FIBONACCI } from "../../domain/scores.js";
 import { withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, parseFloatOption, parseNonNegativeIntOption, type ProjectOptions } from "../options.js";
-import { formatTable, printRows, reportWritten } from "../output.js";
+import { escapeControls, formatTable, printRows, reportWritten } from "../output.js";
 import { writeFile } from "../files.js";
 
 export function registerReportCommands(program: Command): void {
@@ -162,16 +162,17 @@ export function registerReportCommands(program: Command): void {
         if (opts.json) {
           console.log(JSON.stringify(events));
         } else if (opts.quiet) {
-          events.forEach((e) => console.log(`${e.timestamp}\t${e.type}\t${e.ticketTitle}`));
+          events.forEach((e) => console.log(`${e.timestamp}\t${e.type}\t${escapeControls(e.ticketTitle)}`));
         } else if (events.length === 0 && !opts.csv) {
           console.log(cmdOpts.limit === 0 ? "No events shown (--limit 0)." : "No events found.");
         } else if (opts.csv) {
           console.log(formatTable(opts, ["Timestamp", "Type", "Ticket", "Detail"], events.map((e) => [e.timestamp, e.type, e.ticketTitle, detail(e)])));
         } else {
           // The ticket column padded to its widest title, so the details line up
-          const width = Math.max(...events.map((e) => displayWidth(e.ticketTitle)));
-          for (const e of events) {
-            const ticket = e.ticketTitle + " ".repeat(width - displayWidth(e.ticketTitle));
+          const titles = events.map((e) => escapeControls(e.ticketTitle));
+          const width = Math.max(...titles.map(displayWidth));
+          for (const [i, e] of events.entries()) {
+            const ticket = titles[i] + " ".repeat(width - displayWidth(titles[i]));
             console.log(`${e.timestamp}  ${e.type.padEnd(16)}  ${ticket}  ${detail(e)}`);
           }
         }

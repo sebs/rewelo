@@ -11,12 +11,13 @@ export interface OutputOptions {
 const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 const ESCAPES: Record<string, string> = { "\n": "\\n", "\r": "\\r", "\t": "\\t" };
 
-function escapeControls(cells: string[][]): void {
-  for (const row of cells) {
-    row.forEach((cell, i) => {
-      row[i] = cell.replace(CONTROL, (c) => ESCAPES[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
-    });
-  }
+/**
+ * Text from before titles were checked (revisions from rw < 0.3.10, or an
+ * imported history) may hold line breaks and other control characters:
+ * shown escaped ("a\\nb"), they can't make up lines of output
+ */
+export function escapeControls(text: string): string {
+  return text.replace(CONTROL, (c) => ESCAPES[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
 }
 
 /** A table with aligned columns, or CSV under --csv */
@@ -28,9 +29,7 @@ export function formatTable(opts: OutputOptions, headers: string[], rows: unknow
   );
   // --csv applies to every table
   if (opts.csv) return [headers, ...cells].map(csvRow).join("\n");
-  // Text from before titles were checked (revisions from rw < 0.3.10, or an
-  // imported history) may hold line breaks, which made up rows in the table
-  escapeControls(cells);
+  for (const row of cells) row.forEach((cell, i) => (row[i] = escapeControls(cell)));
   const widths = headers.map((h, i) =>
     cells.reduce((max, r) => Math.max(max, displayWidth(r[i] || "")), displayWidth(h))
   );

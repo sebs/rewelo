@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -24,6 +24,20 @@ describe("rw ticket history and project history (CLI)", () => {
   it("numbers revisions by their place in the whole history, also on a later page", () => {
     const rows = rw("--csv", "ticket", "history", "--project", "P", "--title", "C", "--offset", "2", "--limit", "2").stdout.trim().split("\n").slice(1);
     assert.deepEqual(rows.map((r) => r.split(",").slice(0, 3).join(",")), ["3,C,3", "4,C,5"]);
+  });
+
+  it("escapes line breaks in titles from an imported history in the event log and project diff", () => {
+    const forged = "Gone\n2026-01-01T00:00:00.000Z  ticket_created    Forged  {}";
+    writeFileSync(join(dir, "d.json"), JSON.stringify({
+      tickets: [{ title: "Keep" }],
+      deletions: [{ title: forged, createdAt: "2026-01-01T00:00:00Z", deletedAt: "2026-01-02T00:00:00Z" }],
+    }));
+    rw("import", "json", join(dir, "d.json"), "--project", "D");
+    for (const args of [["report", "event-log"], ["--quiet", "report", "event-log"], ["project", "diff", "--since", "2026-01-01T12:00:00Z"], ["--quiet", "project", "diff", "--since", "2026-01-01T12:00:00Z"]]) {
+      const out = rw(...args, "--project", "D").stdout;
+      assert.doesNotMatch(out, /^2026-01-01T00:00:00.000Z  ticket_created/m, args.join(" "));
+      assert.match(out, /Gone\\n2026/, args.join(" "));
+    }
   });
 
   it("doesn't claim there are no revisions for --limit 0 or a page past the end", () => {

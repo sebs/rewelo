@@ -6,7 +6,7 @@ import { AppError } from "../../errors.js";
 import { validateProjectName } from "../../validation/strings.js";
 import { withDb, withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, parseNonNegativeIntOption, type ProjectOptions } from "../options.js";
-import { emptyPage, formatTable, printResult, printRows } from "../output.js";
+import { emptyPage, escapeControls, formatTable, printResult, printRows } from "../output.js";
 
 // Asks on stderr, so the prompt doesn't mix with --json output. Ctrl-C and
 // Ctrl-D end the command with a failure, so `rw project delete X && ...`
@@ -127,31 +127,31 @@ export function registerProjectCommands(program: Command): void {
         if (opts.json) {
           console.log(JSON.stringify(diff));
         } else if (opts.quiet) {
-          changes.forEach((c) => console.log(c.join("\t")));
+          changes.forEach((c) => console.log(c.map((cell) => escapeControls(String(cell))).join("\t")));
         } else if (opts.csv) {
           console.log(formatTable(opts, ["Change", "Ticket", "Detail"], changes));
         } else {
           if (diff.newTickets.length > 0) {
             console.log(`New tickets (${diff.newTickets.length}):`);
             // Two decimals, as everywhere else in text output
-            diff.newTickets.forEach((t) => console.log(`  + ${t.title} (priority: ${t.priority.toFixed(2)})`));
+            diff.newTickets.forEach((t) => console.log(`  + ${escapeControls(t.title)} (priority: ${t.priority.toFixed(2)})`));
           }
           if (diff.updatedTickets.length > 0) {
             console.log(`Updated tickets (${diff.updatedTickets.length}):`);
             diff.updatedTickets.forEach((t) => {
-              console.log(`  ~ ${t.title}`);
-              t.changes.forEach((c) => console.log(`    ${c.field}: ${c.from} → ${c.to}`));
+              console.log(`  ~ ${escapeControls(t.title)}`);
+              t.changes.forEach((c) => console.log(`    ${c.field}: ${escapeControls(String(c.from))} → ${escapeControls(String(c.to))}`));
             });
           }
           if (diff.deletedTickets.length > 0) {
             console.log(`Deleted tickets (${diff.deletedTickets.length}):`);
-            diff.deletedTickets.forEach((t) => console.log(`  - ${t.title}`));
+            diff.deletedTickets.forEach((t) => console.log(`  - ${escapeControls(t.title)}`));
           }
           if (diff.tagChanges.length > 0) {
             console.log(`Tag changes (${diff.tagChanges.length}):`);
             diff.tagChanges.forEach((t) => {
-              if (t.added.length > 0) console.log(`  ${t.ticketTitle}: +${t.added.join(", +")}`);
-              if (t.removed.length > 0) console.log(`  ${t.ticketTitle}: -${t.removed.join(", -")}`);
+              if (t.added.length > 0) console.log(`  ${escapeControls(t.ticketTitle)}: +${t.added.join(", +")}`);
+              if (t.removed.length > 0) console.log(`  ${escapeControls(t.ticketTitle)}: -${t.removed.join(", -")}`);
             });
           }
           if (changes.length === 0) console.log("No changes since " + cmdOpts.since);
