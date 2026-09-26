@@ -15,7 +15,9 @@ export async function groupByTagPrefix(
   prefix: string
 ): Promise<TagGroup[]> {
   const tickets = await listTickets(db, projectId, { withDescription: false });
-  const groups: Record<string, { count: number; sumPriority: number }> = {};
+  // A Map: in a plain object the value "constructor" found the inherited
+  // Object, and its tickets went nowhere
+  const groups = new Map<string, { count: number; sumPriority: number }>();
 
   const tagsByTicket = await getProjectTicketTags(db, projectId);
   for (const t of tickets) {
@@ -24,14 +26,15 @@ export async function groupByTagPrefix(
     const prio = exactPriority(t);
 
     for (const tag of matching) {
-      if (!groups[tag.value]) groups[tag.value] = { count: 0, sumPriority: 0 };
-      groups[tag.value].count++;
-      groups[tag.value].sumPriority += prio;
+      const group = groups.get(tag.value) ?? { count: 0, sumPriority: 0 };
+      group.count++;
+      group.sumPriority += prio;
+      groups.set(tag.value, group);
     }
   }
 
   // Sort on the exact average, round (half up) for the result
-  return Object.entries(groups)
+  return [...groups]
     .sort(([, a], [, b]) => b.sumPriority / b.count - a.sumPriority / a.count)
     .map(([value, data]) => ({
       value,

@@ -7,6 +7,7 @@ import { createTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag } from "../../src/tags/assignment.js";
 import { getProjectSummary } from "../../src/reports/summary.js";
+import { groupByTagPrefix } from "../../src/reports/group.js";
 
 describe("project summary report", () => {
   let db: DB;
@@ -45,6 +46,18 @@ describe("project summary report", () => {
     assert.equal(summary.totalTickets, 3);
     assert.equal(summary.byState.backlog, 2);
     assert.equal(summary.byState.wip, 1);
+  });
+
+  it("counts a tag value that is also an Object property name (constructor)", async () => {
+    const a = await createTicket(db, { projectId, title: "A", benefit: 8 });
+    const b = await createTicket(db, { projectId, title: "B" });
+    await assignTag(db, a.id, (await createTag(db, projectId, "state", "constructor")).id);
+    await assignTag(db, a.id, (await createTag(db, projectId, "kind", "constructor")).id);
+    await assignTag(db, b.id, (await createTag(db, projectId, "kind", "bug")).id);
+
+    assert.deepEqual((await getProjectSummary(db, projectId)).byState, { constructor: 1 });
+    assert.deepEqual((await groupByTagPrefix(db, projectId, "kind")).map((g) => [g.value, g.ticketCount]), [["constructor", 1], ["bug", 1]]);
+    assert.deepEqual((await groupByTagPrefix(db, projectId, "state")).map((g) => g.value), ["constructor"]);
   });
 
   it("returns top-N tickets sorted by priority", async () => {

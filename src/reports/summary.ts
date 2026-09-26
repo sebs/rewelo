@@ -19,13 +19,15 @@ export async function getProjectSummary(
 ): Promise<ProjectSummary> {
   const tickets = await listTickets(db, projectId, { withDescription: false });
 
-  const byState: Record<string, number> = {};
+  // Counted in a Map: in a plain object the value "constructor" found the
+  // inherited Object and added 1 to it
+  const byState = new Map<string, number>();
   let withoutState = 0;
   const tagsByTicket = await getProjectTicketTags(db, projectId);
   for (const t of tickets) {
     const tags = tagsByTicket.get(t.id) ?? [];
     const stateTag = tags.find((tg) => tg.prefix === STATE_PREFIX);
-    if (stateTag) byState[stateTag.value] = (byState[stateTag.value] || 0) + 1;
+    if (stateTag) byState.set(stateTag.value, (byState.get(stateTag.value) ?? 0) + 1);
     else withoutState++;
   }
 
@@ -41,7 +43,7 @@ export async function getProjectSummary(
 
   return {
     totalTickets: tickets.length,
-    byState,
+    byState: Object.fromEntries(byState),
     withoutState,
     topByPriority: sorted.slice(0, topN),
   };
