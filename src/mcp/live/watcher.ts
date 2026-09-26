@@ -36,12 +36,27 @@ export class ChangeWatcher {
   // empty import) is no news either.
   attach(db: DB): void {
     let before = 0;
+    void this.noteProjects(db);
     db.observeTransactions({
       begun: async () => void (before = await db.totalChanges()),
       committing: async () => {
-        if ((await db.totalChanges()) !== before) this.wrote = true;
+        if ((await db.totalChanges()) === before) return;
+        this.wrote = true;
+        await this.noteProjects(db);
       },
     });
+  }
+
+  // The resource list has a backlog and a dashboard per project: clients
+  // hear when the projects change (the server has the listChanged
+  // capability), by this session's writes or, while it watches, others'
+  private projects: string | undefined;
+
+  private async noteProjects(db: DB): Promise<void> {
+    const [{ ids }] = await db.all<{ ids: string | null }>("SELECT group_concat(id) AS ids FROM (SELECT id FROM projects ORDER BY id)");
+    const changed = this.projects !== undefined && (ids ?? "") !== this.projects;
+    this.projects = ids ?? "";
+    if (changed && this.server.isConnected()) this.server.sendResourceListChanged();
   }
 
   /** Handle resources/subscribe and resources/unsubscribe */
@@ -68,6 +83,7 @@ export class ChangeWatcher {
     try {
       await this.session.queued(async (db) => {
         const version = await db.dataVersion();
+        await this.noteProjects(db);
         const changed = this.wrote || (this.dataVersion !== undefined && version !== this.dataVersion);
         this.dataVersion = version;
         this.wrote = false;

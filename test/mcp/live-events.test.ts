@@ -175,6 +175,25 @@ describe("MCP live events", () => {
     assert.deepEqual(updated, ["rewelo://Acme/backlog"]);
   });
 
+  it("tells clients when the resource list changes: a project created or deleted, here or elsewhere", async () => {
+    const { client } = await connect();
+    let listChanged = 0;
+    client.setNotificationHandler("notifications/resources/list_changed", async () => void listChanged++);
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "No new resource" } });
+    await client.callTool({ name: "project_create", arguments: { name: "Beta" } });
+    await until(() => listChanged === 1);
+    await client.callTool({ name: "project_delete", arguments: { name: "Beta" } });
+    await until(() => listChanged === 2);
+
+    // Another process, noticed while the server watches for changes
+    await client.subscribeResource({ uri: "rewelo://Acme/backlog" });
+    await settle();
+    const db = await DB.open(path);
+    await db.run("INSERT INTO projects (name) VALUES ('Gamma')");
+    await db.close();
+    await until(() => listChanged === 3);
+  });
+
   it("has no channel unless asked for", async () => {
     const { client, channelMessages } = await connect();
     assert.equal(client.getServerCapabilities()?.experimental, undefined);
