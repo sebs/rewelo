@@ -93,6 +93,16 @@ describe("MCP simulate and explain_priority", () => {
     }
   });
 
+  it("pages calc_priority, calc_weights and relation_list_all with limit and offset", async () => {
+    const all = (await call("calc_priority", { project: "Acme" })).data.map((t: { title: string }) => t.title);
+    const page = (await call("calc_priority", { project: "Acme", limit: 2, offset: 1 })).data.map((t: { title: string }) => t.title);
+    assert.deepEqual(page, all.slice(1, 3));
+    assert.equal((await call("calc_weights", { project: "Acme", offset: 3 })).data.length, 1);
+    await call("relation_create", { project: "Acme", source: "A", type: "blocks", target: "B" });
+    await call("relation_create", { project: "Acme", source: "C", type: "relates-to", target: "D" });
+    assert.equal((await call("relation_list_all", { project: "Acme", limit: 1 })).data.length, 1);
+  });
+
   it("explains a priority and what it takes to reach the top 2", async () => {
     const r = await call("explain_priority", { project: "Acme", title: "C", top: 2 });
     assert.equal(r.isError, false, r.text);

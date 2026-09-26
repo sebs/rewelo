@@ -198,8 +198,8 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `calc_priority`   | Weighted priorities for all tickets, or those with every tag given | `project?`, `tag?`, `tags?`, `w1?`, `w2?`, `w3?`, `w4?` |
-| `calc_weights`    | Relative weights as share of total (fraction 0–1), of all tickets or those with every tag given | `project?`, `tag?`, `tags?` |
+| `calc_priority`   | Weighted priorities for all tickets, or those with every tag given | `project?`, `tag?`, `tags?`, `w1?`, `w2?`, `w3?`, `w4?`, `limit?`, `offset?` |
+| `calc_weights`    | Relative weights as share of total (fraction 0–1), of all tickets or those with every tag given | `project?`, `tag?`, `tags?`, `limit?`, `offset?` |
 | `simulate`        | What-if ranking under hypothetical scores, tickets and weights; writes nothing | `project?`, `tag?`, `tags?`, `changes?`, `add?`, `remove?`, `weights?`, `top?`, `limit?` |
 | `explain_priority`| One ticket's formula, rank, and what it takes to reach the top N | `project?`, `title`, `tag?`, `tags?`, `top?` |
 | `suggest_scores`  | Similar tickets, reference tickets per score, and the distribution, to score a new ticket; optionally the client model's scores | `project?`, `title`, `description?`, `sample?` |
@@ -224,7 +224,7 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 | `relation_create` | Create a typed relation between tickets | `project?`, `source`, `type`, `target` |
 | `relation_remove` | Remove a relation (both directions) | `project?`, `source`, `type`, `target`    |
 | `relation_list`   | List all relations for a ticket    | `project?`, `ticket`                       |
-| `relation_list_all` | List every relation in a project | `project?`                                 |
+| `relation_list_all` | List every relation in a project | `project?`, `limit?`, `offset?`             |
 
 Types: `blocks`, `depends-on`, `relates-to`, `duplicates`, `supersedes`, `precedes`, `tests`, `implements`, `addresses`, `splits-into`, `informs`, `see-also`. Each asymmetric type has an inverse name, which listings show from the other ticket's side and which is accepted as well: `is-blocked-by`, `is-depended-on-by`, `is-duplicated-by`, `is-superseded-by`, `follows`, `is-tested-by`, `is-implemented-by`, `is-addressed-by`, `is-split-from`, `is-informed-by`. `A is-blocked-by B` is `B blocks A`.
 
@@ -382,7 +382,7 @@ Result:
 | `Rate limit exceeded (100 calls per second). Try again in N s.` | Tool calls start at most 100 per second; calls beyond that wait their turn, and a call that would wait more than 10 seconds is refused. |
 | `Request payload too large` | A tool call's text arguments may total at most 1 MB; split an import into several calls. |
 | `Request too large: a message may be at most 4 MB` | A JSON-RPC message over 4 MB is dropped unread (and noted on stderr); the server goes on serving. Split the call. |
-| `The result is too large` | Tool results are limited to 5 MB as sent: the data goes out twice, as JSON text and as `structuredContent`, so about 2.5 MB of it. Page through `ticket_list` with `limit` and `offset` (it returns 100 tickets by default). Exports and dashboards over 5 MB come as a link to a resource, which may be up to 10 MB; beyond that, export or render with the `rw` CLI, which writes files. |
+| `The result is too large` | Tool results are limited to 5 MB as sent: the data goes out twice, as JSON text and as `structuredContent`, so about 2.5 MB of it. Page through `ticket_list` with `limit` and `offset` (it returns 100 tickets by default); `calc_priority`, `calc_weights` and `relation_list_all` take them too (all by default). For a backlog too large to read as a resource, use `ticket_list` with `sort: "priority"`. Exports and dashboards over 5 MB come as a link to a resource, which may be up to 10 MB; beyond that, export or render with the `rw` CLI, which writes files. |
 
 To check the server by hand, see [Verifying the Server](#verifying-the-server).
 

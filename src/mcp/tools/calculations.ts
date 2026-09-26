@@ -12,7 +12,7 @@ import { AppError } from "../../errors.js";
 import { parseTag, validateTicketDescription, validateTicketTitle } from "../../validation/strings.js";
 import { getWeights } from "../../weights/repository.js";
 import { doneTicketIds } from "../../workflow/states.js";
-import { fibonacciScore, READ, resolveTicket, tagList, PROJECT_ARG, type McpContext } from "../toolkit.js";
+import { fibonacciScore, PAGE_ARGS, pageOf, READ, resolveTicket, tagList, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 // What-if questions are about what to do next: done tickets take no part
 // in the ranking, as in the backlog resource, the summary and the dashboard
@@ -48,11 +48,12 @@ export function registerCalculationTools(ctx: McpContext): void {
       w2: z.number().optional().describe("Penalty weight (default 1.5). Higher = penalty matters more in value."),
       w3: z.number().optional().describe("Estimate weight (default 1.5). Higher = large estimates are penalised more."),
       w4: z.number().optional().describe("Risk weight (default 1.5). Higher = risky items are penalised more. To de-risk first, sort by risk via ticket_list instead."),
+      ...PAGE_ARGS,
     },
     READ,
-    ({ project, tag, tags, w1, w2, w3, w4 }) =>
+    ({ project, tag, tags, w1, w2, w3, w4, limit, offset }) =>
       inProject(project, async (db, proj) =>
-        (await weightedRanking(db, proj.id, { tags: tagList(tag, tags), weights: { w1, w2, w3, w4 } })).tickets
+        pageOf((await weightedRanking(db, proj.id, { tags: tagList(tag, tags), weights: { w1, w2, w3, w4 } })).tickets, limit, offset)
       )
   );
 
@@ -63,10 +64,11 @@ export function registerCalculationTools(ctx: McpContext): void {
       ...PROJECT_ARG,
       tag: z.string().optional().describe("Only compare tickets with this tag (prefix:value)"),
       tags: z.array(z.string()).optional().describe("Only compare tickets with all of these tags (intersection, also with tag). Each as prefix:value"),
+      ...PAGE_ARGS,
     },
     READ,
-    ({ project, tag, tags }) =>
-      inProject(project, (db, proj) => relativeWeights(db, proj.id, { tags: tagList(tag, tags) }))
+    ({ project, tag, tags, limit, offset }) =>
+      inProject(project, async (db, proj) => pageOf(await relativeWeights(db, proj.id, { tags: tagList(tag, tags) }), limit, offset))
   );
 
   const scoreChange = {

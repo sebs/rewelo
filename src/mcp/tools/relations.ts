@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createRelation, listProjectRelations, listRelations, removeRelation } from "../../relations/repository.js";
 import { normalizeRelationType } from "../../relations/types.js";
-import { ADDS, DELETES, READ, resolveTicket, PROJECT_ARG, type McpContext } from "../toolkit.js";
+import { ADDS, DELETES, PAGE_ARGS, pageOf, READ, resolveTicket, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerRelationTools(ctx: McpContext): void {
   const { tool, inProject } = ctx;
@@ -62,8 +62,8 @@ export function registerRelationTools(ctx: McpContext): void {
   tool(
     "relation_list_all",
     "List every relation in a project in one call. Returns source/target IDs, titles, and relation type. Use instead of calling relation_list per ticket.",
-    { ...PROJECT_ARG },
+    { ...PROJECT_ARG, ...PAGE_ARGS },
     READ,
-    ({ project }) => inProject(project, (db, proj) => listProjectRelations(db, proj.id))
+    ({ project, limit, offset }) => inProject(project, async (db, proj) => pageOf(await listProjectRelations(db, proj.id), limit, offset))
   );
 }

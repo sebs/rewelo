@@ -10,7 +10,7 @@ export const MAX_RESULT_BYTES = 5_000_000;
 export class TooLarge extends AppError {}
 
 export const tooLarge = (size: string, max = MAX_RESULT_BYTES) =>
-  `The result is too large (${size}, max ${max / 1_000_000} MB). Narrow it (limit, offset, filters), or use the rw CLI, which writes exports and dashboards to files.`;
+  `The result is too large (${size}, max ${max / 1_000_000} MB). Narrow it with a tag filter, or page with limit and offset (ticket_list, calc_priority, calc_weights and relation_list_all take them; for the backlog, ticket_list with sort "priority"), or use the rw CLI, which writes exports and dashboards to files.`;
 
 // Data goes out twice: as structuredContent, checked against the tool's
 // outputSchema, and as JSON text for clients that read only the text. A

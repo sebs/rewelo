@@ -58,5 +58,15 @@ export const fibonacciScore = z.union(
 /** The project parameter of every tool that works on one project */
 export const PROJECT_ARG = { project: z.string().optional().describe("Project name (falls back to .rewelo.json)") };
 
+// Paging for lists returned whole: over the size limit they could not be
+// read at all
+export const PAGE_ARGS = {
+  limit: z.number().int().nonnegative().optional().describe("Max number of entries to return (default: all)"),
+  offset: z.number().int().nonnegative().optional().describe("Number of entries to skip, to page through a list too large for one result"),
+};
+
+export const pageOf = <T>(items: T[], limit?: number, offset = 0): T[] =>
+  items.slice(offset, limit === undefined ? undefined : offset + limit);
+
 // The tag and tags parameters as the one tag list the use cases take
 export const tagList = (tag: string | undefined, tags: string[] = []): string[] => (tag !== undefined ? [tag] : []).concat(tags);
