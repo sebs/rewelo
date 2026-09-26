@@ -2,7 +2,7 @@
 name: intake
 description: Conduct a stakeholder interview to create scored backlog tickets
 argument-hint: "[project]"
-allowed-tools: mcp__rewelo__ticket_create, mcp__rewelo__suggest_scores, mcp__rewelo__tag_create, mcp__rewelo__tag_assign, mcp__rewelo__project_list, mcp__rewelo__project_create
+allowed-tools: mcp__rewelo__ticket_create, mcp__rewelo__calc_priority, mcp__rewelo__suggest_scores, mcp__rewelo__tag_create, mcp__rewelo__tag_assign, mcp__rewelo__project_list, mcp__rewelo__project_create
 ---
 
 # Stakeholder Intake Interview
@@ -46,9 +46,9 @@ Ask: "Any labels? (e.g. feature:checkout, team:platform)"
 
 - Create the ticket using `ticket_create`
 - Tag it `state:backlog` and any user-provided tags using `tag_assign`
-- Show a summary: title, scores, computed priority
+- Show a summary: title, scores, and priority. `ticket_create` returns no priority: take it from `calc_priority`, which weights the scores with the project's weights, rather than working it out yourself
 - Ask: "Next story, or are we done?"
 
 ## Wrap-up
 
-When done, show all created tickets in a priority-ranked table.
+When done, show all created tickets in a priority-ranked table, in the order and with the weighted priorities `calc_priority` gives them.
