@@ -64,6 +64,9 @@ describe("MCP simulate and explain_priority", () => {
     assert.match(score.text, /must be a Fibonacci value/);
     const title = await call("simulate", { project: "Acme", add: [{ title: "" }] });
     assert.equal(title.isError, true);
+    const replaced = await call("simulate", { project: "Acme", remove: ["A"], add: [{ title: "A", benefit: 1 }] });
+    assert.equal(replaced.isError, true);
+    assert.match(replaced.text, /Ticket "A" is both removed and added; to give it other scores, use changes/);
   });
 
   it("ranks only the open tickets: a done ticket is no part of what to do next", async () => {

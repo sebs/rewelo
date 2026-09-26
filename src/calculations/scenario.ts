@@ -139,7 +139,12 @@ export function simulate(
   for (const t of scenario.add ?? []) {
     // As a new ticket's title is stored
     const title = collapseSpaces(normalizeName(t.title));
-    if (findTicket(existing, title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
+    const clash = findTicket(existing, title);
+    // Removing a ticket and adding it back is giving it other scores
+    if (clash && removed.has(clash.title)) {
+      throw new AppError(`Ticket "${t.title}" is both removed and added; to give it other scores, use changes`);
+    }
+    if (clash) throw new AppError(`A ticket with title "${t.title}" already exists`);
     if (added.some((a) => a.title === title)) throw new AppError(`Ticket "${t.title}" is added twice`);
     added.push({ title, benefit: 1, penalty: 1, estimate: 1, risk: 1, ...definedScores(t) });
   }
