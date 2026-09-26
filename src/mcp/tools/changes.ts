@@ -25,7 +25,7 @@ export function registerChangeTools(ctx: McpContext): void {
 
   tool(
     "apply_changes",
-    "Apply a list of changes in one transaction: all of them or, when one fails, none. Operations: ticket_create, ticket_update, ticket_delete, tag_assign and tag_remove (tag as prefix:value; a missing tag is created), relation_create, relation_remove, each with the parameters of the tool of that name. With dryRun, nothing is written: the result shows what the changes would do. Returns each operation's outcome and how the ranking (as calc_priority ranks) changes. Use it to groom a backlog in one step, and dryRun to review a plan with the user first.",
+    "Apply a list of changes in one transaction: all of them or, when one fails, none. Operations: ticket_create, ticket_update, ticket_delete, tag_assign and tag_remove (tag as prefix:value; a missing tag is created), relation_create, relation_remove, each with the parameters of the tool of that name. With dryRun, nothing is written: the result shows what the changes would do. Returns each operation's outcome and how the ranking of the open tickets (not state:done, as simulate ranks) changes; a ticket the changes close or reopen is marked done or reopened. Use it to groom a backlog in one step, and dryRun to review a plan with the user first.",
     {
       ...PROJECT_ARG,
       operations: z.array(operation).min(1).max(MAX_OPERATIONS).describe("Changes, applied in order"),

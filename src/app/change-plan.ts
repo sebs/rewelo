@@ -1,5 +1,6 @@
 import { DB } from "../db/connection.js";
 import { compareRankings, type RankingComparison } from "../calculations/scenario.js";
+import { doneTicketIds } from "../workflow/states.js";
 import type { Scores } from "../domain/scores.js";
 import { AppError, sanitizeError } from "../errors.js";
 import { createRelation, removeRelation } from "../relations/repository.js";
@@ -27,14 +28,16 @@ export type Operation =
   | ({ op: "relation_create" } & RelationChange)
   | ({ op: "relation_remove" } & RelationChange);
 
-type TicketChange = "created" | "updated" | "deleted";
+// done/reopened: the plan closed a ticket (it leaves the ranking of open
+// tickets) or reopened one (it joins it)
+type TicketChange = "created" | "updated" | "deleted" | "done" | "reopened";
 
 export interface ChangePlanResult {
   /** false for a dry run, whose changes were rolled back */
   applied: boolean;
   /** Each operation's outcome, in order */
   operations: unknown[];
-  /** How the ranking (as calc_priority ranks) changes */
+  /** How the ranking of the open tickets (as simulate ranks) changes */
   ranking: RankingComparison<TicketChange>;
 }
 
@@ -115,7 +118,10 @@ export async function applyChanges(
   const run = async (): Promise<ChangePlanResult> => {
     const { w1, w2, w3, w4 } = await getWeights(db, projectId);
     const weights = { w1, w2, w3, w4 };
-    const before = await listTickets(db, projectId, { withDescription: false });
+    // The open tickets, as simulate ranks them: a done ticket is no part of
+    // what to do next, and closing one takes it out of the ranking
+    const doneBefore = await doneTicketIds(db, projectId);
+    const before = (await listTickets(db, projectId, { withDescription: false })).filter((t) => !doneBefore.has(t.id));
     const results = [];
     const changes = new Map<number, TicketChange>();
     for (const [i, op] of operations.entries()) {
@@ -125,7 +131,13 @@ export async function applyChanges(
         throw new AppError(`Operation ${i + 1} (${op.op}): ${sanitizeError(err)}. Nothing was changed.`);
       }
     }
-    const after = await listTickets(db, projectId, { withDescription: false });
+    const doneAfter = await doneTicketIds(db, projectId);
+    const all = await listTickets(db, projectId, { withDescription: false });
+    for (const t of all) {
+      if (doneAfter.has(t.id) && !doneBefore.has(t.id) && changes.get(t.id) !== "created") changes.set(t.id, "done");
+      if (!doneAfter.has(t.id) && doneBefore.has(t.id)) changes.set(t.id, "reopened");
+    }
+    const after = all.filter((t) => !doneAfter.has(t.id));
     return {
       applied: !options.dryRun,
       operations: results,

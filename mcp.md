@@ -266,7 +266,7 @@ An agent grooming a backlog makes dozens of calls, and a failure halfway leaves 
 ] }
 ```
 
-Operations: `ticket_create`, `ticket_update`, `ticket_delete`, `tag_assign` and `tag_remove` (with `tag` as `prefix:value`; `tag_assign` creates a missing tag), `relation_create` and `relation_remove`, each with the parameters of the tool of that name. At most 1,000 per call. The result lists each operation's outcome (`ticket_update` with the fields it changed) and, under `ranking`, how the ranking changes as `simulate` shows it: the new top tickets and every ticket created, updated, deleted or moved.
+Operations: `ticket_create`, `ticket_update`, `ticket_delete`, `tag_assign` and `tag_remove` (with `tag` as `prefix:value`; `tag_assign` creates a missing tag), `relation_create` and `relation_remove`, each with the parameters of the tool of that name. At most 1,000 per call. The result lists each operation's outcome (`ticket_update` with the fields it changed) and, under `ranking`, how the ranking of the open tickets changes, as `simulate` shows it: the new top tickets and every ticket created, updated, deleted, moved, or closed (`done`) or reopened (`reopened`) by a `state:done` tag.
 
 ### Export / Import
 

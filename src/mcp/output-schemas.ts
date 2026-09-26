@@ -185,8 +185,8 @@ export const outputSchemas = {
       z.object({ op: z.literal("relation_create"), source: z.string(), type: z.string(), target: z.string() }),
       z.object({ op: z.literal("relation_remove"), source: z.string(), type: z.string(), target: z.string() }),
     ])).describe("Each operation's outcome, in order"),
-    ranking: rankingComparison(["created", "updated", "deleted"])
-      .describe("The ranking before (baseline) and after the changes (scenario), as calc_priority ranks"),
+    ranking: rankingComparison(["created", "updated", "deleted", "done", "reopened"])
+      .describe("The ranking of the open tickets before (baseline) and after the changes (scenario), as simulate ranks; done: the changes closed the ticket, reopened: they reopened it"),
   }),
 
   suggest_scores: z.object({

@@ -48,6 +48,22 @@ describe("MCP apply_changes", () => {
     assert.deepEqual(r.data.ranking.tickets, []);
   });
 
+  it("ranks the open tickets as simulate does: closing a ticket takes it out, reopening puts it back", async () => {
+    const closed = await call("apply_changes", { project: "Acme", dryRun: true, operations: [{ op: "tag_assign", ticket: "A", tag: "state:done" }] });
+    assert.equal(closed.isError, false, closed.text);
+    assert.equal(closed.data.ranking.total, 2);
+    assert.deepEqual(closed.data.ranking.top.map((t: { title: string }) => t.title), ["B", "C"]);
+    assert.deepEqual(closed.data.ranking.tickets.find((t: { title: string }) => t.title === "A"), {
+      title: "A", baselineRank: 1, scenarioRank: null, rankChange: null, baselinePriority: 3.67, scenarioPriority: null, change: "done",
+    });
+    // The same as simulate's ranking, which leaves done tickets out
+    await call("tag_assign", { project: "Acme", ticket: "A", prefix: "state", value: "done" });
+    const simulated = await call("simulate", { project: "Acme" });
+    assert.deepEqual(simulated.data.top.map((t: { title: string }) => t.title), ["B", "C"]);
+    const reopened = await call("apply_changes", { project: "Acme", dryRun: true, operations: [{ op: "tag_remove", ticket: "A", tag: "state:done" }] });
+    assert.equal(reopened.data.ranking.tickets.find((t: { title: string }) => t.title === "A").change, "reopened");
+  });
+
   const plan = [
     { op: "ticket_create", title: "SSO", benefit: 21, penalty: 13, estimate: 2, risk: 1 },
     { op: "ticket_update", title: "C", newTitle: "C2", estimate: 1 },
@@ -69,11 +85,12 @@ describe("MCP apply_changes", () => {
       { op: "relation_create", source: "SSO", type: "blocks", target: "B" },
       { op: "ticket_delete", title: "B" },
     ]);
-    // SSO (34/3 = 11.33) goes first; C, renamed C2, is followed by its id and keeps rank 3 (5/4 = 1.25)
+    // SSO (34/3 = 11.33) goes first; C, renamed C2, is followed by its id
+    // and moves up to 2 (5/4 = 1.25): A, now done, leaves the ranking
     assert.deepEqual(
       r.data.ranking.tickets.map((t: { title: string; baselineRank: number | null; scenarioRank: number | null; change?: string }) =>
         [t.title, t.baselineRank, t.scenarioRank, t.change]),
-      [["SSO", null, 1, "created"], ["A", 1, 2, undefined], ["C2", 3, 3, "updated"], ["B", 2, null, "deleted"]]
+      [["SSO", null, 1, "created"], ["C2", 3, 2, "updated"], ["A", 1, null, "done"], ["B", 2, null, "deleted"]]
     );
     const titles = (await call("ticket_list", { project: "Acme" })).data.items.map((t: { title: string }) => t.title).sort();
     assert.deepEqual(titles, ["A", "C2", "SSO"]);
