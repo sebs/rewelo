@@ -73,7 +73,7 @@ describe("MCP project_delete confirmation", () => {
     const { call, asked } = await connect({ answer: () => ({ action: "accept", content: { confirm: true } }) });
     const r = await call("project_delete", { name: "Nope" });
     assert.equal(r.isError, true);
-    assert.match(r.text, /Project not found/);
+    assert.match(r.text, /Project "Nope" not found/);
     assert.equal(asked.length, 0);
   });
 

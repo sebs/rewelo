@@ -35,6 +35,25 @@ describe("MCP server with .rewelo.json", () => {
     }
   });
 
+  it("names the project and the .rewelo.json it came from when the default doesn't exist", async () => {
+    const other = mkdtempSync(join(tmpdir(), "rw-mcp-"));
+    writeFileSync(join(other, ".rewelo.json"), JSON.stringify({ project: "Acme" }));
+    const client = new Client({ name: "test", version: "1" });
+    await client.connect(new StdioClientTransport({ command: process.execPath, args: [BIN, "--db", join(other, "x.db"), "serve"], cwd: other }));
+    try {
+      await client.callTool({ name: "project_create", arguments: { name: "Other" } });
+      const r = await client.callTool({ name: "ticket_list", arguments: {} });
+      assert.equal(r.isError, true);
+      assert.match((r.content as any)[0].text, /^Project "Acme" not found \(named in .*\.rewelo\.json\)$/);
+      // A name given in the call needs no source
+      const given = await client.callTool({ name: "ticket_list", arguments: { project: "Acme" } });
+      assert.equal((given.content as any)[0].text, 'Project "Acme" not found');
+    } finally {
+      await client.close();
+      rmSync(other, { recursive: true, force: true });
+    }
+  });
+
   it("reports a malformed .rewelo.json when a tool needs the fallback", async () => {
     const bad = mkdtempSync(join(tmpdir(), "rw-mcp-"));
     writeFileSync(join(bad, ".rewelo.json"), "{bad");

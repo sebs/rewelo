@@ -4,6 +4,7 @@ import { DB } from "../db/connection.js";
 import { migrate } from "../db/migrate.js";
 import { getProjectByName, Project } from "../projects/repository.js";
 import { AppError } from "../errors.js";
+import { normalizeName } from "../text.js";
 import { RateLimiter } from "./limits.js";
 
 /** The tool call being run: its signal says when the client cancelled it */
@@ -87,10 +88,12 @@ export class DbSession {
     if (currentCall.getStore()?.aborted) throw new AppError("The call was cancelled while it waited for the database lock");
   }
 
-  withProject = async <T>(name: string, fn: (db: DB, project: Project) => Promise<T>): Promise<T> =>
+  /** source: the .rewelo.json the name came from, when no project was given */
+  withProject = async <T>(name: string, fn: (db: DB, project: Project) => Promise<T>, source?: string): Promise<T> =>
     this.withDb(async (db) => {
       const proj = await getProjectByName(db, name);
-      if (!proj) throw new AppError("Project not found");
+      // Which project, and for a default no one typed, where it came from
+      if (!proj) throw new AppError(`Project "${normalizeName(name)}" not found${source ? ` (named in ${source})` : ""}`);
       return fn(db, proj);
     });
 }

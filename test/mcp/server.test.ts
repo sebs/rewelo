@@ -558,7 +558,7 @@ describe("MCP server", () => {
   it("project_delete reports a missing project as an error", async () => {
     const r = await client.callTool({ name: "project_delete", arguments: { name: "Nope" } });
     assert.equal(r.isError, true);
-    assert.match((r.content as any)[0].text, /Project not found/);
+    assert.match((r.content as any)[0].text, /Project "Nope" not found/);
   });
 
   it("ticket_history rejects a fractional id in the schema", async () => {

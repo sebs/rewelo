@@ -375,7 +375,7 @@ Result:
 |---------|------------|
 | `Tool … not found` | The client talks to an older build. Call `server_version` (or run `rw --version`) and restart the MCP server after upgrading. |
 | `No project specified and no .rewelo.json config found` | Pass `project`, or add a `.rewelo.json` with `{"project": "<name>"}` in the server's working directory or a parent (not possible with the Docker image, whose working directory is `/app`). |
-| `Project not found` | Check the name with `project_list`; names are matched exactly (after trimming). |
+| `Project "…" not found` | Check the name with `project_list`; names are matched exactly (after trimming). With `(named in …/.rewelo.json)`, the default project in that file doesn't exist (it may have been renamed: opening a database from an older rewelo renames project names today's rules reject). |
 | `The database is locked by another process. Try again later` | Another `rw` process has held the write lock for more than 30 seconds (for example a very large import). Retry when it has finished; reading is not blocked. |
 | `The database uses schema version …, but this rewelo supports up to version …` | The database was upgraded by a newer rewelo. Upgrade the server. |
 | `The database file is not a rewelo database` | `--db` / `RW_DB_PATH` points at another application's SQLite file. |

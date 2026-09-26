@@ -64,7 +64,7 @@ export function registerProjectTools(ctx: McpContext): void {
       if (answer.kind !== "missing" && !(answer.kind === "elicit" && answer.action === "accept" && answer.content?.confirm === true)) {
         throw new AppError(`Project "${stored}" was not deleted: the user did not confirm.`);
       }
-      if (!(await withDb((db) => deleteProject(db, name)))) throw new AppError("Project not found");
+      if (!(await withDb((db) => deleteProject(db, name)))) throw new AppError(`Project "${stored}" not found`);
       return { deleted: true };
     }
   );

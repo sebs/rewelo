@@ -110,7 +110,7 @@ export function createMcpServer(
     withDb: session.withDb,
     withProject: session.withProject,
     inProject(project, fn) {
-      return session.withProject(ctx.resolveProject(project), fn);
+      return session.withProject(ctx.resolveProject(project), fn, project === undefined ? config.source : undefined);
     },
     resolveProject(project) {
       if (project !== undefined && project.trim() === "") throw new AppError("project must not be empty");

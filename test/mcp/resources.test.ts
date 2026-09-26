@@ -92,7 +92,7 @@ describe("MCP resources", () => {
   });
 
   it("answers an unknown project or ticket as not found", async () => {
-    await assert.rejects(read("rewelo://Nope/backlog"), /Project not found/);
+    await assert.rejects(read("rewelo://Nope/backlog"), /Project "Nope" not found/);
     await assert.rejects(read("rewelo://My%20Project/ticket/Nope"), /Ticket "Nope" not found/);
   });
 
