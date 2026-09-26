@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-006](006-mcp-docker-or-npm.md): the server also runs from the npm package.
 
 ## Context
 
