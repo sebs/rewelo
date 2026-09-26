@@ -12,7 +12,7 @@ import { displayWidth } from "../../display-width.js";
 import { FIBONACCI } from "../../domain/scores.js";
 import { withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, parseFloatOption, parseNonNegativeIntOption, type ProjectOptions } from "../options.js";
-import { escapeControls, formatTable, printRows, reportWritten } from "../output.js";
+import { emptyPage, escapeControls, formatTable, printRows, reportWritten } from "../output.js";
 import { writeFile } from "../files.js";
 
 export function registerReportCommands(program: Command): void {
@@ -164,7 +164,9 @@ export function registerReportCommands(program: Command): void {
         } else if (opts.quiet) {
           events.forEach((e) => console.log(`${e.timestamp}\t${e.type}\t${escapeControls(e.ticketTitle)}`));
         } else if (events.length === 0 && !opts.csv) {
-          console.log(cmdOpts.limit === 0 ? "No events shown (--limit 0)." : "No events found.");
+          // --limit 0 shows none, which isn't the same as there being none
+          const none = cmdOpts.limit !== 0 || (await getEventLog(db, project.id, cmdOpts.since, 1, cmdOpts.after)).length === 0;
+          console.log(emptyPage("events", { limit: cmdOpts.limit }, none));
         } else if (opts.csv) {
           console.log(formatTable(opts, ["Timestamp", "Type", "Ticket", "Detail"], events.map((e) => [e.timestamp, e.type, e.ticketTitle, detail(e)])));
         } else {

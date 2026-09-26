@@ -60,5 +60,9 @@ describe("rw ticket history and project history (CLI)", () => {
     assert.equal(text("ticket", "history", "--project", "P", "--title", "New", "--offset", "10"), "No revisions found.");
     assert.equal(text("ticket", "history", "--project", "P", "--title", "New", "--limit", "0"), "No revisions found.");
     assert.equal(text("project", "history", "--project", "P", "--since", "2099-01-01", "--offset", "5"), "No revisions found.");
+    // The event log alike
+    assert.equal(text("report", "event-log", "--project", "P", "--limit", "0"), "No events shown (--limit 0).");
+    rw("project", "create", "Empty");
+    assert.equal(text("report", "event-log", "--project", "Empty", "--limit", "0"), "No events found.");
   });
 });
