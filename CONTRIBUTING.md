@@ -25,31 +25,41 @@ The repository's `.mcp.json` runs the MCP server from this checkout's build (`no
 
 ```
 src/
+  index.ts      Entry point: the rw command
+  cli/          The CLI: commander setup (main.ts), shared options and output, one module per command group
+  mcp/          The MCP server (stdio): tools/, resources, prompts, completions, the session and its
+                limits, and live/ (change watcher and channel for writes made elsewhere)
+  app/          Use cases the CLI and the MCP server share: ticket lists, priorities, tagging, change plans
+  domain/       Scores and weights: the Fibonacci scale and weight rules
+  calculations/ Priority, weighted priority, relative weights, what-if scenarios
+  workflow/     Workflow states (state:wip, state:done) as reports read them
+  reports/      Summary, health, group, distribution, times, event log, diff, dashboard, calibration
+  transfer/     CSV and JSON export and import (csv/, json/), with the JSON history format
   db/           Database connection and migrations
-  projects/     Project CRUD
-  tickets/      Ticket CRUD
-  tags/         Tag management and audit log
-  relations/    Ticket relations
+  projects/     Project storage
+  tickets/      Ticket storage
+  tags/         Tags, their assignment and the tag change log
+  relations/    Ticket relations and their types
   revisions/    Ticket revision history
-  calculations/ Priority, relative weights, time calculations
-  weights/      Weight configuration
-  validation/   Input validation and error sanitisation
-  export/       CSV and JSON export
-  import/       CSV and JSON import
-  reports/      Summary, health, distribution, dashboard
-  mcp/          MCP server (stdio transport)
-  serialization/ Project export/import serialization
+  weights/      Weight configuration storage
+  validation/   Input validation: strings, paths, timestamps
+  errors.ts     AppError and ValidationError, and the messages users see for other errors
+  text.ts       Name normalisation, space collapsing, cutting text between characters
+  config.ts     .rewelo.json lookup
+  display-width.ts  Terminal columns a string takes, for aligned tables
+  volume.ts     In Docker: whether the database is on a volume (else rw warns it is lost with the container)
 test/           Mirror of src/ with *.test.ts files
 site/           Website: node site/build.mjs renders it (and the docs) into _site/
 features/       Gherkin specifications
 .claude/skills/ Claude Code skills, also served as the MCP server's prompts
 db/             SQL schema and DBML model
+adr/            Architecture decision records
 ```
 
 ## Guidelines
 
 - Write tests for new functionality
-- Follow existing code patterns (no classes, plain functions, explicit types)
+- Follow existing code patterns: plain functions and explicit types; a class only for something that holds state over time (the database connection, the MCP session, its rate limiter, change watcher and channel) and for error types
 - Keep commits focused -- one logical change per commit
 - Run `npm test` before submitting a pull request
 - Keep pull requests small and focused -- large PRs will not be reviewed
