@@ -26,6 +26,16 @@ An option that takes one value may be given once; `--title A --title B` is an er
 
 Only `project create` and `import json` create the database file; other commands report a missing database instead of creating an empty one. The database uses SQLite's write-ahead log, so commands can read while another `rw` process writes; `<name>.db-wal` and `<name>.db-shm` files appear next to the database while it is in use. Back up with `rw export json`, or copy the `.db` file while no `rw` process runs. A database from an older rewelo is upgraded when it is first opened. Titles and project names that older versions accepted but today's rules reject (such as `.`, line breaks, invisible characters or `My  Project`) get the nearest accepted name then; a renamed ticket keeps its old title in its history, and a `.rewelo.json` naming a renamed project needs the new name.
 
+### Default project
+
+Every `--project <name>` below may be left out when a `.rewelo.json` names the project. rw looks for it in the current directory, then in each parent directory, and uses the first it finds:
+
+```json
+{ "project": "Acme" }
+```
+
+`project` is its only key; a malformed file is an error rather than a reason to look further up. `--project` given on the command line wins over the file.
+
 ## Commands
 
 ### project
