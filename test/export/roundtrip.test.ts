@@ -155,6 +155,21 @@ describe("round-trip", () => {
     assert.deepEqual((await getProjectDiff(db, target.id, "2026-01-01")).deletedTickets, []);
   });
 
+  it("JSON restore into the project it came from records each deletion once", async () => {
+    const keep = await createTicket(db, { projectId, title: "Keep" });
+    const gone = await createTicket(db, { projectId, title: "Gone" });
+    await deleteTicket(db, projectId, gone.id);
+    const json = JSON.stringify(await exportJson(db, projectId, { withHistory: true }));
+    await deleteTicket(db, projectId, keep.id);
+
+    await importJson(db, projectId, json);
+    await deleteTicket(db, projectId, (await listTickets(db, projectId))[0].id);
+    await importJson(db, projectId, json);
+    const deleted = (await getEventLog(db, projectId)).filter((e) => e.type === "ticket_deleted").map((e) => e.ticketTitle);
+    // Gone once, Keep for each time it was deleted here
+    assert.deepEqual(deleted.sort(), ["Gone", "Keep", "Keep"]);
+  });
+
   it("JSON import rejects malformed history", async () => {
     await assert.rejects(
       importJson(db, projectId, JSON.stringify({ tickets: [{ title: "X", createdAt: "yesterday" }] })),

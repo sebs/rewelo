@@ -262,6 +262,13 @@ export async function writeHistory(db: DB, projectId: number, rows: PendingHisto
   for (const row of sorted) {
     if ("deletion" in row) {
       const d = row.deletion;
+      // A backup restored into the project it came from holds the
+      // deletions that project already has: record each once
+      const [known] = await db.all(
+        `SELECT 1 FROM ticket_deletions WHERE project_id = ? AND title = ? AND deleted_at = ? AND created_at IS ?`,
+        projectId, d.title, d.deletedAt, d.createdAt
+      );
+      if (known) continue;
       await db.run(
         `INSERT INTO ticket_deletions (project_id, ticket_id, title, created_at, deleted_at) VALUES (?, ?, ?, ?, ?)`,
         projectId, await deletedTicketId(db, projectId), d.title, d.createdAt, d.deletedAt
