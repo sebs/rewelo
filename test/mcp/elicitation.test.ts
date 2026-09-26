@@ -58,10 +58,12 @@ describe("MCP project_delete confirmation", () => {
 
   for (const answer of [{ action: "decline" }, { action: "cancel" }, { action: "accept", content: { confirm: false } }] as Answer[]) {
     it(`keeps the project when the user answers ${JSON.stringify(answer)}`, async () => {
-      const { call } = await connect({ answer: () => answer });
+      const { call, asked } = await connect({ answer: () => answer });
       await call("project_create", { name: "Acme" });
-      const r = await call("project_delete", { name: "Acme" });
+      // Named as stored, however the name was given
+      const r = await call("project_delete", { name: "  Acme  " });
       assert.equal(r.isError, true);
+      assert.match(asked[0].message, /^Delete project "Acme" and all its data/);
       assert.match(r.text, /Project "Acme" was not deleted: the user did not confirm/);
       assert.equal(JSON.parse((await call("project_list", {})).text).length, 1);
     });
