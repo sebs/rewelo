@@ -11,7 +11,7 @@ Reassess priorities for project **$0** in light of: **$1**
 
 ## Procedure
 
-1. Use `ticket_list` to fetch all active tickets (exclude `state:done`)
+1. Use `ticket_list` to fetch all active tickets (exclude `state:done`) (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
 2. Use `calc_priority` to get the current ranking as the **baseline**
 3. Analyze the event described by the user
 

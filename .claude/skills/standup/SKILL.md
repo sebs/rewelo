@@ -11,8 +11,8 @@ Generate a standup summary for project **$0**.
 
 ## Data collection
 
-1. Use `ticket_list` with `tags` to get the tickets in each state, e.g. `tags: ["state:wip"]`: its items don't list tags
-2. Use `event_log` with `since` for the transitions and when they happened: `tag_added` events with prefix `state` (value `done` in the last 24 hours for Done; the time a ticket got `state:wip` for how long it has been in progress)
+1. Use `ticket_list` with `tags` to get the tickets in each state, e.g. `tags: ["state:wip"]`: its items don't list tags. It returns 100 tickets per call: page with `offset` until you have `total` of them
+2. Use `event_log` with `since` (oldest first, 50 events per call: pass the last event's `sequence` as `after` for the next page, until a page is shorter than `limit`) for the transitions and when they happened: `tag_added` events with prefix `state` (value `done` in the last 24 hours for Done; the time a ticket got `state:wip` for how long it has been in progress)
 3. Use `report_times` for the cycle times of done tickets
 
 ## Sections

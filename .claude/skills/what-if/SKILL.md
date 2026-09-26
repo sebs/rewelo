@@ -11,7 +11,7 @@ Explore prioritization scenarios for project **$0** without changing real data.
 
 ## Setup
 
-1. Use `ticket_list` and `calc_priority` to get the current baseline ranking
+1. Use `ticket_list` and `calc_priority` to get the current baseline ranking (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
 2. Store this as the **baseline** for comparison
 
 ## Interactive loop

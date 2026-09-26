@@ -11,7 +11,7 @@ Decompose a large ticket into smaller, deliverable slices in project **$0**.
 
 ## Find the ticket
 
-1. Use `ticket_list` for project **$0**
+1. Use `ticket_list` for project **$0** (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
 2. Find the ticket matching **$1**
 3. Show its current scores: Benefit, Penalty, Estimate, Risk, Priority
 

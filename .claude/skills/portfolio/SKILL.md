@@ -11,7 +11,7 @@ Generate a cross-project portfolio analysis.
 ## Data collection
 
 1. Use `project_list` to get all projects
-2. For each project, use `ticket_list` and `calc_priority` to get tickets and priorities
+2. For each project, use `ticket_list` and `calc_priority` to get tickets and priorities (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
 3. Use `report_summary` for each project
 
 ## Portfolio metrics

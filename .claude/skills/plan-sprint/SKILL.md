@@ -11,7 +11,7 @@ Plan a sprint for project **$0** with a capacity of **$1** effort points (defaul
 
 ## Procedure
 
-1. Use `ticket_list` to fetch all tickets in the project
+1. Use `ticket_list` to fetch all tickets in the project (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
 2. Use `weight_get` to read the project's stored weight configuration
 3. Use `calc_priority` (with the project weights) to get the weighted priority ranking
 4. Take the open tickets: `ticket_list` with `excludeTags: ["state:wip", "state:done"]`. A ticket without a state tag is in the backlog too: new tickets have none until someone tags them
