@@ -144,10 +144,24 @@ describe("MCP live events", () => {
     assert.deepEqual(channelMessages.map((m) => m.meta.ticket), ["Elsewhere 1", "Elsewhere 2"]);
   });
 
-  it("notifies subscribers of the session's own writes, but not of a dry run or a failed call", async () => {
+  it("notifies subscribers of the session's own writes, but not of a dry run, a failed call or one that changed nothing", async () => {
     const { client, updated } = await connect();
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "Same", benefit: 3 } });
     await client.subscribeResource({ uri: "rewelo://Acme/backlog" });
     await settle();
+
+    for (const [name, args] of [
+      ["ticket_update", { title: "Same", benefit: 3 }],
+      ["ticket_upsert", { title: "Same", benefit: 3 }],
+      ["weight_set", { w1: 1.5 }],
+      ["weight_reset", {}],
+      ["import_json", { json: '{"tickets":[]}' }],
+      ["import_csv", { csv: "title\n" }],
+      ["apply_changes", { operations: [{ op: "ticket_update", title: "Same", benefit: 3 }] }],
+    ] as const) {
+      const r = await client.callTool({ name, arguments: { project: "Acme", ...args } });
+      assert.notEqual(r.isError, true, name);
+    }
 
     const dryRun = await client.callTool({ name: "apply_changes", arguments: { project: "Acme", dryRun: true, operations: [{ op: "ticket_create", title: "Dry" }] } });
     assert.notEqual(dryRun.isError, true);

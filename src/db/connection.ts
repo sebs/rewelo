@@ -228,6 +228,11 @@ export class DB {
     }
   }
 
+  /** Rows this connection has inserted, updated or deleted so far */
+  async totalChanges(): Promise<number> {
+    return (await this.all<{ n: number }>("SELECT total_changes() AS n"))[0].n;
+  }
+
   /** Changes whenever another connection commits (PRAGMA data_version) */
   async dataVersion(): Promise<number> {
     return (await this.all<{ data_version: number }>("PRAGMA data_version"))[0].data_version;

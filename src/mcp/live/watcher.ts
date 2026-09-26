@@ -31,9 +31,17 @@ export class ChangeWatcher {
 
   // PRAGMA data_version doesn't change for this connection's own commits:
   // its write transactions say when they commit, and subscribers hear of it
-  // on the next check. A dry run or a failed call commits nothing.
+  // on the next check. A dry run or a failed call commits nothing, and a
+  // transaction that changed no row (an update to the same scores, an
+  // empty import) is no news either.
   attach(db: DB): void {
-    db.observeTransactions({ committing: () => void (this.wrote = true) });
+    let before = 0;
+    db.observeTransactions({
+      begun: async () => void (before = await db.totalChanges()),
+      committing: async () => {
+        if ((await db.totalChanges()) !== before) this.wrote = true;
+      },
+    });
   }
 
   /** Handle resources/subscribe and resources/unsubscribe */

@@ -27,15 +27,19 @@ export async function setWeights(
 
   // One upsert: select, delete and insert let parallel writers fail on the
   // unique project_id and readers see the defaults in between. In a
-  // transaction like every write, so the MCP server sees it committed
+  // transaction like every write, so the MCP server sees it committed.
+  // Weights that stay as they are write nothing (subscribers aren't told of
+  // a change): no update of equal values, and no row for the defaults,
+  // which are what no row means
   await db.transaction(() => db.run(
-    `INSERT INTO weight_configs (project_id, w1, w2, w3, w4) VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT (project_id) DO UPDATE SET w1 = excluded.w1, w2 = excluded.w2, w3 = excluded.w3, w4 = excluded.w4`,
-    projectId,
-    w1,
-    w2,
-    w3,
-    w4
+    `INSERT INTO weight_configs (project_id, w1, w2, w3, w4)
+     SELECT ?, ?, ?, ?, ? WHERE NOT (? = ? AND ? = ? AND ? = ? AND ? = ?)
+       OR EXISTS (SELECT 1 FROM weight_configs WHERE project_id = ?)
+     ON CONFLICT (project_id) DO UPDATE SET w1 = excluded.w1, w2 = excluded.w2, w3 = excluded.w3, w4 = excluded.w4
+     WHERE (w1, w2, w3, w4) IS NOT (excluded.w1, excluded.w2, excluded.w3, excluded.w4)`,
+    projectId, w1, w2, w3, w4,
+    w1, DEFAULTS.w1, w2, DEFAULTS.w2, w3, DEFAULTS.w3, w4, DEFAULTS.w4,
+    projectId
   ));
 
   return { project_id: projectId, w1, w2, w3, w4 };
