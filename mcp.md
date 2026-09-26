@@ -292,7 +292,7 @@ Operations: `ticket_create`, `ticket_update`, `ticket_delete`, `tag_assign` and 
 }
 ```
 
-Only `tickets` and each ticket's `title` are required; scores default to 1. Tags are `{prefix, value}` objects, not `"prefix:value"` strings. An import adds the relations and replaces the project's weights with the file's, and its result says so (`relationsCreated`, `weights`).
+Only `tickets` and each ticket's `title` are required; scores default to 1. Tags are `{prefix, value}` objects, not `"prefix:value"` strings. An import adds the relations and replaces the project's weights with the file's, and its result says so (`relationsCreated`, `weights`). A relation the others contradict (reversed, in the opposite order, or closing a cycle, as older versions could store) is left out and listed under `relationsSkipped` with the reason, so an older project's backup still restores.
 
 With `withHistory`, `export_json` also writes each ticket's `createdAt`, `updatedAt`, `revisions` and `tagChanges`, and the project's deleted tickets as `deletions` (`title`, `createdAt`, `deletedAt`). `import_json` restores them, so lead and cycle times, the event log and `project_diff` survive a backup and restore; pass them back as the export wrote them. Keys the format doesn't have are refused (`Ticket 1: unknown key "benfit" (known: …)`): a misspelt key isn't dropped silently.
 

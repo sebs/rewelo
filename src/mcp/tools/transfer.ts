@@ -62,7 +62,7 @@ export function registerTransferTools(ctx: McpContext): void {
 
   tool(
     "import_json",
-    "Import a project from JSON as export_json writes it: {tickets: [{title, description?, benefit?, penalty?, estimate?, risk?, tags?: [{prefix, value}], createdAt?, updatedAt?, revisions?, tagChanges?}], tags?, relations?: [{source, type, target}], weights?: {w1, w2, w3, w4}, deletions?: [{title, createdAt, deletedAt}]}. The history keys (createdAt, updatedAt, revisions, tagChanges, deletions) come from export_json with withHistory: pass them back as they are. Unknown keys are refused. Tags are created as needed and the project if it does not exist. Relations are added, and weights in the file replace the project's; the result reports relationsCreated and the weights set.",
+    "Import a project from JSON as export_json writes it: {tickets: [{title, description?, benefit?, penalty?, estimate?, risk?, tags?: [{prefix, value}], createdAt?, updatedAt?, revisions?, tagChanges?}], tags?, relations?: [{source, type, target}], weights?: {w1, w2, w3, w4}, deletions?: [{title, createdAt, deletedAt}]}. The history keys (createdAt, updatedAt, revisions, tagChanges, deletions) come from export_json with withHistory: pass them back as they are. Unknown keys are refused. Tags are created as needed and the project if it does not exist. Relations are added, and weights in the file replace the project's; the result reports relationsCreated, relationsSkipped (relations the others contradict, left out, with why) and the weights set.",
     {
       ...PROJECT_ARG,
       json: z.string().describe("JSON content"),

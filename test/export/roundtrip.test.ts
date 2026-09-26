@@ -170,6 +170,25 @@ describe("round-trip", () => {
     assert.deepEqual(deleted.sort(), ["Gone", "Keep", "Keep"]);
   });
 
+  it("JSON restore leaves out, and reports, relations older versions stored but the others contradict", async () => {
+    const [a, b, c] = [await createTicket(db, { projectId, title: "A" }), await createTicket(db, { projectId, title: "B" }), await createTicket(db, { projectId, title: "C" })];
+    await createRelation(db, projectId, a.id, b.id, "blocks");
+    await createRelation(db, projectId, b.id, c.id, "precedes");
+    // As older versions stored them: a cycle, and a pair in the opposite order
+    await db.run(`INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type) VALUES (?, ?, ?, 'precedes'), (?, ?, ?, 'follows')`, projectId, c.id, a.id, projectId, a.id, c.id);
+    await db.run(`INSERT INTO ticket_relations (project_id, source_id, target_id, relation_type) VALUES (?, ?, ?, 'depends-on'), (?, ?, ?, 'is-depended-on-by')`, projectId, a.id, b.id, projectId, b.id, a.id);
+    const json = JSON.stringify(await exportJson(db, projectId));
+    const target = await createProject(db, "Restored");
+    const result = await importJson(db, target.id, json);
+    assert.equal(result.imported, 3);
+    assert.equal(result.relationsCreated, 2);
+    assert.deepEqual(result.relationsSkipped?.map((r) => [r.source, r.type, r.target]), [["C", "precedes", "A"], ["A", "depends-on", "B"]]);
+    assert.match(result.relationsSkipped![0].reason, /would close a cycle/);
+    assert.match(result.relationsSkipped![1].reason, /contradicts an existing relation/);
+    // Other relation errors still fail the import
+    await assert.rejects(importJson(db, (await createProject(db, "Self")).id, JSON.stringify({ tickets: [{ title: "X" }], relations: [{ source: "X", type: "blocks", target: "X" }] })), /Relation 1: A ticket cannot relate to itself/);
+  });
+
   it("JSON import rejects malformed history", async () => {
     await assert.rejects(
       importJson(db, projectId, JSON.stringify({ tickets: [{ title: "X", createdAt: "yesterday" }] })),
@@ -219,9 +238,12 @@ describe("round-trip", () => {
       { source: "A", type: "blocks", target: "B" },
       { source: "B", type: "blocks", target: "A" },
     ];
-    await assert.rejects(importJson(db, projectId, JSON.stringify({ tickets, relations })), /Relation 2: The reverse relation already exists/);
+    // One the others contradict is left out and reported, not an error
+    const { relationsCreated, relationsSkipped } = await importJson(db, projectId, JSON.stringify({ tickets, relations }));
+    assert.equal(relationsCreated, 1);
+    assert.match(relationsSkipped![0].reason, /^The reverse relation already exists: "A" blocks "B"$/);
     await assert.rejects(
-      importJson(db, projectId, JSON.stringify({ tickets, relations: [{ source: "A", type: "blocks", target: "A" }] })),
+      importJson(db, (await createProject(db, "Self relation")).id, JSON.stringify({ tickets, relations: [{ source: "A", type: "blocks", target: "A" }] })),
       /Relation 1: A ticket cannot relate to itself/
     );
   });

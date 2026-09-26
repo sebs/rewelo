@@ -2,6 +2,9 @@ import { DB } from "../db/connection.js";
 import { ValidationError } from "../errors.js";
 import { allRelationTypes, canonicalRelation, forwardTypeNames, getRelationType, storedPair, symmetricTypeNames } from "./types.js";
 
+/** A relation that disagrees with the existing ones: reversed, contradicting, or closing a cycle */
+export class RelationConflict extends ValidationError {}
+
 export interface Relation {
   id: number;
   project_id: number;
@@ -153,7 +156,7 @@ export async function createRelation(
     if (!rt.symmetric) {
       const reverse = await findRelation(db, projectId, targetId, sourceId, relationType);
       if (reverse) {
-        throw new ValidationError(`The reverse relation already exists: ${await describe(db, reverse)}`);
+        throw new RelationConflict(`The reverse relation already exists: ${await describe(db, reverse)}`);
       }
     }
 
@@ -171,7 +174,7 @@ export async function createRelation(
       );
       const opposite = ordering.find((r) => firstOf(r) !== first);
       if (opposite) {
-        throw new ValidationError(`This contradicts an existing relation: ${await describe(db, opposite)}`);
+        throw new RelationConflict(`This contradicts an existing relation: ${await describe(db, opposite)}`);
       }
       // Nor may they close a cycle through other tickets (A blocks B, B
       // blocks C, C blocks A): no ticket in it could be started first
@@ -180,7 +183,7 @@ export async function createRelation(
         // A long path named in part: a cycle through 2,000 tickets made a 60 KB error
         const chain = await Promise.all(path.slice(0, 5).map((r) => describe(db, r)));
         const more = path.length > 5 ? ` and ${path.length - 5} more` : "";
-        throw new ValidationError(`This would close a cycle with the existing relations ${chain.join(", ")}${more}`);
+        throw new RelationConflict(`This would close a cycle with the existing relations ${chain.join(", ")}${more}`);
       }
     }
 

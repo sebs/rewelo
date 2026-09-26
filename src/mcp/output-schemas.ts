@@ -272,6 +272,8 @@ export const outputSchemas = {
     imported: z.number().int(),
     tagsCreated: z.number().int(),
     relationsCreated: z.number().int(),
+    relationsSkipped: z.array(z.object({ source: z.string(), type: z.string(), target: z.string(), reason: z.string() })).optional()
+      .describe("Relations of the file left out because the others contradict them (reversed, contradicting, or closing a cycle), with why"),
     weights: weightValues.optional()
       .describe("The file's weights, which replaced the project's"),
     projectCreated: z.boolean(),

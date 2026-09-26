@@ -102,6 +102,7 @@ export function registerTransferCommands(program: Command): void {
           ...(result.projectCreated ? [`Created project "${name}"`] : []),
           tickets(result.imported),
           ...(n > 0 ? [`Created ${n} relation${n === 1 ? "" : "s"}`] : []),
+          ...(result.relationsSkipped ?? []).map((r) => `Skipped relation "${r.source}" ${r.type} "${r.target}": ${r.reason}`),
           ...(w ? [`Set the weights to w1=${w.w1} w2=${w.w2} w3=${w.w3} w4=${w.w4}`] : []),
         ]);
       }, { create: true });

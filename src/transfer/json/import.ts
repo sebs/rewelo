@@ -1,7 +1,7 @@
 import { DB } from "../../db/connection.js";
 import { prefixValidationErrors, ValidationError } from "../../errors.js";
 import { createProject, getProjectByName } from "../../projects/repository.js";
-import { createRelation, relationExists } from "../../relations/repository.js";
+import { createRelation, RelationConflict, relationExists } from "../../relations/repository.js";
 import { assignTag } from "../../tags/assignment.js";
 import { ensureTag } from "../../tags/repository.js";
 import { createTicket, getTicketByTitle } from "../../tickets/repository.js";
@@ -18,10 +18,11 @@ export async function importProjectData(
   tickets: ImportableTicket[],
   projectTags?: TagPair[],
   extras: { relations?: SerializedRelation[]; weights?: SerializedWeights; deletions?: SerializedDeletion[] } = {}
-): Promise<{ imported: number; tagsCreated: number; relationsCreated: number; weights?: SerializedWeights }> {
+): Promise<{ imported: number; tagsCreated: number; relationsCreated: number; relationsSkipped?: SkippedRelation[]; weights?: SerializedWeights }> {
   return db.transaction(async () => {
     let tagsCreated = 0;
     let relationsCreated = 0;
+    const relationsSkipped: SkippedRelation[] = [];
 
     // Pre-create any project-level tags
     if (projectTags) {
@@ -76,9 +77,18 @@ export async function importProjectData(
       // A relation the project has already is kept, not an error
       const exists = await relationExists(db, projectId, source.id, target.id, r.type);
       if (!exists) {
-        // e.g. a self-relation, or one contradicting an earlier relation
-        await prefixValidationErrors(`Relation ${i + 1}`, () => createRelation(db, projectId, source.id, target.id, r.type));
-        relationsCreated++;
+        try {
+          await createRelation(db, projectId, source.id, target.id, r.type);
+          relationsCreated++;
+        } catch (err) {
+          // One the others contradict, as older versions stored (a cycle, or
+          // A blocks B next to A depends-on B), is left out and reported:
+          // otherwise the project's backup could not be restored at all.
+          // Anything else (a self-relation, an unknown type) fails the import
+          if (err instanceof RelationConflict) relationsSkipped.push({ source: r.source, type: r.type, target: r.target, reason: err.message });
+          else if (err instanceof ValidationError) throw new ValidationError(`Relation ${i + 1}: ${err.message}`);
+          else throw err;
+        }
       }
     }
 
@@ -92,9 +102,18 @@ export async function importProjectData(
       imported: tickets.length,
       tagsCreated,
       relationsCreated,
+      ...(relationsSkipped.length > 0 ? { relationsSkipped } : {}),
       ...(extras.weights ? { weights: extras.weights } : {}),
     };
   });
+}
+
+/** A relation of the file left out, as the others contradict it */
+export interface SkippedRelation {
+  source: string;
+  type: string;
+  target: string;
+  reason: string;
 }
 
 export interface ImportData {
