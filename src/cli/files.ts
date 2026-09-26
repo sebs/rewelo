@@ -30,11 +30,23 @@ export function readImportFile(path: string, maxBytes: number): string {
     throw describeFsError(err, "read", path);
   }
   // Read as UTF-8, a UTF-16 file (Excel's "Unicode text", Windows tools) is
-  // "missing" its columns or "invalid JSON": say what it is instead. UTF-16
-  // starts with a byte order mark, or has NUL bytes around ASCII characters
-  const bom = bytes.subarray(0, 2);
-  if ((bom[0] === 0xff && bom[1] === 0xfe) || (bom[0] === 0xfe && bom[1] === 0xff) || bytes.subarray(0, 1000).includes(0)) {
-    throw new ValidationError(`${path} is UTF-16; save it as UTF-8`);
-  }
+  // "missing" its columns or "invalid JSON": say what it is instead
+  if (isUtf16(bytes)) throw new ValidationError(`${path} is UTF-16; save it as UTF-8`);
   return bytes.toString("utf-8");
+}
+
+// UTF-16 starts with a byte order mark, or has a NUL byte next to each ASCII
+// character. A NUL here and there is a UTF-8 file with a NUL in it, which the
+// import rejects as such ("must not contain null bytes")
+function isUtf16(bytes: Buffer): boolean {
+  if ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff)) return true;
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return false; // UTF-8's
+  const pairs = Math.floor(Math.min(bytes.length, 1000) / 2);
+  let evenNul = 0;
+  let oddNul = 0;
+  for (let i = 0; i < pairs; i++) {
+    if (bytes[2 * i] === 0) evenNul++;
+    if (bytes[2 * i + 1] === 0) oddNul++;
+  }
+  return pairs > 0 && Math.max(evenNul, oddNul) >= pairs / 2;
 }

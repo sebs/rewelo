@@ -48,6 +48,16 @@ describe("rw import (CLI)", () => {
     assert.match(created.stdout, /^Created project "Sp"$/m);
   });
 
+  it("says a NUL byte in a UTF-8 file is a NUL byte, not UTF-16", () => {
+    writeFileSync(join(dir, "nul.csv"), "title,description\nabc,de\0f\n");
+    writeFileSync(join(dir, "nulbom.csv"), "\uFEFFtitle,description\nabc,de\0f\n");
+    for (const file of ["nul.csv", "nulbom.csv"]) {
+      const r = runCli(["--db", db, "import", "csv", join(dir, file), "--project", "P"]);
+      assert.equal(r.code, 1, file);
+      assert.match(r.stderr, /must not contain null bytes/, file);
+    }
+  });
+
   it("says a UTF-16 file is UTF-16, instead of missing columns or invalid JSON", () => {
     const utf16 = (text: string, bom: number[]) => Buffer.concat([Buffer.from(bom), Buffer.from(text, "utf16le")]);
     writeFileSync(join(dir, "le.csv"), utf16("title,benefit\r\ncafe,3\r\n", [0xff, 0xfe]));
