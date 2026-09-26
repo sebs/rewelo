@@ -150,6 +150,13 @@ export function validateTagPrefix(prefix: string): string {
   if (hasNullBytes(prefix)) {
     throw new ValidationError("Tag prefix must not contain null bytes");
   }
+  // Checked as given: lowercasing and NFC turn some other letters into
+  // ASCII (the Kelvin sign K into k), which slipped past the check after them
+  if (!/^[A-Za-z0-9-]*$/.test(prefix.trim())) {
+    throw new ValidationError(
+      "Tag prefix must start with a lowercase letter or digit and contain only lowercase letters, digits and hyphens"
+    );
+  }
   const normalized = normalize(prefix.trim().toLowerCase());
   if (normalized.length > MAX_TAG_PREFIX) {
     throw new ValidationError(
@@ -170,6 +177,13 @@ export function validateTagValue(value: string): string {
   }
   if (hasNullBytes(value)) {
     throw new ValidationError("Tag value must not contain null bytes");
+  }
+  // Checked as given: lowercasing and NFC turn some other letters into
+  // ASCII (the Kelvin sign K into k), which slipped past the check after them
+  if (!/^[A-Za-z0-9-]*$/.test(value.trim())) {
+    throw new ValidationError(
+      "Tag value must start with a lowercase letter or digit and contain only lowercase letters, digits and hyphens"
+    );
   }
   const normalized = normalize(value.trim().toLowerCase());
   if (normalized.length > MAX_TAG_VALUE) {

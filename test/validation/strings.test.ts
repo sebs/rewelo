@@ -227,3 +227,15 @@ describe("invisible characters by category", () => {
     validateTicketTitle("Scotland \u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}");
   });
 });
+
+describe("tag prefix and value", () => {
+  it("take ASCII letters (any case), digits and hyphens, and nothing that lowercases or normalises to them", () => {
+    assert.equal(validateTagPrefix(" Kind "), "kind");
+    assert.equal(validateTagValue("K8s"), "k8s");
+    // The Kelvin sign turns into K under NFC and into k when lowercased
+    for (const raw of ["K8s", "İnfra", "ﬁx"]) {
+      assert.throws(() => validateTagValue(raw), /contain only lowercase letters, digits and hyphens/, raw);
+      assert.throws(() => validateTagPrefix(raw), /contain only lowercase letters, digits and hyphens/, raw);
+    }
+  });
+});
