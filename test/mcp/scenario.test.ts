@@ -80,6 +80,16 @@ describe("MCP simulate and explain_priority", () => {
     }
   });
 
+  it("refuses to add a ticket whose title exists outside the scope or is done", async () => {
+    await call("tag_assign", { project: "Acme", tickets: ["A", "B"], tags: [{ prefix: "team", value: "core" }] });
+    await call("tag_assign", { project: "Acme", ticket: "D", tags: [{ prefix: "state", value: "done" }] });
+    for (const title of ["C", "D"]) {
+      const r = await call("simulate", { project: "Acme", tag: "team:core", add: [{ title, benefit: 21 }] });
+      assert.equal(r.isError, true, title);
+      assert.match(r.text, new RegExp(`A ticket with title "${title}" already exists`));
+    }
+  });
+
   it("explains a priority and what it takes to reach the top 2", async () => {
     const r = await call("explain_priority", { project: "Acme", title: "C", top: 2 });
     assert.equal(r.isError, false, r.text);

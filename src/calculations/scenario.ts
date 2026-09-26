@@ -108,7 +108,18 @@ export function findTicket<T extends Scored>(tickets: T[], title: string): T | u
   return tickets.find((t) => t.title === exact) ?? tickets.find((t) => t.title === collapseSpaces(exact));
 }
 
-export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: Scenario, options: { top: number; limit: number }): ScenarioResult {
+/**
+ * The ranking of `tickets` under a scenario. `existing` are all the
+ * project's tickets, which an added ticket's title must not clash with,
+ * also those not ranked (outside a tag scope, done)
+ */
+export function simulate(
+  tickets: Scored[],
+  baselineWeights: Weights,
+  scenario: Scenario,
+  options: { top: number; limit: number },
+  existing: Scored[] = tickets
+): ScenarioResult {
   const byTitle = new Map(tickets.map((t) => [t.title, t]));
   // Titles as given, matched to the stored ones
   const stored = (title: string) => {
@@ -128,7 +139,7 @@ export function simulate(tickets: Scored[], baselineWeights: Weights, scenario: 
   for (const t of scenario.add ?? []) {
     // As a new ticket's title is stored
     const title = collapseSpaces(normalizeName(t.title));
-    if (findTicket(tickets, title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
+    if (findTicket(existing, title)) throw new AppError(`A ticket with title "${t.title}" already exists`);
     if (added.some((a) => a.title === title)) throw new AppError(`Ticket "${t.title}" is added twice`);
     added.push({ title, benefit: 1, penalty: 1, estimate: 1, risk: 1, ...definedScores(t) });
   }

@@ -102,7 +102,8 @@ export function registerCalculationTools(ctx: McpContext): void {
           await requireInScope(db, proj.id, tickets, title, scope);
         }
         const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
-        return simulate(tickets.open, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 });
+        const existing = add?.length ? await ticketsInScope(db, proj.id) : tickets.open;
+        return simulate(tickets.open, { w1, w2, w3, w4 }, { changes, add, remove, weights }, { top: top ?? 10, limit: limit ?? 100 }, existing);
       });
     }
   );
