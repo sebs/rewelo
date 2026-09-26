@@ -77,6 +77,19 @@ describe("relations repository", () => {
     await createRelation(db, projectId, ticketC, ticketA, "relates-to");
   });
 
+  it("checks for cycles without scanning every relation each time", async () => {
+    // A chain and a star of ordering relations: 4,000 took 11 s
+    const ids: number[] = [];
+    for (let i = 0; i < 2_000; i++) ids.push((await createTicket(db, { projectId, title: `T${i}` })).id);
+    const started = Date.now();
+    await db.transaction(async () => {
+      for (let i = 1; i < ids.length; i++) await createRelation(db, projectId, ids[i - 1], ids[i], "blocks");
+      for (let i = 2; i < ids.length; i++) await createRelation(db, projectId, ids[0], ids[i], "precedes");
+    });
+    assert.ok(Date.now() - started < 6_000, `took ${Date.now() - started} ms`);
+    await assert.rejects(createRelation(db, projectId, ids[ids.length - 1], ids[1], "blocks"), /would close a cycle with the existing relations "T1" blocks "T2", .* and 1993 more$/);
+  });
+
   it("creates depends-on / is-depended-on-by", async () => {
     await createRelation(db, projectId, ticketB, ticketA, "depends-on");
     const relB = await listRelations(db, projectId, ticketB);

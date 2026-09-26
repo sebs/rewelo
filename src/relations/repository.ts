@@ -27,33 +27,57 @@ const firstOf = (r: Pick<Relation, "source_id" | "target_id" | "relation_type">)
   r.relation_type in ORDER ? (ORDER[r.relation_type] === 1 ? r.source_id : r.target_id) : undefined;
 
 // The ordering relations that lead from one ticket to another (each
-// ticket before the next), or undefined when none do
+// ticket before the next), or undefined when none do. Searched from both
+// ends at once, the smaller side first, each ticket with indexed queries:
+// loading every ordering relation for each new one made importing 8,000
+// of them take 45 s (a star of them 148 s), and a search from one end walks
+// all that follows a ticket, though the other end often has nothing before it
 async function orderingPath(db: DB, projectId: number, from: number, to: number): Promise<Relation[] | undefined> {
-  const relations = await db.all<Relation>(
-    `SELECT * FROM ticket_relations WHERE project_id = ? AND relation_type IN (${Object.keys(ORDER).map(() => "?").join(", ")})`,
-    projectId,
-    ...Object.keys(ORDER)
-  );
-  const after = new Map<number, Array<{ ticket: number; relation: Relation }>>();
-  for (const r of relations) {
-    const first = firstOf(r)!;
-    const second = first === r.source_id ? r.target_id : r.source_id;
-    after.set(first, [...(after.get(first) ?? []), { ticket: second, relation: r }]);
-  }
-  // Breadth first, so the path named is a shortest one
-  const reachedBy = new Map<number, Relation | null>([[from, null]]);
-  for (const queue = [from]; queue.length > 0; ) {
-    const ticket = queue.shift()!;
-    if (ticket === to) {
-      const path: Relation[] = [];
-      for (let r = reachedBy.get(to); r; r = reachedBy.get(firstOf(r)!)) path.unshift(r);
-      return path;
+  const firstIsSource = Object.keys(ORDER).filter((type) => ORDER[type] === 1);
+  const firstIsTarget = Object.keys(ORDER).filter((type) => ORDER[type] === -1);
+  const types = (list: string[]) => list.map(() => "?").join(", ");
+  const second = (r: Relation) => (firstOf(r) === r.source_id ? r.target_id : r.source_id);
+  // The relations that put the ticket first (after) or second (before).
+  // Two queries in one, each on its own index: with OR, SQLite searched by
+  // project only and scanned all of its relations every time
+  const related = (ticket: number, side: "first" | "second") => {
+    const [bySource, byTarget] = side === "first" ? [firstIsSource, firstIsTarget] : [firstIsTarget, firstIsSource];
+    return db.all<Relation>(
+      `SELECT * FROM ticket_relations WHERE project_id = ? AND source_id = ? AND relation_type IN (${types(bySource)})
+       UNION ALL
+       SELECT * FROM ticket_relations WHERE project_id = ? AND target_id = ? AND relation_type IN (${types(byTarget)})`,
+      projectId, ticket, ...bySource, projectId, ticket, ...byTarget
+    );
+  };
+  // Per ticket reached, the relation it was reached by
+  const forward = new Map<number, Relation | null>([[from, null]]);
+  const backward = new Map<number, Relation | null>([[to, null]]);
+  const path = (meet: number) => {
+    const relations: Relation[] = [];
+    for (let r = forward.get(meet); r; r = forward.get(firstOf(r)!)) relations.unshift(r);
+    for (let r = backward.get(meet); r; r = backward.get(second(r))) relations.push(r);
+    return relations;
+  };
+  if (from === to) return [];
+  let ahead = [from];
+  let behind = [to];
+  while (ahead.length > 0 && behind.length > 0) {
+    // The side that has reached fewer tickets: with a chain behind one end
+    // and nothing before the other, that other end ends the search at once
+    const forwards = forward.size <= backward.size;
+    const next: number[] = [];
+    for (const ticket of forwards ? ahead : behind) {
+      for (const relation of await related(ticket, forwards ? "first" : "second")) {
+        const other = forwards ? second(relation) : firstOf(relation)!;
+        const [mine, theirs] = forwards ? [forward, backward] : [backward, forward];
+        if (mine.has(other)) continue;
+        mine.set(other, relation);
+        if (theirs.has(other)) return path(other);
+        next.push(other);
+      }
     }
-    for (const next of after.get(ticket) ?? []) {
-      if (reachedBy.has(next.ticket)) continue;
-      reachedBy.set(next.ticket, next.relation);
-      queue.push(next.ticket);
-    }
+    if (forwards) ahead = next;
+    else behind = next;
   }
   return undefined;
 }
@@ -137,16 +161,13 @@ export async function createRelation(
     // and A depends-on B say opposite things
     const first = firstOf({ source_id: sourceId, target_id: targetId, relation_type: relationType });
     if (first !== undefined) {
+      const inOrder = `relation_type IN (${Object.keys(ORDER).map(() => "?").join(", ")})`;
       const ordering = await db.all<Relation>(
-        `SELECT * FROM ticket_relations
-         WHERE project_id = ? AND relation_type IN (${Object.keys(ORDER).map(() => "?").join(", ")})
-           AND ((source_id = ? AND target_id = ?) OR (source_id = ? AND target_id = ?))`,
-        projectId,
-        ...Object.keys(ORDER),
-        sourceId,
-        targetId,
-        targetId,
-        sourceId
+        `SELECT * FROM ticket_relations WHERE project_id = ? AND source_id = ? AND target_id = ? AND ${inOrder}
+         UNION ALL
+         SELECT * FROM ticket_relations WHERE project_id = ? AND source_id = ? AND target_id = ? AND ${inOrder}`,
+        projectId, sourceId, targetId, ...Object.keys(ORDER),
+        projectId, targetId, sourceId, ...Object.keys(ORDER)
       );
       const opposite = ordering.find((r) => firstOf(r) !== first);
       if (opposite) {
@@ -156,8 +177,10 @@ export async function createRelation(
       // blocks C, C blocks A): no ticket in it could be started first
       const path = await orderingPath(db, projectId, first === sourceId ? targetId : sourceId, first);
       if (path) {
-        const chain = await Promise.all(path.map((r) => describe(db, r)));
-        throw new ValidationError(`This would close a cycle with the existing relations ${chain.join(", ")}`);
+        // A long path named in part: a cycle through 2,000 tickets made a 60 KB error
+        const chain = await Promise.all(path.slice(0, 5).map((r) => describe(db, r)));
+        const more = path.length > 5 ? ` and ${path.length - 5} more` : "";
+        throw new ValidationError(`This would close a cycle with the existing relations ${chain.join(", ")}${more}`);
       }
     }
 

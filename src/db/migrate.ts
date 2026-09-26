@@ -156,6 +156,12 @@ const MIGRATIONS: { version: number; sql?: string; run?: (db: DB) => Promise<voi
       await renameProjects(db);
     },
   },
+  {
+    // The cycle check follows ordering relations from ticket to ticket, by
+    // source and, for depends-on, by target
+    version: 12,
+    sql: `CREATE INDEX IF NOT EXISTS ticket_relations_target ON ticket_relations (project_id, target_id)`,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
