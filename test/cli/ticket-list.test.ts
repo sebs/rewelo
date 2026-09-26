@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
@@ -73,6 +73,20 @@ describe("rw ticket list (CLI)", () => {
     assert.equal(r.code, 1);
     assert.ok(r.stderr.includes("Invalid JSON in"));
     assert.ok(!rw("ticket", "list", "--project", "P").stdout.includes("fromchild"));
+  });
+
+  it("names the .rewelo.json a project that doesn't exist came from", () => {
+    const parent = join(dir, "named");
+    const child = join(parent, "child");
+    mkdirSync(child, { recursive: true });
+    writeFileSync(join(parent, ".rewelo.json"), JSON.stringify({ project: "Acme" }));
+    rw("ticket", "list", "--project", "P");
+
+    const r = runCli(["--db", join(dir, "x.db"), "ticket", "list"], { cwd: child });
+    assert.equal(r.code, 1);
+    assert.equal(r.stderr.trim(), `Project "Acme" not found (named in ${realpathSync(join(parent, ".rewelo.json"))})`);
+    // A name given on the command line needs no source
+    assert.equal(runCli(["--db", join(dir, "x.db"), "ticket", "list", "--project", "Acme"], { cwd: child }).stderr.trim(), 'Project "Acme" not found');
   });
 
   it("ticket update rejects an empty --new-title", () => {

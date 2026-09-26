@@ -78,7 +78,10 @@ export async function withProject<T>(
   const name = resolveProjectName(projectName);
   return withDb(opts, async (db) => {
     const project = await getProjectByName(db, name);
-    if (!project) throw new AppError(`Project "${name}" not found`);
+    // A name no one typed: say where it came from
+    if (!project) {
+      throw new AppError(`Project "${name}" not found${projectName === undefined ? ` (named in ${loadConfig().source})` : ""}`);
+    }
     return fn(db, project);
   });
 }

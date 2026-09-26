@@ -4,6 +4,8 @@ import { ValidationError, describeFsError } from "./errors.js";
 
 export interface ReweloConfig {
   project?: string;
+  /** The file project was read from */
+  source?: string;
 }
 
 const CONFIG_FILENAME = ".rewelo.json";
@@ -66,6 +68,7 @@ export function loadConfig(startDir: string = process.cwd()): ReweloConfig {
           throw new ValidationError(`The "project" field in ${candidate} must be a non-empty string`);
         }
         config.project = parsed.project.trim();
+        config.source = candidate;
       }
       return config;
     }
