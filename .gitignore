@@ -18,3 +18,4 @@ src/version.generated.ts
 src/mcp/prompts.generated.ts
 # website built by site/build.mjs
 _site/
+.DS_Store
