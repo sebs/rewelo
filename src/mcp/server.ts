@@ -168,6 +168,10 @@ export function createMcpServer(
 }
 
 export async function startMcpServer(dbPath: string, options?: { channel?: boolean }): Promise<void> {
+  // Before stdin is read: loaded in connect(), the catalog took long enough
+  // for a request piped in whole (echo … | rw serve) to arrive together with
+  // stdin's end, and the transport closed without answering it
+  await skillCatalog();
   // The transport closes when stdin ends: the client is gone
   const disconnected = new AbortController();
   process.stdin.once("end", () => disconnected.abort());

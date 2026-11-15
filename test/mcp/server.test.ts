@@ -8,7 +8,7 @@ import { parseTag } from "../../src/validation/strings.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { childEnv } from "../cli/run.js";
+import { childEnv, runCli } from "../cli/run.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -647,6 +647,14 @@ describe("MCP server", () => {
     const line = await new Promise<string>((resolveLine) => child.stderr!.once("data", (d) => resolveLine(String(d))));
     child.kill();
     assert.match(line, /^rewelo \S+ MCP server on stdio transport, database :memory:/);
+  });
+
+  it("answers a request piped in whole, stdin closed right after it (echo … | rw serve)", () => {
+    // The skill catalog loaded inside connect() let stdin's end arrive with
+    // the request, and the transport closed without answering (CI's Docker check)
+    const initialize = { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "ci", version: "1.0" } } };
+    const r = runCli(["--db", ":memory:", "serve"], { input: JSON.stringify(initialize) + "\n" });
+    assert.equal(JSON.parse(r.stdout.split("\n")[0]).result.serverInfo.name, "rewelo", r.stdout + r.stderr);
   });
 
   it("finishes writing the answer on its way out when stopped (SIGTERM)", async () => {
