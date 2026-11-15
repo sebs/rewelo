@@ -135,6 +135,20 @@ describe("rw calc (CLI)", () => {
     assert.deepEqual(titles, ["In"]);
   });
 
+  it("calc plan lists what fits a capacity, in order, and what didn't fit", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Big", "--benefit", "21", "--estimate", "13");
+    rw("ticket", "create", "--project", "P", "--title", "Small", "--benefit", "2", "--estimate", "2");
+    const plan = JSON.parse(rw("--json", "calc", "plan", "--project", "P", "--capacity", "5").stdout);
+    assert.deepEqual(plan.tickets.map((t: any) => t.title), ["A", "Small"]);
+    assert.deepEqual(plan.skipped.map((t: any) => t.title), ["Big"]);
+
+    const text = rw("calc", "plan", "--project", "P", "--capacity", "5").stdout;
+    assert.match(text, /Capacity 5 \(estimate\): 3 used, 2 left/);
+    assert.match(text, /Didn't fit: Big \(needs 13\)/);
+    assert.equal(rw("calc", "plan", "--project", "P", "--capacity", "5", "--effort", "time").code, 1);
+    assert.equal(rw("calc", "plan", "--project", "P").code, 1);
+  });
+
   it("calc priority shows a Blocked by column when a ticket is blocked, and --unblocked leaves those out", () => {
     rw("ticket", "create", "--project", "P", "--title", "B", "--benefit", "21");
     assert.doesNotMatch(rw("calc", "priority", "--project", "P").stdout, /Blocked by/);

@@ -46,6 +46,7 @@ Feature: MCP Server
       | simulate              |
       | explain_priority      |
       | suggest_scores        |
+      | plan_capacity         |
       | report_summary        |
       | report_times          |
       | report_health         |

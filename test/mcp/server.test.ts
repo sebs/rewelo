@@ -577,6 +577,29 @@ describe("MCP server", () => {
     assert.deepEqual((await ranking({ unblocked: true }))[0], ["Top", undefined]);
   });
 
+  it("plan_capacity fills a capacity by priority, with the blockers first, and says what didn't fit", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "S" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "S", title: "Top", benefit: 21, penalty: 21, estimate: 2, risk: 1 } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "S", title: "Big", benefit: 21, penalty: 21, estimate: 13, risk: 1 } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "S", title: "Base", benefit: 1, penalty: 1, estimate: 1, risk: 1 } });
+    await client.callTool({ name: "relation_create", arguments: { project: "S", source: "Base", type: "blocks", target: "Top" } });
+
+    const r = await client.callTool({ name: "plan_capacity", arguments: { project: "S", capacity: 5 } });
+    assert.notEqual(r.isError, true, (r.content as any)[0].text);
+    const plan = JSON.parse((r.content as any)[0].text);
+    assert.deepEqual(r.structuredContent, plan);
+    assert.deepEqual(plan.tickets.map((t: any) => [t.title, t.effort, t.for]), [["Base", 1, ["Top"]], ["Top", 2, undefined]]);
+    assert.deepEqual([plan.capacity, plan.effort, plan.used, plan.remaining], [5, "estimate", 3, 2]);
+    assert.deepEqual(plan.skipped, []);
+
+    const cost = JSON.parse((await client.callTool({ name: "plan_capacity", arguments: { project: "S", capacity: 3, effort: "cost" } }) as any).content[0].text);
+    assert.deepEqual(cost.tickets.map((t: any) => t.title), ["Base"]);
+    assert.deepEqual(cost.skipped.map((t: any) => [t.title, t.needs]), [["Top", 5], ["Big", 14]]);
+
+    const zero = await client.callTool({ name: "plan_capacity", arguments: { project: "S", capacity: 0 } });
+    assert.equal(zero.isError, true);
+  });
+
   it("project_delete reports a missing project as an error", async () => {
     const r = await client.callTool({ name: "project_delete", arguments: { name: "Nope" } });
     assert.equal(r.isError, true);

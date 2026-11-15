@@ -2,69 +2,44 @@
 name: plan-sprint
 description: Propose a sprint backlog from prioritized tickets based on team capacity
 argument-hint: "[project] [capacity-points]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__calc_priority, mcp__rewelo__weight_get, mcp__rewelo__tag_list, mcp__rewelo__tag_assign, mcp__rewelo__tag_create, mcp__rewelo__report_summary, mcp__rewelo__relation_list_all
+allowed-tools: mcp__rewelo__plan_capacity, mcp__rewelo__calc_priority, mcp__rewelo__weight_get, mcp__rewelo__ticket_list, mcp__rewelo__tag_assign, mcp__rewelo__tag_create
 ---
 
 # Sprint Planning Copilot
 
 Plan a sprint for project **$0** with a capacity of **$1** effort points (default: 20 if not provided).
 
-## Procedure
+## Selection
 
-1. Use `ticket_list` to fetch all tickets in the project (`ticket_list` returns 100 tickets per call: page with `offset` until you have `total` of them)
-2. Use `weight_get` to read the project's stored weight configuration
-3. Use `calc_priority` (with the project weights) to get the weighted priority ranking
-4. Take the open tickets: `ticket_list` with `excludeTags: ["state:wip", "state:done"]`. A ticket without a state tag is in the backlog too: new tickets have none until someone tags them
-5. Sort by weighted priority (highest first)
+Call `plan_capacity` once, with the capacity, `effort: "cost"` (a ticket takes estimate + risk) and `excludeTags: ["state:wip"]` (work already under way isn't planned again). The server does the selection; don't recalculate it:
 
-## Dependency analysis
+- It walks the open tickets (not `state:done`) by weighted priority, under the project's weights
+- Each ticket comes with its open blockers (`blocks`, `depends-on`, transitively), scheduled before it. A pulled-in blocker has `for`: the tickets it was pulled in for, and `rank: null` when it lies outside the ranking (for example a blocker already tagged `state:wip`)
+- A ticket whose blockers don't fit together with it is skipped, blockers and all; filling goes on with smaller tickets further down
+- `tickets` is the plan in the order to work on it; `skipped` lists the higher-ranked tickets that didn't fit, with `needs`: their effort together with their unplanned blockers
 
-Before selection, build a dependency graph in a single call:
-
-1. Call `relation_list_all` once to get every relation in the project
-2. Filter to `blocks` / `depends-on` / `is-blocked-by` / `is-depended-on-by` relation types
-3. Build a map: `ticket → set of tickets it depends on`
-
-A ticket is **eligible** only when all of its dependencies are either:
-- Already tagged `state:done`, OR
-- Already selected earlier in the current sprint plan
-
-## Sprint selection
-
-Walk the priority-sorted candidates. For each ticket:
-
-1. Check eligibility (all dependencies satisfied per rules above)
-2. If eligible and fits within remaining capacity (`estimate + risk`), select it
-3. If **not eligible** because a dependency is also a candidate, try to pull the dependency in first (if it fits). This lets a high-value ticket pull its blocker into the sprint.
-4. If not eligible and the dependency is not a candidate (e.g. not in backlog), skip and flag it
-
-Continue until capacity is exhausted or no more eligible tickets remain.
+Then call `weight_get` for the weights that drove the ranking, and `ticket_list` (page with `offset` until you have `total`) for the benefit and penalty of the planned tickets.
 
 ## Output
 
 ### Sprint backlog
 
-| # | Ticket | Weighted Priority | Cost (E+R) | Cumulative | Pulled by |
-|---|--------|-------------------|------------|------------|-----------|
+| # | Ticket | Rank | Weighted Priority | Cost (E+R) | Cumulative | Pulled in for |
+|---|--------|------|-------------------|------------|------------|---------------|
 
-The "Pulled by" column shows which higher-priority ticket caused a dependency to be included ahead of its natural rank. Leave empty for tickets selected on their own merit.
+From `tickets`, in their order. "Pulled in for" is `for`; leave it empty for tickets selected on their own merit.
 
 ### Sprint summary
 
-- **Total value** (sum of benefit + penalty for selected tickets)
+- **Total value** (sum of benefit + penalty for the planned tickets)
 - **Total weighted priority** (sum of weighted priorities)
-- **Remaining capacity** (if any)
-- **First ticket cut** and what including it would cost
-- **Trade-off analysis**: if swapping the lowest-priority selected ticket for a smaller unselected ticket would improve total value
+- **Remaining capacity** (`remaining`)
+- **First ticket cut**: the first of `skipped`, and what including it would cost (`needs`)
+- **Trade-off analysis**: whether swapping the lowest-priority planned ticket for a skipped one would improve total value
 
 ### Dependency warnings
 
-List any tickets that were **skipped due to unresolved dependencies**:
-
-| Ticket | Priority | Blocked by | Blocker state |
-|--------|----------|------------|---------------|
-
-Explain what would need to happen to unblock each one.
+For each skipped ticket whose `needs` is larger than its own effort, its blockers made it too big: name them (`calc_priority` lists a ticket's open blockers as `blockedBy`) and explain what would need to happen to unblock it.
 
 ### Weight configuration used
 
@@ -72,4 +47,4 @@ Show the w1–w4 values that drove the ranking, so the team knows how priorities
 
 ## Optional
 
-If the user confirms, tag selected tickets with a tag for this sprint, e.g. `sprint:2026-w39`, using `tag_assign`. Sprint membership gets its own prefix: a ticket holds one value per prefix, so a `state:` value for it would be replaced as soon as work on the ticket starts (`state:wip`) or ends (`state:done`).
+If the user confirms, tag the planned tickets with a tag for this sprint, e.g. `sprint:2026-w39`, using `tag_assign`. Sprint membership gets its own prefix: a ticket holds one value per prefix, so a `state:` value for it would be replaced as soon as work on the ticket starts (`state:wip`) or ends (`state:done`).

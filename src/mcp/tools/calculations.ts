@@ -4,6 +4,7 @@ import { getTicketTags } from "../../tags/assignment.js";
 import { DB } from "../../db/connection.js";
 import type { Ticket } from "../../tickets/repository.js";
 import { relativeWeights, ticketsInScope, weightedRanking } from "../../app/priorities.js";
+import { EFFORTS, planCapacity } from "../../app/capacity-plan.js";
 import { explain, findTicket, simulate } from "../../calculations/scenario.js";
 import { calibrate, parseSuggestion, scoringPrompt } from "../../reports/calibration.js";
 import { getDistribution } from "../../reports/distribution.js";
@@ -168,5 +169,21 @@ export function registerCalculationTools(ctx: McpContext): void {
       const suggestion = parseSuggestion(text);
       return suggestion ? { ...material, sampling: "used", suggestion } : { ...material, sampling: "failed" };
     }
+  );
+
+  tool(
+    "plan_capacity",
+    "Which open tickets (not state:done) fit a capacity, such as a sprint's: by weighted priority, each ticket with its open blockers (blocks, depends-on) scheduled before it, and skipped when they don't fit together; filling goes on with smaller tickets further down. Returns the tickets in the order to work on them (a pulled-in blocker names the tickets it is for), used and remaining capacity, and the higher-ranked tickets that didn't fit with what they need. Nothing is written; tag the plan with tag_assign.",
+    {
+      ...PROJECT_ARG,
+      capacity: z.number().positive().describe("The capacity, in the unit of effort"),
+      effort: z.enum(EFFORTS).optional().describe("What a ticket takes from the capacity: its estimate (default) or its cost, estimate + risk"),
+      tag: z.string().optional().describe("Only plan tickets with this tag (prefix:value); blockers are pulled in from anywhere"),
+      tags: z.array(z.string()).optional().describe("Only plan tickets with all of these tags (intersection, also with tag). Each as prefix:value"),
+      excludeTags: z.array(z.string()).optional().describe("Don't plan tickets with any of these tags (e.g. state:wip); they are still pulled in as blockers. Each as prefix:value"),
+    },
+    READ,
+    ({ project, capacity, effort, tag, tags, excludeTags }) =>
+      inProject(project, (db, proj) => planCapacity(db, proj.id, { capacity, effort, tags: tagList(tag, tags), excludeTags }))
   );
 }

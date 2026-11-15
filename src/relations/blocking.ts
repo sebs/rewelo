@@ -6,8 +6,8 @@ import { doneTicketIds } from "../workflow/states.js";
 // orders tickets without forbidding work on the later one, and the others
 // relate them. A done blocker blocks nothing, and a done ticket is not
 // blocked.
-/** Per open ticket that has any, the titles of the open tickets blocking it, sorted */
-export async function openBlockers(db: DB, projectId: number): Promise<Map<number, string[]>> {
+/** Per open ticket that has any, the open tickets blocking it, by title */
+export async function openBlockerTickets(db: DB, projectId: number): Promise<Map<number, Array<{ id: number; title: string }>>> {
   const rows = await db.all<{ blocked: number; blocker: number; title: string }>(
     `SELECT r.blocked, r.blocker, t.title
      FROM (SELECT CASE relation_type WHEN 'blocks' THEN target_id ELSE source_id END AS blocked,
@@ -19,10 +19,16 @@ export async function openBlockers(db: DB, projectId: number): Promise<Map<numbe
     projectId
   );
   const done = await doneTicketIds(db, projectId);
-  const blockers = new Map<number, string[]>();
+  const blockers = new Map<number, Array<{ id: number; title: string }>>();
   for (const { blocked, blocker, title } of rows) {
     if (done.has(blocked) || done.has(blocker)) continue;
-    blockers.set(blocked, [...(blockers.get(blocked) ?? []), title]);
+    blockers.set(blocked, [...(blockers.get(blocked) ?? []), { id: blocker, title }]);
   }
   return blockers;
+}
+
+/** Per open ticket that has any, the titles of the open tickets blocking it, sorted */
+export async function openBlockers(db: DB, projectId: number): Promise<Map<number, string[]>> {
+  const blockers = await openBlockerTickets(db, projectId);
+  return new Map([...blockers].map(([id, list]) => [id, list.map((b) => b.title)]));
 }

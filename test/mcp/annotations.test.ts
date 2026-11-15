@@ -36,7 +36,7 @@ describe("MCP tool annotations", () => {
   it("marks the tools that only read as read-only", async () => {
     assert.deepEqual(await byHint("readOnlyHint"), [
       "calc_priority", "calc_weights", "event_log", "explain_priority", "export_csv", "export_json",
-      "project_diff", "project_history", "project_list",
+      "plan_capacity", "project_diff", "project_history", "project_list",
       "relation_list", "relation_list_all",
       "report_dashboard", "report_distribution", "report_group", "report_health", "report_summary", "report_times",
       "server_version", "simulate", "suggest_scores", "tag_list", "ticket_history", "ticket_list", "weight_get",

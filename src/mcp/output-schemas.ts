@@ -190,6 +190,26 @@ export const outputSchemas = {
       .describe("The ranking of the open tickets before (baseline) and after the changes (scenario), as simulate ranks; done: the changes closed the ticket, reopened: they reopened it"),
   }),
 
+  plan_capacity: z.object({
+    capacity: z.number(),
+    effort: z.enum(["estimate", "cost"]),
+    used: z.number(),
+    remaining: z.number(),
+    tickets: z.array(z.object({
+      title: z.string(),
+      rank: z.number().int().nullable().describe("Rank among the open tickets in scope; null for a blocker from outside it (or excluded)"),
+      effort: z.number(),
+      weighted: z.number(),
+      for: z.array(z.string()).optional().describe("For a blocker pulled in: the tickets it has to come before"),
+    })).describe("In the order to work on them"),
+    skipped: z.array(z.object({
+      title: z.string(),
+      rank: z.number().int(),
+      effort: z.number(),
+      needs: z.number().describe("Its effort with its unplanned blockers"),
+    })).describe("Tickets ranked above the last one planned that didn't fit"),
+  }),
+
   suggest_scores: z.object({
     tickets: z.number().int().describe("Tickets in the project"),
     similar: z.array(z.object({

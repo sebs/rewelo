@@ -1,5 +1,7 @@
 import { Command } from "commander";
 import { relativeWeights, weightedRanking } from "../../app/priorities.js";
+import { EFFORTS, planCapacity, type Effort } from "../../app/capacity-plan.js";
+import { ValidationError } from "../../errors.js";
 import { round2 } from "../../calculations/priority.js";
 import { withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, collect, parseFloatOption, type ProjectOptions, type WeightOptions } from "../options.js";
@@ -60,6 +62,34 @@ export function registerCalcCommands(program: Command): void {
           above: [`Weights: w1=${weights.w1} w2=${weights.w2} w3=${weights.w3} w4=${weights.w4}\n`],
           headers: ["Title", "Priority", "Weighted", ...(blocked ? ["Blocked by"] : [])],
           row: (r) => [r.title, r.priority.toFixed(2), r.weighted.toFixed(2), ...(blocked ? [(r.blockedBy ?? []).join(", ")] : [])],
+        });
+      });
+    });
+
+  calcCmd
+    .command("plan")
+    .description("open tickets that fit a capacity, by priority, with their blockers first")
+    .option(...PROJECT_OPTION)
+    .requiredOption("--capacity <n>", "the capacity, in the unit of effort", parseFloatOption)
+    .option("--effort <estimate|cost>", "what a ticket takes: its estimate, or estimate + risk", "estimate")
+    .option("--tag <prefix:value>", "only plan tickets with this tag (repeatable, intersection)", collect, [] as string[])
+    .option("--exclude-tag <prefix:value>", "don't plan tickets with this tag, e.g. state:wip (repeatable); still pulled in as blockers", collect, [] as string[])
+    .action(async (cmdOpts: ProjectOptions & { capacity: number; effort: string; tag: string[]; excludeTag: string[] }, cmd: Command) => {
+      const opts = cmd.optsWithGlobals<GlobalOptions>();
+      if (!(EFFORTS as readonly string[]).includes(cmdOpts.effort)) {
+        throw new ValidationError(`--effort must be ${EFFORTS.join(" or ")}, got "${cmdOpts.effort}"`);
+      }
+      await withProject(opts, cmdOpts.project, async (db, project) => {
+        const plan = await planCapacity(db, project.id, { capacity: cmdOpts.capacity, effort: cmdOpts.effort as Effort, tags: cmdOpts.tag, excludeTags: cmdOpts.excludeTag });
+        printRows(opts, plan.tickets, {
+          json: plan,
+          quiet: (r) => r.title,
+          empty: "No open ticket fits the capacity.",
+          isEmpty: plan.tickets.length === 0,
+          above: [`Capacity ${plan.capacity} (${plan.effort}): ${plan.used} used, ${plan.remaining} left\n`],
+          headers: ["#", "Title", "Rank", "Effort", "Weighted", "For"],
+          row: (r, i) => [i + 1, r.title, r.rank ?? "-", r.effort, r.weighted.toFixed(2), (r.for ?? []).join(", ")],
+          below: plan.skipped.length ? [`\nDidn't fit: ${plan.skipped.map((s) => `${s.title} (needs ${s.needs})`).join(", ")}`] : [],
         });
       });
     });

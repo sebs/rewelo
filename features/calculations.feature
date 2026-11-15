@@ -87,3 +87,31 @@ Feature: Calculations
       | Story C |       5 |       3 |        3 |    2 |
     When I sort tickets by priority descending
     Then the order should be "Story B", "Story C", "Story A"
+
+  # -- Capacity plans --
+
+  Scenario: Fill a capacity by priority
+    Given tickets ranked "A" (estimate 3), "C" (estimate 1), "B" (estimate 8) and "D" (estimate 2)
+    When I plan a capacity of 6
+    Then the plan should be "A", "C" and "D", with 6 used and 0 left
+    And "B" should be named as not fitting, needing 8
+
+  Scenario: A ticket's blockers come first
+    Given "Base" blocks "Top", and "Top" ranks first
+    When I plan a capacity that fits both
+    Then "Base" should be planned before "Top", for "Top"
+
+  Scenario: A ticket whose blockers don't fit is skipped with them
+    Given "Base" (estimate 5) blocks "Top" (estimate 2)
+    When I plan a capacity of 5
+    Then neither "Top" nor "Base" should be planned
+    And "Top" should be named as not fitting, needing 7
+
+  Scenario: Effort as cost
+    When I plan a capacity with effort cost
+    Then each ticket should take its estimate + risk
+
+  Scenario: Leave out work under way
+    Given "Wip" is tagged state:wip
+    When I plan a capacity excluding state:wip
+    Then "Wip" should be planned only as a blocker of a planned ticket

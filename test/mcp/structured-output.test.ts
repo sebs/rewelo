@@ -56,6 +56,7 @@ describe("MCP structured output", () => {
       ["simulate", { project: "Acme", remove: ["B"] }],
       ["explain_priority", { project: "Acme", title: "B" }],
       ["suggest_scores", { project: "Acme", title: "A new B", description: "Like B" }],
+      ["plan_capacity", { project: "Acme", capacity: 5 }],
       ["weight_reset", { project: "Acme" }],
       ["ticket_list", { project: "Acme" }],
       ["ticket_history", { project: "Acme", title: "B" }],
