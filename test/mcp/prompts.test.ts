@@ -82,6 +82,13 @@ describe("MCP prompts", () => {
     }
   });
 
+  it("answers a prompts/get that sends no arguments at all", async () => {
+    // Every argument is optional: a client that leaves out arguments got
+    // "Invalid arguments" before SDK 2.3.0 validated it as {}
+    const client = await connect();
+    assert.match(text(await client.getPrompt({ name: "standup" })), /summary for project \*\*rewelo\*\*/);
+  });
+
   it("completes project names and the titles of the named project's tickets", async () => {
     const client = await connect();
     for (const name of ["Acme", "Beta", "acme-labs"]) await client.callTool({ name: "project_create", arguments: { name } });
