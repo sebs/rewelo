@@ -96,7 +96,7 @@ describe("MCP live events", () => {
 
   it("refuses subscriptions to other URIs", async () => {
     const { client } = await connect();
-    await assert.rejects(client.subscribeResource({ uri: "file:///etc/passwd" }), /rewelo's resources start with rewelo:\/\//);
+    await assert.rejects(client.subscribeResource({ uri: "file:///etc/passwd" }), /only rewelo:\/\/ resources change/);
   });
 
   it("pushes changes made elsewhere into a channel, but not its own", async () => {

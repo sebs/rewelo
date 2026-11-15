@@ -25,6 +25,7 @@ import { registerRelationTools } from "./tools/relations.js";
 import { registerChangeTools } from "./tools/changes.js";
 import { registerPrompts } from "./prompts.js";
 import { registerResources } from "./resources.js";
+import { skillCatalog } from "./skills.js";
 
 export function createMcpServer(
   dbPath: string,
@@ -147,6 +148,9 @@ export function createMcpServer(
 
   const connect = server.connect.bind(server);
   server.connect = async (transport) => {
+    // The skills, attached before connecting as the SDK requires: building
+    // their catalog is async, and creating the server is not
+    (await skillCatalog()).attach(server);
     const send = transport.send.bind(transport);
     transport.send = (message, sendOptions) => send(capErrors(message), sendOptions);
     await connect(transport);

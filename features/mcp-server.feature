@@ -219,6 +219,12 @@ Feature: MCP Server
     When a client gets the prompt "standup" without arguments
     Then the message should tell the model to ask the user which project
 
+  Scenario: The skills are offered as skills
+    When a client that supports the Skills extension lists the skills
+    Then it should get every skill in .claude/skills at skill://rewelo/<name>/SKILL.md
+    And reading one should return its SKILL.md as it is, front matter included
+    And the client's size and digest check should pass
+
   Scenario: Complete prompt arguments
     Given projects "Acme" and "acme-labs", and "Acme" has tickets "Login page" and "Logout"
     When a client completes the "project" argument of "slice" from "acm"

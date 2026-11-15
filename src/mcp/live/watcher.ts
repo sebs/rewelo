@@ -63,7 +63,7 @@ export class ChangeWatcher {
   handleSubscriptions(): void {
     this.server.server.setRequestHandler("resources/subscribe", async (request) => {
       const { uri } = request.params;
-      if (!uri.startsWith("rewelo://")) throw new AppError(`Can't subscribe to ${shorten(uri)}: rewelo's resources start with rewelo://`);
+      if (!uri.startsWith("rewelo://")) throw new AppError(`Can't subscribe to ${shorten(uri)}: only rewelo:// resources change`);
       if (!this.subscriptions.has(uri) && this.subscriptions.size >= MAX_SUBSCRIPTIONS) throw new AppError(`At most ${MAX_SUBSCRIPTIONS} subscriptions`);
       this.subscriptions.add(uri);
       this.watch();

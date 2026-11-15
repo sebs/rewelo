@@ -352,6 +352,10 @@ Without `project`, a prompt uses the server's default project (see [Available To
 
 The prompts are the Claude Code skills in [`.claude/skills`](.claude/skills), built into the server by `scripts/generate-prompts.mjs`: change a skill there, and the prompt changes with the next build.
 
+### Skills
+
+The same skills are also served as skills, through the MCP Skills extension (SEP-2640): a client that supports it lists them with `skills/list` and reads each `SKILL.md` as it is in the repository, front matter included, at `skill://rewelo/{name}/SKILL.md`. Unlike a prompt, which arrives with its arguments filled in, a skill is loaded by the client as a skill (with the `allowed-tools` and `argument-hint` of its front matter), and the client can verify each file against the size and digest the listing gives. The `SKILL.md` files also appear in the resource list. Clients that don't support the extension keep using the prompts. The SDK marks how the extension attaches to a server as experimental, so this may change with an SDK update.
+
 ## Example Session
 
 ```

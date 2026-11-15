@@ -35,7 +35,7 @@ describe("MCP resources", () => {
 
   afterEach(() => close());
 
-  it("offers backlog, ticket, dashboard and export templates", async () => {
+  it("offers backlog, ticket, dashboard and export templates, and the skills' template", async () => {
     const { resourceTemplates } = await client.listResourceTemplates();
     assert.deepEqual(
       resourceTemplates.map((t) => [t.name, t.uriTemplate, t.mimeType]).sort(),
@@ -44,6 +44,7 @@ describe("MCP resources", () => {
         ["dashboard", "rewelo://{project}/dashboard", "text/html"],
         ["dashboard-rows", "rewelo://{project}/dashboard/{limit}", "text/html"],
         ["export", "rewelo://{project}/export/{format}", undefined],
+        ["io.modelcontextprotocol/skills", "skill://rewelo/{+path}", undefined],
         ["ticket", "rewelo://{project}/ticket/{title}", "application/json"],
       ]
     );
@@ -51,7 +52,9 @@ describe("MCP resources", () => {
 
   it("lists a backlog and a dashboard per project, with the name encoded in the URI", async () => {
     const { resources } = await client.listResources();
-    assert.deepEqual(resources.map((r) => r.uri).sort(), ["rewelo://My%20Project/backlog", "rewelo://My%20Project/dashboard"]);
+    // and every skill's SKILL.md (test/mcp/skills.test.ts)
+    const own = resources.map((r) => r.uri).filter((uri) => !uri.startsWith("skill://")).sort();
+    assert.deepEqual(own, ["rewelo://My%20Project/backlog", "rewelo://My%20Project/dashboard"]);
   });
 
   it("reads the backlog: open tickets, ranked, with their tags", async () => {
