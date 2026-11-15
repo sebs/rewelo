@@ -241,10 +241,12 @@ A relation that contradicts an existing one (`B blocks A` next to `A blocks B` o
 |-------------------|------------------------------------|-------------------------------------------|
 | `report_summary`  | Project summary by state           | `project?`, `topN?`                        |
 | `report_times`    | Lead and cycle time report         | `project?`                                 |
-| `report_health`   | Backlog health report              | `project?`, `threshold?`                   |
+| `report_health`   | Backlog health report, with the stale tickets | `project?`, `threshold?`, `staleDays?` |
 | `report_distribution` | Fibonacci score distribution   | `project?`                                 |
 | `report_group`    | Group tickets by tag prefix        | `project?`, `prefix`                       |
 | `report_dashboard`| Self-contained HTML dashboard      | `project?`, `limit?`                       |
+
+`report_health` also lists the stale tickets as `staleTickets`: the open tickets whose scores haven't changed for `staleDays` (default 90), oldest first, with `scoredAt` (when the scores last changed, or the ticket was created) and `days` since then. A change of title, description or tags doesn't count as re-scoring. They are the tickets whose priority rests on the oldest judgement.
 
 ### Event Log & Diff
 

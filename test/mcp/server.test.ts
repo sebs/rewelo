@@ -600,6 +600,21 @@ describe("MCP server", () => {
     assert.equal(zero.isError, true);
   });
 
+  it("report_health lists the open tickets not re-scored for staleDays", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "H" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "H", title: "Fresh" } });
+    const health = async (args: Record<string, unknown> = {}) => {
+      const r = await client.callTool({ name: "report_health", arguments: { project: "H", ...args } });
+      assert.notEqual(r.isError, true, (r.content as any)[0].text);
+      return JSON.parse((r.content as any)[0].text);
+    };
+    const fresh = await health();
+    assert.deepEqual([fresh.staleDays, fresh.staleTickets], [90, []]);
+    assert.equal((await health({ staleDays: 30 })).staleDays, 30);
+    const bad = await client.callTool({ name: "report_health", arguments: { project: "H", staleDays: 0 } });
+    assert.equal(bad.isError, true);
+  });
+
   it("project_delete reports a missing project as an error", async () => {
     const r = await client.callTool({ name: "project_delete", arguments: { name: "Nope" } });
     assert.equal(r.isError, true);

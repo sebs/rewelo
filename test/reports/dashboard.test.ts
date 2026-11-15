@@ -130,7 +130,7 @@ describe("renderDashboardHtml", () => {
     doneCount: 2,
     customWeights: true,
     distribution: [],
-    health: { totalTickets: 2, doneTickets: 2, openTickets: 0, highPriorityCount: 0, lowPriorityCount: 0, highToLowRatio: null, totalBacklogCost: 0 },
+    health: { totalTickets: 2, doneTickets: 2, openTickets: 0, highPriorityCount: 0, lowPriorityCount: 0, highToLowRatio: null, totalBacklogCost: 0, staleDays: 90, staleTickets: [] },
     relations: [],
   };
 

@@ -98,11 +98,13 @@ export function registerReportCommands(program: Command): void {
     .description("backlog health report")
     .option(...PROJECT_OPTION)
     .option("--threshold <n>", "high priority threshold (the exact value / cost, not the two decimals shown)", parseFloatOption, 1.5)
-    .action(async (cmdOpts: ProjectOptions & { threshold: number }, cmd: Command) => {
+    .option("--stale-days <n>", "days without a change of scores after which an open ticket is stale", parseNonNegativeIntOption, 90)
+    .action(async (cmdOpts: ProjectOptions & { threshold: number; staleDays: number }, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       await withProject(opts, cmdOpts.project, async (db, project) => {
-        const health = await getBacklogHealth(db, project.id, cmdOpts.threshold);
-        const metrics: [string, unknown][] = Object.entries(health);
+        const health = await getBacklogHealth(db, project.id, cmdOpts.threshold, cmdOpts.staleDays);
+        // One value per metric: the stale tickets as their number
+        const metrics: [string, unknown][] = Object.entries(health).map(([name, value]) => [name, Array.isArray(value) ? value.length : value]);
         if (opts.json) {
           console.log(JSON.stringify(health));
         } else if (opts.quiet) {
@@ -115,6 +117,11 @@ export function registerReportCommands(program: Command): void {
           console.log(`High priority: ${health.highPriorityCount} | Low priority: ${health.lowPriorityCount}`);
           console.log(`High:Low ratio: ${highToLowRatioText(health)}`);
           console.log(`Total backlog cost: ${health.totalBacklogCost}`);
+          // The oldest first, as many as a terminal shows at a glance
+          const SHOWN = 10;
+          console.log(`Not re-scored for ${health.staleDays} days or more: ${health.staleTickets.length}`);
+          for (const t of health.staleTickets.slice(0, SHOWN)) console.log(`  ${escapeControls(t.title)} (${t.days} days)`);
+          if (health.staleTickets.length > SHOWN) console.log(`  … and ${health.staleTickets.length - SHOWN} more (--json lists them all)`);
         }
       });
     });

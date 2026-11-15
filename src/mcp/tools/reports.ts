@@ -39,14 +39,15 @@ export function registerReportTools(ctx: McpContext): void {
 
   tool(
     "report_health",
-    "Assess backlog health: high/low priority ratio, open ticket count, total cost. highToLowRatio is null when no open ticket is low priority, also when there are no open tickets.",
+    "Assess backlog health: high/low priority ratio, open ticket count, total cost, and the stale tickets: open ones whose scores haven't changed for staleDays (a change of title, description or tags doesn't count), oldest first, worth re-scoring. highToLowRatio is null when no open ticket is low priority, also when there are no open tickets.",
     {
       ...PROJECT_ARG,
       threshold: z.number().optional().describe("High priority threshold, greater than 0 (default 1.5), compared with the exact value/cost, not the rounded priority"),
+      staleDays: z.number().int().optional().describe("Days without a change of scores after which an open ticket counts as stale (default 90)"),
     },
     READ,
-    ({ project, threshold }) =>
-      inProject(project, (db, proj) => getBacklogHealth(db, proj.id, threshold ?? 1.5))
+    ({ project, threshold, staleDays }) =>
+      inProject(project, (db, proj) => getBacklogHealth(db, proj.id, threshold ?? 1.5, staleDays ?? 90))
   );
 
   tool(

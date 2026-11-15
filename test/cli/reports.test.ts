@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./run.js";
+import { DB } from "../../src/db/connection.js";
 
 describe("rw report (CLI)", () => {
   let dir: string;
@@ -75,6 +76,27 @@ describe("rw report (CLI)", () => {
     assert.equal(out("--csv", "project", "diff", "--since", since), "Change,Ticket,Detail\nnew,A,2.00\ntag_added,A,state:wip\n");
     assert.equal(out("--quiet", "project", "diff", "--since", since), "new\tA\t2.00\ntag_added\tA\tstate:wip\n");
     assert.equal(out("--quiet", "config", "weights"), "1.5\t1.5\t1.5\t1.5\n");
+  });
+
+  it("report health lists the stale tickets, at most 10 in the text, and takes --stale-days", async () => {
+    for (let i = 1; i <= 12; i++) rw("ticket", "create", "--project", "P", "--title", `T${String(i).padStart(2, "0")}`);
+    rw("ticket", "create", "--project", "P", "--title", "New");
+    // Created 100 + i days ago: T01 is the newest of the stale ones
+    const db = await DB.open(join(dir, "x.db"));
+    for (let i = 1; i <= 12; i++) {
+      await db.run("UPDATE tickets SET created_at = ? WHERE title = ?", new Date(Date.now() - (100 + i) * 86_400_000).toISOString(), `T${String(i).padStart(2, "0")}`);
+    }
+    await db.close();
+
+    const text = rw("report", "health", "--project", "P").stdout;
+    assert.match(text, /Not re-scored for 90 days or more: 12\n  T12 \(112 days\)\n/);
+    assert.match(text, /  T03 \(103 days\)\n  … and 2 more \(--json lists them all\)/);
+    assert.doesNotMatch(text, /New/);
+    const json = JSON.parse(rw("--json", "report", "health", "--project", "P", "--stale-days", "110").stdout);
+    assert.deepEqual([json.staleDays, json.staleTickets.map((t: any) => t.title)], [110, ["T12", "T11", "T10"]]);
+    assert.match(rw("--quiet", "report", "health", "--project", "P").stdout, /\nstaleTickets\t12\n/);
+    assert.match(rw("--csv", "report", "health", "--project", "P").stdout, /\nstaleTickets,12\n/);
+    assert.equal(rw("report", "health", "--project", "P", "--stale-days", "0").code, 1);
   });
 
   it("says --limit 0 showed nothing rather than that nothing exists", () => {

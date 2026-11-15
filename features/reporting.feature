@@ -42,3 +42,16 @@ Feature: Reporting
     When I view the backlog health for "Acme"
     Then I should see the ratio of high-priority to low-priority tickets
     And I should see the total estimated cost of the backlog
+
+  Scenario: Stale scores
+    Given ticket "Old" in "Acme" was scored 120 days ago and not re-scored since
+    And ticket "Renamed" in "Acme" was scored 120 days ago and renamed yesterday
+    And ticket "Recent" in "Acme" was re-scored yesterday
+    When I view the backlog health for "Acme"
+    Then "Old" and "Renamed" should be listed as not re-scored for 90 days or more, the oldest first
+    And "Recent" should not be listed
+
+  Scenario: Stale scores after a chosen number of days
+    Given ticket "Old" in "Acme" was scored 120 days ago
+    When I view the backlog health for "Acme" with 150 stale days
+    Then no ticket should be listed as stale

@@ -255,6 +255,12 @@ export const outputSchemas = {
     lowPriorityCount: z.number().int(),
     highToLowRatio: z.number().nullable(),
     totalBacklogCost: z.number(),
+    staleDays: z.number().int(),
+    staleTickets: z.array(z.object({
+      title: z.string(),
+      scoredAt: z.string().describe("When its scores last changed, or it was created"),
+      days: z.number().int().describe("Days since then"),
+    })).describe("Open tickets not re-scored for staleDays, oldest first"),
   }),
   report_distribution: z.array(z.object({
     dimension: z.string(),
