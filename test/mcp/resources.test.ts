@@ -52,8 +52,8 @@ describe("MCP resources", () => {
 
   it("lists a backlog and a dashboard per project, with the name encoded in the URI", async () => {
     const { resources } = await client.listResources();
-    // and every skill's SKILL.md (test/mcp/skills.test.ts)
-    const own = resources.map((r) => r.uri).filter((uri) => !uri.startsWith("skill://")).sort();
+    // and every skill's SKILL.md (test/mcp/skills.test.ts) and the dashboard app (test/mcp/app.test.ts)
+    const own = resources.map((r) => r.uri).filter((uri) => uri.startsWith("rewelo://")).sort();
     assert.deepEqual(own, ["rewelo://My%20Project/backlog", "rewelo://My%20Project/dashboard"]);
   });
 

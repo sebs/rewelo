@@ -317,6 +317,10 @@ Resources are context a user attaches to a conversation without a tool call; in 
 
 The resource list offers a backlog and a dashboard per project, and the server sends `notifications/resources/list_changed` when projects are created or deleted (by other processes too, while it watches for changes for a subscription or the channel); tickets and exports aren't listed, as a project can have thousands of tickets. Reading a resource counts against the same rate limit as a tool call. The backlog and a ticket, which are meant as context for the model, are limited to 5 MB like a tool result; dashboards and exports, which a client fetches on its own, to 10 MB. Both are measured as sent, with the text JSON-escaped: a message over 10 MiB makes the official TypeScript SDK's stdio client drop the connection.
 
+### The dashboard as an MCP App
+
+Hosts that support [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview) (Claude Desktop, claude.ai, VS Code and others; not Claude Code) show `report_dashboard`'s result to the user as the dashboard itself, in a page the server provides at `ui://rewelo/dashboard.html` (`text/html;profile=mcp-app`), instead of HTML as text. The tool points to it in its `_meta` (`ui.resourceUri`). The page is self-contained, follows the host's light or dark theme, tells the host its height, and fetches a dashboard over 5 MB through the host from the resource the result links to. It shows the dashboard's styles and content only, never a script from it. Hosts without apps get the HTML as text, as before.
+
 `export_csv`, `export_json` and `report_dashboard` return their document inline up to 5 MB. Over that, they return a `resource_link` to the matching resource above instead of an error, so a client can fetch the document without it going through the model's context.
 
 ## Live events

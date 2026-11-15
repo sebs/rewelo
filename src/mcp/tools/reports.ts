@@ -8,6 +8,7 @@ import { getBacklogHealth } from "../../reports/health.js";
 import { getProjectSummary } from "../../reports/summary.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { dashboard, documentOrLink, MAX_DASHBOARD_ROWS, resourceUri } from "../documents.js";
+import { DASHBOARD_APP_META } from "../app.js";
 import { READ, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerReportTools(ctx: McpContext): void {
@@ -74,7 +75,7 @@ export function registerReportTools(ctx: McpContext): void {
 
   tool(
     "report_dashboard",
-    "Render a self-contained HTML dashboard (tickets, distribution, health, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it.",
+    "Render a self-contained HTML dashboard (tickets, distribution, health, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it. Hosts that support MCP Apps show it to the user in its page (ui://rewelo/dashboard.html).",
     {
       ...PROJECT_ARG,
       limit: z.number().int().nonnegative().max(MAX_DASHBOARD_ROWS).optional().describe("Rows per table (default 500)"),
@@ -88,7 +89,8 @@ export function registerReportTools(ctx: McpContext): void {
           "dashboard",
           "text/html"
         )
-      )
+      ),
+    DASHBOARD_APP_META
   );
 
 

@@ -16,7 +16,7 @@ export interface McpContext {
   config: ReweloConfig;
   /** Register a tool: strict input, its output schema, the payload limit, write tracking, and errors as error results (safe) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tool(name: string, description: string, shape: z.ZodRawShape, annotations: ToolAnnotations, handler: (args: any, ctx: ServerContext) => any): void;
+  tool(name: string, description: string, shape: z.ZodRawShape, annotations: ToolAnnotations, handler: (args: any, ctx: ServerContext) => any, meta?: Record<string, unknown>): void;
   withDb: DbSession["withDb"];
   withProject: DbSession["withProject"];
   /** The project a call names, or the .rewelo.json default */

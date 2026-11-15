@@ -193,6 +193,13 @@ Feature: MCP Server
 
   # -- Live events --
 
+  Scenario: The dashboard is an MCP App
+    When a client lists the tools
+    Then report_dashboard should point to the UI resource "ui://rewelo/dashboard.html"
+    And reading that resource should return a self-contained page of type "text/html;profile=mcp-app"
+    And a host that supports MCP Apps should show the dashboard in that page, in the host's theme
+    And a host without them should get the dashboard as HTML text
+
   Scenario: Subscribers hear about changes
     Given a client subscribed to "rewelo://Acme/backlog"
     When a tool call or another process changes the database

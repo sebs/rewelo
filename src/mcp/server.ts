@@ -26,6 +26,7 @@ import { registerChangeTools } from "./tools/changes.js";
 import { registerPrompts } from "./prompts.js";
 import { registerResources } from "./resources.js";
 import { skillCatalog } from "./skills.js";
+import { registerDashboardApp } from "./app.js";
 
 export function createMcpServer(
   dbPath: string,
@@ -92,7 +93,7 @@ export function createMcpServer(
     server,
     config,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tool(name, description, shape, annotations, handler) {
+    tool(name, description, shape, annotations, handler, meta) {
       // The payload limit applies to every tool, not only the imports: others
       // took 20 MB titles and echoed them back in their errors
       // Strict: a misspelt parameter (benfit, exclude_tags) used to be dropped
@@ -100,7 +101,7 @@ export function createMcpServer(
       const outputSchema = outputSchemas[name as keyof typeof outputSchemas];
       const run = safe(handler);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      server.registerTool(name, { description, inputSchema: z.strictObject(shape), outputSchema, annotations }, (args: any, call: ServerContext) => {
+      server.registerTool(name, { description, inputSchema: z.strictObject(shape), outputSchema, annotations, ...(meta ? { _meta: meta } : {}) }, (args: any, call: ServerContext) => {
         try {
           checkPayloadSize(args);
         } catch (err) {
@@ -145,6 +146,8 @@ export function createMcpServer(
   registerPrompts(ctx);
   // Context a user attaches (in Claude Code, @rewelo:…) without a tool call
   registerResources(ctx);
+  // report_dashboard's page in hosts that support MCP Apps
+  registerDashboardApp(ctx);
 
   const connect = server.connect.bind(server);
   server.connect = async (transport) => {
