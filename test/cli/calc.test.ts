@@ -134,4 +134,19 @@ describe("rw calc (CLI)", () => {
     const titles = JSON.parse(rw("--json", "calc", "priority", "--project", "S", "--tag", "feature:x").stdout).map((r: any) => r.title);
     assert.deepEqual(titles, ["In"]);
   });
+
+  it("calc priority shows a Blocked by column when a ticket is blocked, and --unblocked leaves those out", () => {
+    rw("ticket", "create", "--project", "P", "--title", "B", "--benefit", "21");
+    assert.doesNotMatch(rw("calc", "priority", "--project", "P").stdout, /Blocked by/);
+    rw("relation", "create", "--project", "P", "--source", "A", "--type", "blocks", "--target", "B");
+
+    const table = rw("calc", "priority", "--project", "P").stdout;
+    assert.match(table, /Blocked by/);
+    assert.match(table, /^B .*\| A$/m);
+    assert.deepEqual(JSON.parse(rw("--json", "calc", "priority", "--project", "P").stdout).map((r: any) => [r.title, r.blockedBy]), [
+      ["B", ["A"]],
+      ["A", undefined],
+    ]);
+    assert.deepEqual(JSON.parse(rw("--json", "calc", "priority", "--project", "P", "--unblocked").stdout).map((r: any) => r.title), ["A"]);
+  });
 });

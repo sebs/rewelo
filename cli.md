@@ -158,11 +158,12 @@ Weights `w1`-`w4` control how much each factor contributes to weighted priority:
 
 ```bash
 rw calc weights --project <name> [--tag <prefix:value>...]
-rw calc priority --project <name> [--tag <prefix:value>...] [--w1 <n>] [--w2 <n>] [--w3 <n>] [--w4 <n>]
+rw calc priority --project <name> [--tag <prefix:value>...] [--w1 <n>] [--w2 <n>] [--w3 <n>] [--w4 <n>] [--unblocked]
 ```
 
 - `calc weights` shows each ticket's scores as a share of the total across all tickets, as a fraction between 0 and 1 (e.g. `0.25` = 25%).
 - `calc priority` shows both standard priority and weighted priority, sorted descending. Inline `--w1`..`--w4` override the stored config for that run.
+- When a ticket is blocked, `calc priority` adds a `Blocked by` column with its open blockers (`blockedBy` under `--json`): the tickets that `blocks` it or that it `depends-on`, and that are not `state:done`. `--unblocked` leaves blocked tickets out, to list what can be started now.
 
 ### export
 

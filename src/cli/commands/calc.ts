@@ -42,20 +42,24 @@ export function registerCalcCommands(program: Command): void {
     .option("--w2 <n>", "penalty weight", parseFloatOption)
     .option("--w3 <n>", "estimate weight", parseFloatOption)
     .option("--w4 <n>", "risk weight", parseFloatOption)
-    .action(async (cmdOpts: ProjectOptions & WeightOptions & { tag: string[] }, cmd: Command) => {
+    .option("--unblocked", "leave out tickets an open ticket blocks (blocks, depends-on)")
+    .action(async (cmdOpts: ProjectOptions & WeightOptions & { tag: string[]; unblocked?: boolean }, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       await withProject(opts, cmdOpts.project, async (db, project) => {
         const { w1, w2, w3, w4 } = cmdOpts;
         const { weights, tickets } = await weightedRanking(db, project.id, {
           tags: cmdOpts.tag,
           weights: { w1, w2, w3, w4 },
+          unblocked: cmdOpts.unblocked,
         });
+        // The column only when a ticket is blocked: most backlogs have none
+        const blocked = tickets.some((t) => t.blockedBy);
         printRows(opts, tickets, {
           quiet: (r) => `${r.title}\t${r.weighted.toFixed(2)}`,
           empty: "No tickets found.",
           above: [`Weights: w1=${weights.w1} w2=${weights.w2} w3=${weights.w3} w4=${weights.w4}\n`],
-          headers: ["Title", "Priority", "Weighted"],
-          row: (r) => [r.title, r.priority.toFixed(2), r.weighted.toFixed(2)],
+          headers: ["Title", "Priority", "Weighted", ...(blocked ? ["Blocked by"] : [])],
+          row: (r) => [r.title, r.priority.toFixed(2), r.weighted.toFixed(2), ...(blocked ? [(r.blockedBy ?? []).join(", ")] : [])],
         });
       });
     });

@@ -198,13 +198,15 @@ Tag prefix and value must be lowercase alphanumeric with hyphens (e.g. `state`, 
 
 | Tool              | Description                        | Parameters                                |
 |-------------------|------------------------------------|-------------------------------------------|
-| `calc_priority`   | Weighted priorities for all tickets, or those with every tag given | `project?`, `tag?`, `tags?`, `w1?`, `w2?`, `w3?`, `w4?`, `limit?`, `offset?` |
+| `calc_priority`   | Weighted priorities for all tickets, or those with every tag given; a blocked ticket names its open blockers | `project?`, `tag?`, `tags?`, `w1?`, `w2?`, `w3?`, `w4?`, `unblocked?`, `limit?`, `offset?` |
 | `calc_weights`    | Relative weights as share of total (fraction 0–1), of all tickets or those with every tag given | `project?`, `tag?`, `tags?`, `limit?`, `offset?` |
 | `simulate`        | What-if ranking under hypothetical scores, tickets and weights; writes nothing | `project?`, `tag?`, `tags?`, `changes?`, `add?`, `remove?`, `weights?`, `top?`, `limit?` |
 | `explain_priority`| One ticket's formula, rank, and what it takes to reach the top N | `project?`, `title`, `tag?`, `tags?`, `top?` |
 | `suggest_scores`  | Similar tickets, reference tickets per score, and the distribution, to score a new ticket; optionally the client model's scores | `project?`, `title`, `description?`, `sample?` |
 
 `suggest_scores` helps score a new ticket relative to the project's own backlog before `ticket_create`. For a title (and description) it returns the most similar existing tickets with their scores, possible duplicates; for each dimension and each Fibonacci score, the existing ticket closest to the new one, as a reference point ("Login page has estimate 5"); and the project's score distribution. With `sample: true`, and when the client supports MCP sampling, it also asks the client's model for scores and returns them as `suggestion` (`sampling` says whether that worked: `used`, `unsupported` or `failed`). Claude Code doesn't support sampling; there, the calling model scores from the references itself.
+
+A ticket is blocked while another ticket that `blocks` it, or that it `depends-on`, is open (not `state:done`); `precedes` and the other relations don't block. `calc_priority` gives such a ticket `blockedBy` with the titles of its open blockers, and leaves it out with `unblocked: true`, which lists what can be started now. The ranking itself stays by priority: a blocked ticket keeps its rank. The backlog resource carries `blockedBy` too.
 
 `simulate` and `explain_priority` rank as `calc_priority` does: by weighted priority, with the project's weights. They rank the open tickets only, as the backlog resource does: a ticket tagged `state:done` is no part of what to do next, and naming one is an error. They do the arithmetic on the server, so a model doesn't recalculate priorities itself:
 
@@ -302,7 +304,7 @@ Resources are context a user attaches to a conversation without a tool call; in 
 
 | Resource URI                          | Content                                                                                   | Type               |
 |---------------------------------------|-------------------------------------------------------------------------------------------|--------------------|
-| `rewelo://{project}/backlog`          | Open tickets (not `state:done`), ranked as `calc_priority` ranks them, with scores, priorities and tags | `application/json` |
+| `rewelo://{project}/backlog`          | Open tickets (not `state:done`), ranked as `calc_priority` ranks them, with scores, priorities, tags and the open tickets blocking them (`blockedBy`) | `application/json` |
 | `rewelo://{project}/ticket/{title}`   | One ticket with description, scores, priorities, tags and relations                       | `application/json` |
 | `rewelo://{project}/dashboard`        | The HTML dashboard, as `report_dashboard` renders it                                      | `text/html`        |
 | `rewelo://{project}/dashboard/{limit}` | The dashboard with at most `limit` rows per table                                        | `text/html`        |

@@ -126,6 +126,7 @@ export const outputSchemas = {
     title: z.string(),
     priority: z.number().describe("Unweighted value / cost"),
     weighted: z.number().describe("value / cost with the weights applied"),
+    blockedBy: z.array(z.string()).optional().describe("Open tickets that block this one (blocks, depends-on); absent when none do"),
   })),
   calc_weights: z.array(z.object({
     title: z.string(),

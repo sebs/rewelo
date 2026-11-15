@@ -556,6 +556,27 @@ describe("MCP server", () => {
     assert.deepEqual(await titles("calc_weights", { tags: ["team:x", "area:api"] }), ["B"]);
   });
 
+  it("calc_priority names a ticket's open blockers, and with unblocked leaves blocked tickets out", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "B" } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "B", title: "Top", benefit: 21, penalty: 21, estimate: 1, risk: 1 } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "B", title: "Base", benefit: 1, penalty: 1, estimate: 3, risk: 3 } });
+    await client.callTool({ name: "ticket_create", arguments: { project: "B", title: "Docs", benefit: 2, penalty: 1, estimate: 1, risk: 1 } });
+    await client.callTool({ name: "relation_create", arguments: { project: "B", source: "Base", type: "blocks", target: "Top" } });
+    await client.callTool({ name: "relation_create", arguments: { project: "B", source: "Top", type: "depends-on", target: "Docs" } });
+
+    const ranking = async (args: Record<string, unknown> = {}) => {
+      const r = await client.callTool({ name: "calc_priority", arguments: { project: "B", ...args } });
+      assert.notEqual(r.isError, true, (r.content as any)[0].text);
+      return JSON.parse((r.content as any)[0].text).map((t: any) => [t.title, t.blockedBy]);
+    };
+    assert.deepEqual(await ranking(), [["Top", ["Base", "Docs"]], ["Docs", undefined], ["Base", undefined]]);
+    assert.deepEqual(await ranking({ unblocked: true }), [["Docs", undefined], ["Base", undefined]]);
+
+    // A done blocker blocks nothing
+    await client.callTool({ name: "tag_assign", arguments: { project: "B", tickets: ["Base", "Docs"], prefix: "state", value: "done" } });
+    assert.deepEqual((await ranking({ unblocked: true }))[0], ["Top", undefined]);
+  });
+
   it("project_delete reports a missing project as an error", async () => {
     const r = await client.callTool({ name: "project_delete", arguments: { name: "Nope" } });
     assert.equal(r.isError, true);

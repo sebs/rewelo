@@ -39,7 +39,7 @@ export function registerCalculationTools(ctx: McpContext): void {
 
   tool(
     "calc_priority",
-    "Calculate weighted priorities for all tickets, sorted descending. Inline w1-w4 override stored weights for this call only. Returns {title, priority, weighted} per ticket. For de-risk-first ordering, use ticket_list with sort='risk' instead.",
+    "Calculate weighted priorities for all tickets, sorted descending. Inline w1-w4 override stored weights for this call only. Returns {title, priority, weighted} per ticket, and blockedBy with the open tickets that block it (blocks, depends-on) when any do. With unblocked: only the tickets that can be started now. For de-risk-first ordering, use ticket_list with sort='risk' instead.",
     {
       ...PROJECT_ARG,
       tag: z.string().optional().describe("Only tickets with this tag (prefix:value)"),
@@ -48,12 +48,13 @@ export function registerCalculationTools(ctx: McpContext): void {
       w2: z.number().optional().describe("Penalty weight (default 1.5). Higher = penalty matters more in value."),
       w3: z.number().optional().describe("Estimate weight (default 1.5). Higher = large estimates are penalised more."),
       w4: z.number().optional().describe("Risk weight (default 1.5). Higher = risky items are penalised more. To de-risk first, sort by risk via ticket_list instead."),
+      unblocked: z.boolean().optional().describe("Leave out tickets an open ticket blocks (default false)"),
       ...PAGE_ARGS,
     },
     READ,
-    ({ project, tag, tags, w1, w2, w3, w4, limit, offset }) =>
+    ({ project, tag, tags, w1, w2, w3, w4, unblocked, limit, offset }) =>
       inProject(project, async (db, proj) =>
-        pageOf((await weightedRanking(db, proj.id, { tags: tagList(tag, tags), weights: { w1, w2, w3, w4 } })).tickets, limit, offset)
+        pageOf((await weightedRanking(db, proj.id, { tags: tagList(tag, tags), weights: { w1, w2, w3, w4 }, unblocked })).tickets, limit, offset)
       )
   );
 

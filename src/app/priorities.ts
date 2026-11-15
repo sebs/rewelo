@@ -6,6 +6,7 @@ import { calculateAllRelativeWeights, RelativeWeights } from "../calculations/re
 import { exactWeightedPriority, weightedPriority } from "../calculations/weighted-priority.js";
 import { validateWeights, withOverrides, type Weights } from "../domain/weights.js";
 import { parseTag } from "../validation/strings.js";
+import { openBlockers } from "../relations/blocking.js";
 
 /** The tickets calculations look at: those with every tag given (prefix:value), without descriptions */
 export async function ticketsInScope(db: DB, projectId: number, tags: string[] = []): Promise<Ticket[]> {
@@ -15,22 +16,25 @@ export async function ticketsInScope(db: DB, projectId: number, tags: string[] =
 export interface WeightedRanking {
   /** The weights used: the project's, with the overrides applied */
   weights: Weights;
-  tickets: Array<{ title: string; priority: number; weighted: number }>;
+  /** blockedBy: the open tickets that block it (blocks, depends-on), only when there are any */
+  tickets: Array<{ title: string; priority: number; weighted: number; blockedBy?: string[] }>;
 }
 
 /**
  * Tickets by weighted priority, highest first, under the project's weights
  * or, for this call only, overrides of them. Sorted on the unrounded
- * weighted priority; the rounded one is returned.
+ * weighted priority; the rounded one is returned. With unblocked, the
+ * tickets an open ticket blocks are left out: what can be started now.
  */
 export async function weightedRanking(
   db: DB,
   projectId: number,
-  options: { tags?: string[]; weights?: Partial<Weights> } = {}
+  options: { tags?: string[]; weights?: Partial<Weights>; unblocked?: boolean } = {}
 ): Promise<WeightedRanking> {
-  const tickets = await ticketsInScope(db, projectId, options.tags);
   const weights = withOverrides(await getWeights(db, projectId), options.weights);
   validateWeights(weights);
+  const blockers = await openBlockers(db, projectId);
+  const tickets = (await ticketsInScope(db, projectId, options.tags)).filter((t) => !options.unblocked || !blockers.has(t.id));
 
   const exact = (t: Ticket) => exactWeightedPriority(t, weights);
   return {
@@ -41,6 +45,7 @@ export async function weightedRanking(
         title: t.title,
         priority: priority(t),
         weighted: weightedPriority(t, weights),
+        ...(blockers.has(t.id) ? { blockedBy: blockers.get(t.id) } : {}),
       })),
   };
 }

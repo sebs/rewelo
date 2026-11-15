@@ -14,6 +14,7 @@ import { checkDocumentSize, dashboard, jsonExport, MAX_DASHBOARD_ROWS, MAX_DOCUM
 import { MAX_RESULT_BYTES, shorten } from "./results.js";
 import { completers } from "./completions.js";
 import { resolveTicket, type McpContext } from "./toolkit.js";
+import { openBlockers } from "../relations/blocking.js";
 
 export function registerResources(ctx: McpContext): void {
   const { withDb, withProject, server } = ctx;
@@ -61,7 +62,7 @@ export function registerResources(ctx: McpContext): void {
     }),
     {
       title: "Backlog",
-      description: "A project's open tickets (not state:done), ranked as calc_priority ranks them, with scores, priorities and tags",
+      description: "A project's open tickets (not state:done), ranked as calc_priority ranks them, with scores, priorities, tags and the open tickets blocking them",
       mimeType: "application/json",
     },
     (uri, vars) =>
@@ -73,6 +74,7 @@ export function registerResources(ctx: McpContext): void {
           const { w1, w2, w3, w4 } = await getWeights(db, proj.id);
           const weights = { w1, w2, w3, w4 };
           const open = rank(tickets.filter((t) => !done.has(t.id)), weights);
+          const blockers = await openBlockers(db, proj.id);
           return {
             project: proj.name,
             weights,
@@ -88,6 +90,7 @@ export function registerResources(ctx: McpContext): void {
               priority: priority(t),
               weighted: weightedPriority(t, weights),
               tags: tagLabels(tags.get(t.id) ?? []),
+              ...(blockers.has(t.id) ? { blockedBy: blockers.get(t.id) } : {}),
             })),
           };
         })

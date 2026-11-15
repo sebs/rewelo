@@ -57,14 +57,14 @@ describe("MCP resources", () => {
     assert.deepEqual(own, ["rewelo://My%20Project/backlog", "rewelo://My%20Project/dashboard"]);
   });
 
-  it("reads the backlog: open tickets, ranked, with their tags", async () => {
+  it("reads the backlog: open tickets, ranked, with their tags and open blockers", async () => {
     const content = await read("rewelo://My%20Project/backlog");
     assert.equal(content.mimeType, "application/json");
     const backlog = JSON.parse(content.text);
     assert.deepEqual([backlog.project, backlog.openTickets, backlog.doneTickets], ["My Project", 2, 1]);
     assert.deepEqual(
-      backlog.tickets.map((t: { rank: number; title: string; tags: string[] }) => [t.rank, t.title, t.tags]),
-      [[1, "API / v2", ["team:core"]], [2, "Low", []]]
+      backlog.tickets.map((t: { rank: number; title: string; tags: string[]; blockedBy?: string[] }) => [t.rank, t.title, t.tags, t.blockedBy]),
+      [[1, "API / v2", ["team:core"], undefined], [2, "Low", [], ["API / v2"]]]
     );
     assert.equal(backlog.tickets[0].priority, 4.33);
   });

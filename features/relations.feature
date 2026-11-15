@@ -111,3 +111,28 @@ Feature: Ticket Relations
     When I remove the relation "Auth service" blocks "Login page" in project "Acme"
     Then "Auth service" should have no relation blocks "Login page"
     And "Login page" should have no relation is-blocked-by "Auth service"
+
+  # -- Blocked tickets in the ranking --
+
+  Scenario: The ranking names a ticket's open blockers
+    Given a relation "Auth service" blocks "Login page" exists in project "Acme"
+    And a relation "Login page" depends-on "Signup flow" exists in project "Acme"
+    When I calculate priorities for "Acme"
+    Then "Login page" should be blocked by "Auth service" and "Signup flow"
+    And it should keep its rank
+
+  Scenario: A done blocker blocks nothing
+    Given a relation "Auth service" blocks "Login page" exists in project "Acme"
+    And "Auth service" is tagged state:done
+    When I calculate priorities for "Acme"
+    Then "Login page" should not be blocked
+
+  Scenario: Only blocks and depends-on block
+    Given a relation "Auth service" precedes "Login page" exists in project "Acme"
+    When I calculate priorities for "Acme"
+    Then "Login page" should not be blocked
+
+  Scenario: List what can be started now
+    Given a relation "Auth service" blocks "Login page" exists in project "Acme"
+    When I calculate priorities for "Acme" with unblocked
+    Then "Login page" should not be listed
