@@ -381,6 +381,7 @@ Result:
 | `The database file is not a rewelo database` | `--db` / `RW_DB_PATH` points at another application's SQLite file. |
 | `Rate limit exceeded (100 calls per second). Try again in N s.` | Tool calls start at most 100 per second; calls beyond that wait their turn, and a call that would wait more than 10 seconds is refused. |
 | `Request payload too large` | A tool call's text arguments may total at most 1 MB; split an import into several calls. |
+| `arguments contain more than the maximum of 20000 elements` | A tool call's arguments may hold at most 20,000 array elements and object members together (`apply_changes` at its 1000 operations needs about 9,000). Split the call. |
 | `Request too large: a message may be at most 4 MB` | A JSON-RPC message over 4 MB is dropped unread (and noted on stderr); the server goes on serving. Split the call. |
 | `The result is too large` | Tool results are limited to 5 MB as sent: the data goes out twice, as JSON text and as `structuredContent`, so about 2.5 MB of it. Page through `ticket_list` with `limit` and `offset` (it returns 100 tickets by default); `calc_priority`, `calc_weights` and `relation_list_all` take them too (all by default). For a backlog too large to read as a resource, use `ticket_list` with `sort: "priority"`. Exports and dashboards over 5 MB come as a link to a resource, which may be up to 10 MB; beyond that, export or render with the `rw` CLI, which writes files. |
 

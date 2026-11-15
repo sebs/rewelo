@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DB } from "../../src/db/connection.js";
+import { MAX_TOOL_INPUT_ELEMENTS } from "../../src/mcp/limits.js";
 
 describe("MCP rate limiting and payload size", () => {
   let client: Client;
@@ -161,6 +162,47 @@ describe("MCP rate limiting and payload size", () => {
     assert.equal(result.isError, true);
     const text = (result.content as any)[0].text;
     assert.ok(text.includes("payload too large"));
+  });
+
+  it("refuses a call with more array elements and object members than MAX_TOOL_INPUT_ELEMENTS", async () => {
+    const mcpServer = createMcpServer(":memory:");
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: "test-client", version: "1.0.0" });
+    await mcpServer.connect(serverTransport);
+    await client.connect(clientTransport);
+    cleanup = async () => {
+      await client.close();
+      await mcpServer.close();
+    };
+
+    // Strings count in bytes, numbers not at all: far under 1 MB of text
+    const result = await client.callTool({
+      name: "simulate",
+      arguments: { project: "Acme", remove: Array.from({ length: MAX_TOOL_INPUT_ELEMENTS + 1 }, () => "") },
+    });
+    assert.equal(result.isError, true);
+    assert.match((result.content as any)[0].text, new RegExp(`maximum of ${MAX_TOOL_INPUT_ELEMENTS} elements`));
+    // and goes on serving
+    assert.equal((await client.callTool({ name: "project_create", arguments: { name: "Acme" } })).isError, undefined);
+  });
+
+  it("leaves room under MAX_TOOL_INPUT_ELEMENTS for the largest apply_changes", async () => {
+    const mcpServer = createMcpServer(":memory:");
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: "test-client", version: "1.0.0" });
+    await mcpServer.connect(serverTransport);
+    await client.connect(clientTransport);
+    cleanup = async () => {
+      await client.close();
+      await mcpServer.close();
+    };
+
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    const operations = Array.from({ length: 1000 }, (_, i) => ({
+      op: "ticket_create", title: `T${i}`, description: "d", benefit: 1, penalty: 1, estimate: 1, risk: 1,
+    }));
+    const result = await client.callTool({ name: "apply_changes", arguments: { project: "Acme", operations, dryRun: true, top: 1, limit: 1 } });
+    assert.equal(result.isError, undefined, (result.content as any)[0].text);
   });
 
   it("measures the payload limit in bytes, not characters", async () => {

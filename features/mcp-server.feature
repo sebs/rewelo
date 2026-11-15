@@ -265,3 +265,9 @@ Feature: MCP Server
   Scenario: Oversized request payload is rejected
     When a client sends a request with a 10 MB description field
     Then the server should reject the request before processing
+
+  Scenario: A request with too many elements is rejected
+    When a client sends a tool call whose arguments hold more than 20,000 array elements and object members
+    Then the server should reject the call before validating it
+    And the error should name the limit
+    And the server should go on serving

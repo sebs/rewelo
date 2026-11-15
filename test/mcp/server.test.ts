@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { createMcpServer } from "../../src/mcp/server.js";
+import { MAX_TOOL_INPUT_ELEMENTS } from "../../src/mcp/limits.js";
 import { PROMPTS } from "../../src/mcp/prompts.generated.js";
 import { parseTag } from "../../src/validation/strings.js";
 import { readFileSync } from "node:fs";
@@ -581,14 +582,22 @@ describe("MCP server", () => {
     assert.match((r.content as any)[0].text, /project must not be empty/);
   });
 
-  it("tag_assign handles a large tickets array within the payload limit", async () => {
+  it("tag_assign handles a tickets array up to the element limit, and names the limit above it", async () => {
     await client.callTool({ name: "project_create", arguments: { name: "L" } });
     await client.callTool({ name: "ticket_create", arguments: { project: "L", title: "A" } });
+    // project, tickets, prefix, value: four members besides the array's elements
     const r = await client.callTool({
+      name: "tag_assign",
+      arguments: { project: "L", tickets: Array(MAX_TOOL_INPUT_ELEMENTS - 4).fill("A"), prefix: "a", value: "b" },
+    });
+    assert.deepEqual(JSON.parse((r.content as any)[0].text), [{ ticket: "A", tag: "a:b", status: "assigned", tagCreated: true }]);
+    // 130,000 titles (about 520 KB) once overflowed the stack: 'An internal error occurred'
+    const over = await client.callTool({
       name: "tag_assign",
       arguments: { project: "L", tickets: Array(130_000).fill("A"), prefix: "a", value: "b" },
     });
-    assert.deepEqual(JSON.parse((r.content as any)[0].text), [{ ticket: "A", tag: "a:b", status: "assigned", tagCreated: true }]);
+    assert.equal(over.isError, true);
+    assert.match((over.content as any)[0].text, new RegExp(`maximum of ${MAX_TOOL_INPUT_ELEMENTS} elements`));
   });
 
   it("tag_assign creates tags that don't exist yet, as rw tag assign does", async () => {

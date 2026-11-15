@@ -2,6 +2,13 @@ import { AppError } from "../errors.js";
 
 const MAX_PAYLOAD_BYTES = 1_000_000; // 1 MB per tool call argument
 
+// Array elements and object members in one tool call's arguments, counted by
+// the SDK before the input schema runs. The byte limit counts only text: a
+// 4 MB message of [0,0,0,…] holds two million elements for zod to walk.
+// The largest call rewelo takes, apply_changes with 1000 operations of up to
+// 8 fields, has about 9000.
+export const MAX_TOOL_INPUT_ELEMENTS = 20_000;
+
 // At most maxRequests calls start per window. A burst over that waits for its
 // slot instead of failing: a client that sends many calls at once (pipelined)
 // got most of them rejected. Only a backlog longer than maxWaitMs is refused.

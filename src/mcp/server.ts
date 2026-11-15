@@ -8,7 +8,7 @@ import { VERSION } from "../version.generated.js";
 import { loadConfig, type ReweloConfig } from "../config.js";
 import { outputSchemas } from "./output-schemas.js";
 import { capErrors, errorResult, safe } from "./results.js";
-import { checkPayloadSize, RateLimiter } from "./limits.js";
+import { checkPayloadSize, MAX_TOOL_INPUT_ELEMENTS, RateLimiter } from "./limits.js";
 import { currentCall, DbSession } from "./session.js";
 import { limitLines, MAX_MESSAGE_BYTES } from "./stdin-limit.js";
 import { Channel } from "./live/channel.js";
@@ -74,6 +74,7 @@ export function createMcpServer(
         ...(options?.channel ? { experimental: { "claude/channel": {} } } : {}),
       },
       instructions,
+      maxToolInputElements: MAX_TOOL_INPUT_ELEMENTS,
     }
   );
 
