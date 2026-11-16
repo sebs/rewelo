@@ -65,6 +65,13 @@ describe("website (site/build.mjs)", () => {
     assert.ok(readFileSync(join(out, "index.html"), "utf-8").includes('href="/rewelo/docs/examples/"'));
   });
 
+  it("lists a page's subsections under its sections, so the CLI page names its commands", () => {
+    const cli = readFileSync(join(out, "docs/cli/index.html"), "utf-8");
+    const toc = cli.slice(cli.indexOf("On this page"), cli.indexOf("</aside>"));
+    assert.match(toc, /<a href="#commands">Commands<\/a>/);
+    assert.match(toc, /<a href="#report" class="sub">report<\/a>/);
+  });
+
   it("names links to a doc by its page, not its file name", () => {
     const overview = readFileSync(join(out, "docs/index.html"), "utf-8");
     assert.match(overview, /<a href="\/rewelo\/docs\/calculations\/">Calculations<\/a>/);

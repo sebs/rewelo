@@ -128,9 +128,11 @@ for (const doc of docs) {
       return `<a href="${href}"${d === doc ? ' aria-current="page"' : ""}>${d.label}</a>`;
     })
     .join("");
+  // Sections and, indented, their subsections: on the CLI page the commands
+  // are subsections, and a list of the sections alone named none of them
   const toc = headings
-    .filter((h) => h.level === 2)
-    .map((h) => `<a href="#${h.id}">${escape(h.text.replace(/`/g, ""))}</a>`)
+    .filter((h) => h.level === 2 || h.level === 3)
+    .map((h) => `<a href="#${h.id}"${h.level === 3 ? ' class="sub"' : ""}>${escape(h.text.replace(/`/g, ""))}</a>`)
     .join("");
   write(
     doc.slug ? `docs/${doc.slug}/index.html` : "docs/index.html",
