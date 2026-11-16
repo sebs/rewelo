@@ -50,6 +50,7 @@ Feature: MCP Server
       | report_summary        |
       | report_times          |
       | report_health         |
+      | report_flow           |
       | report_distribution   |
       | report_group          |
       | report_dashboard      |

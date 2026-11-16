@@ -21,6 +21,28 @@ describe("rw report (CLI)", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  it("report flow shows throughput, percentiles and the work in progress, in every format", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Started");
+    rw("ticket", "create", "--project", "P", "--title", "Finished");
+    rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "Started");
+    rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "Finished");
+    rw("tag", "assign", "state:done", "--project", "P", "--ticket", "Finished");
+
+    const text = rw("report", "flow", "--project", "P", "--weeks", "2").stdout;
+    assert.match(text, /Throughput over the last 2 complete weeks: 0 tickets per week/);
+    assert.match(text, /1 \(so far\)/);
+    assert.match(text, /Cycle time \(1 tickets\): 50% within 0 days/);
+    assert.match(text, /In progress \(1\), oldest first:\n  Started: 0 days since/);
+
+    const json = JSON.parse(rw("--json", "report", "flow", "--project", "P").stdout);
+    assert.equal(json.weeks, 12);
+    assert.equal(json.throughput.length, 13);
+    assert.deepEqual(json.inProgress.map((t: { title: string }) => t.title), ["Started"]);
+
+    assert.match(rw("--csv", "report", "flow", "--project", "P").stdout, /^Section,Name,Value\n/);
+    assert.match(rw("--quiet", "report", "flow", "--project", "P").stdout, /^in_progress_days\tStarted\t0$/m);
+  });
+
   it("report group names the prefix it searched for when it finds nothing", () => {
     assert.equal(rw("report", "group", "--project", "P", "--prefix", " Nope ").stdout, 'No tickets with "nope:" tags found.\n');
   });

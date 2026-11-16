@@ -66,3 +66,16 @@ Feature: Lead Time and Cycle Time
     And I should be able to switch it to the last 14, 90 or 365 days, or to all days since the first ticket, without a script
     And its y axis should start 3 tickets below the lowest done count in the window, or at 0
     And hovering a day should show its counts
+
+  Scenario: Flow report
+    Given these tickets were done in the last 12 weeks, with their cycle times:
+      | title   | done       | cycle time |
+      | Story A | 2026-02-24 | 1 day      |
+      | Story B | 2026-03-03 | 3 days     |
+      | Story C | 2026-03-04 | 9 days     |
+    And "Story D" has been in "state:wip" for 12 days
+    When I view the flow report for "Acme" on "2026-03-11"
+    Then I should see how many tickets were done in each week, the current one so far
+    And the average per complete week
+    And cycle time as 50th, 85th and 95th percentiles: 3, 9 and 9 days
+    And "Story D" in progress, flagged as older than 85% of finished tickets took

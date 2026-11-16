@@ -9,6 +9,12 @@ import { DIMENSIONS } from "../domain/scores.js";
 const score = z.number().int();
 const timestamp = z.string().describe("ISO timestamp");
 const tagPair = z.object({ prefix: z.string(), value: z.string() });
+const percentiles = z.object({
+  count: z.number().int(),
+  p50: z.number().nullable(),
+  p85: z.number().nullable(),
+  p95: z.number().nullable(),
+});
 
 const project = z.object({
   id: z.number().int(),
@@ -239,6 +245,21 @@ export const outputSchemas = {
   }),
   dashboard_version: z.object({
     version: z.string().describe("Changes whenever the database or the day changes"),
+  }),
+  report_flow: z.object({
+    weeks: z.number().int(),
+    from: z.string().describe("First day covered, YYYY-MM-DD"),
+    throughput: z.array(z.object({ weekStart: z.string(), done: z.number().int(), partial: z.boolean() })),
+    averagePerWeek: z.number().nullable(),
+    cycleTimeDays: percentiles,
+    leadTimeDays: percentiles,
+    inProgress: z.array(z.object({
+      ticketId: z.number().int(),
+      title: z.string(),
+      startedAt: timestamp,
+      ageDays: z.number(),
+      olderThanP85: z.boolean(),
+    })),
   }),
   report_times: z.object({
     tickets: z.array(z.object({

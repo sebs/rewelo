@@ -241,6 +241,7 @@ A relation that contradicts an existing one (`B blocks A` next to `A blocks B` o
 |-------------------|------------------------------------|-------------------------------------------|
 | `report_summary`  | Project summary by state           | `project?`, `topN?`                        |
 | `report_times`    | Lead and cycle time report         | `project?`                                 |
+| `report_flow`     | Throughput per week, cycle and lead time percentiles, work in progress by age | `project?`, `weeks?` |
 | `report_health`   | Backlog health report, with the stale tickets | `project?`, `threshold?`, `staleDays?` |
 | `report_distribution` | Fibonacci score distribution   | `project?`                                 |
 | `report_group`    | Group tickets by tag prefix        | `project?`, `prefix`                       |

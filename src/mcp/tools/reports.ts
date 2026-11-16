@@ -9,6 +9,7 @@ import { getProjectSummary } from "../../reports/summary.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { dashboard, documentOrLink, MAX_DASHBOARD_ROWS, resourceUri } from "../documents.js";
 import { DASHBOARD_APP_META, DASHBOARD_VERSION_META } from "../app.js";
+import { DEFAULT_FLOW_WEEKS, getFlowReport } from "../../reports/flow-metrics.js";
 import { READ, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerReportTools(ctx: McpContext): void {
@@ -36,6 +37,17 @@ export function registerReportTools(ctx: McpContext): void {
         const times = await getProjectTimes(db, proj.id);
         return timesReport(times);
       })
+  );
+
+  tool(
+    "report_flow",
+    "Flow metrics computed from the state tags: tickets done per week (weeks start Monday, UTC; the last is the current week so far), the average per complete week, cycle time (wip→done) and lead time (created→done) as 50th/85th/95th percentiles in days over the tickets done in the window, and the tickets in progress (started, not done) by age, flagged when older than the 85th percentile of cycle time. Use it instead of paging through event_log for throughput and percentiles.",
+    {
+      ...PROJECT_ARG,
+      weeks: z.number().int().nonnegative().optional().describe(`Complete weeks to cover (default ${DEFAULT_FLOW_WEEKS}), 0 for all since the first ticket`),
+    },
+    READ,
+    ({ project, weeks }) => inProject(project, (db, proj) => getFlowReport(db, proj.id, weeks ?? DEFAULT_FLOW_WEEKS))
   );
 
   tool(

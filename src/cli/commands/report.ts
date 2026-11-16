@@ -6,6 +6,7 @@ import { getBacklogHealth, highToLowRatioText } from "../../reports/health.js";
 import { getEventLog } from "../../reports/event-log.js";
 import { renderDashboard } from "../../reports/dashboard.js";
 import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from "../../reports/times.js";
+import { DEFAULT_FLOW_WEEKS, getFlowReport, type Percentiles } from "../../reports/flow-metrics.js";
 import { validateExportPath } from "../../validation/paths.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { displayWidth } from "../../display-width.js";
@@ -154,6 +155,57 @@ export function registerReportCommands(program: Command): void {
             ...(avgCycle !== undefined ? [`Average cycle time: ${avgCycle}d`] : []),
           ],
         });
+      });
+    });
+
+  reportCmd
+    .command("flow")
+    .description("throughput per week, cycle and lead time percentiles, and the work in progress by age")
+    .option(...PROJECT_OPTION)
+    .option("--weeks <n>", "complete weeks to cover, 0 for all", parseNonNegativeIntOption, DEFAULT_FLOW_WEEKS)
+    .action(async (cmdOpts: ProjectOptions & { weeks: number }, cmd: Command) => {
+      const opts = cmd.optsWithGlobals<GlobalOptions>();
+      await withProject(opts, cmdOpts.project, async (db, project) => {
+        const flow = await getFlowReport(db, project.id, cmdOpts.weeks);
+        // Section, name, value rows for --csv and --quiet
+        const times = (section: string, p: Percentiles) => [
+          [section, "count", p.count],
+          ...(["p50", "p85", "p95"] as const).map((k) => [section, k, p[k] ?? ""]),
+        ];
+        const rows: unknown[][] = [
+          ...flow.throughput.map((w) => ["throughput", w.weekStart, w.done]),
+          ["throughput", "average_per_week", flow.averagePerWeek ?? ""],
+          ...times("cycle_time_days", flow.cycleTimeDays),
+          ...times("lead_time_days", flow.leadTimeDays),
+          ...flow.inProgress.map((t) => ["in_progress_days", t.title, t.ageDays]),
+        ];
+        if (opts.json) {
+          console.log(JSON.stringify(flow));
+        } else if (opts.quiet) {
+          rows.forEach((r) => console.log(r.map((v) => escapeControls(String(v))).join("\t")));
+        } else if (opts.csv) {
+          console.log(formatTable(opts, ["Section", "Name", "Value"], rows));
+        } else {
+          const span = flow.weeks > 0 ? `the last ${flow.weeks} complete weeks` : `all complete weeks since ${flow.from}`;
+          console.log(`Project: ${project.name}`);
+          console.log(`Throughput over ${span}: ${flow.averagePerWeek === null ? "no complete week yet" : `${flow.averagePerWeek} tickets per week`}`);
+          console.log(formatTable(opts, ["Week of", "Done"], flow.throughput.map((w) => [w.weekStart, w.partial ? `${w.done} (so far)` : String(w.done)])));
+          const line = (name: string, p: Percentiles) =>
+            p.count === 0
+              ? `${name}: no tickets done since ${flow.from}`
+              : `${name} (${p.count} tickets): 50% within ${p.p50} days, 85% within ${p.p85}, 95% within ${p.p95}`;
+          console.log(`\n${line("Cycle time", flow.cycleTimeDays)}`);
+          console.log(line("Lead time", flow.leadTimeDays));
+          if (flow.inProgress.length === 0) {
+            console.log("\nNothing in progress.");
+          } else {
+            console.log(`\nIn progress (${flow.inProgress.length}), oldest first:`);
+            for (const t of flow.inProgress) {
+              const late = t.olderThanP85 ? `, older than 85% of finished tickets took` : "";
+              console.log(`  ${escapeControls(t.title)}: ${t.ageDays} days since ${t.startedAt.slice(0, 10)}${late}`);
+            }
+          }
+        }
       });
     });
 

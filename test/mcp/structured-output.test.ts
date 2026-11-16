@@ -64,6 +64,7 @@ describe("MCP structured output", () => {
       ["report_summary", { project: "Acme" }],
       ["report_times", { project: "Acme" }],
       ["dashboard_version", { project: "Acme" }],
+      ["report_flow", { project: "Acme" }],
       ["report_health", { project: "Acme" }],
       ["report_distribution", { project: "Acme" }],
       ["report_group", { project: "Acme", prefix: "state" }],

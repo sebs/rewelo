@@ -88,7 +88,7 @@ rw config  weights                  View/set/reset per-project B/P/E/R weights
 rw calc    weights|priority         Relative weights and weighted priority calculations
 rw export  csv|json                 Export project data
 rw import  csv|json                 Import project data
-rw report  summary|group|distribution|health|times|dashboard|event-log
+rw report  summary|group|distribution|health|times|flow|dashboard|event-log
                                     Reporting, HTML dashboard and event stream
 rw serve                            Start MCP server (stdio transport)
 ```
