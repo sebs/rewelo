@@ -136,3 +136,17 @@ Feature: Ticket Relations
     Given a relation "Auth service" blocks "Login page" exists in project "Acme"
     When I calculate priorities for "Acme" with unblocked
     Then "Login page" should not be listed
+
+  Scenario: The dashboard draws the dependencies
+    Given ticket "Base" blocks "Middle" and "Middle" blocks "Top"
+    And "Top" depends on "Side"
+    When I generate the dashboard
+    Then its dependency graph should show "Base" and "Side" first, then "Middle", then "Top"
+    And "Base" should hold up 2 open tickets
+    And done tickets should not be in it
+
+  Scenario: The dashboard shows a ticket waiting for one with a lower priority
+    Given ticket "Low" with priority 1.00 blocks "High" with priority 11.00
+    When I generate the dashboard
+    Then the edge from "Low" to "High" should be drawn as an inversion
+    And the dashboard should say that "High" waits for "Low"

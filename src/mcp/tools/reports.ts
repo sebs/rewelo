@@ -109,7 +109,7 @@ export function registerReportTools(ctx: McpContext): void {
 
   tool(
     "report_dashboard",
-    "Render a self-contained HTML dashboard (health, cumulative flow, tickets, distribution, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it. Hosts that support MCP Apps show it to the user in its page (ui://rewelo/dashboard.html).",
+    "Render a self-contained HTML dashboard (health, cumulative flow and forecast, tickets, dependency graph, distribution, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it. Hosts that support MCP Apps show it to the user in its page (ui://rewelo/dashboard.html).",
     {
       ...PROJECT_ARG,
       limit: z.number().int().nonnegative().max(MAX_DASHBOARD_ROWS).optional().describe("Rows per table (default 500)"),

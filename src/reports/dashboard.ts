@@ -12,6 +12,8 @@ import { esc } from "./html.js";
 import { cumulativeFlow, DEFAULT_FLOW_WINDOW, FLOW_WINDOWS, getFlowEvents, type FlowWindow } from "./flow.js";
 import { FLOW_SERIES, flowChartSvg, flowSummary } from "./flow-chart.js";
 import { forecastFromDaily, forecastText, dailyDone, DEFAULT_HISTORY_DAYS, type Forecast } from "./forecast.js";
+import { getDependencyGraph, type DependencyGraph } from "./dependencies.js";
+import { dependencyGraphSvg } from "./dependency-graph.js";
 
 export interface DashboardOptions {
   /** ISO timestamp shown in the header; omit to leave it blank. */
@@ -50,6 +52,8 @@ export interface DashboardModel {
   flow: FlowWindow[];
   /** When the open tickets will be done, at the recent pace */
   forecast?: Forecast;
+  /** Which open tickets block which */
+  dependencies?: DependencyGraph;
 }
 
 /** What the dashboard shows, read from the database; the flow ends on now's day */
@@ -62,10 +66,8 @@ export async function buildDashboardModel(
   const tickets = await listTickets(db, projectId, { withDescription: false });
   // The ranking is what to do next: open tickets only, as the health cards count
   const done = await doneTicketIds(db, projectId);
-  const rows = tickets
-    .filter((t) => !done.has(t.id))
-    .sort(byPriority)
-    .map((t) => ({
+  const open = tickets.filter((t) => !done.has(t.id)).sort(byPriority);
+  const rows = open.map((t) => ({
       title: t.title,
       benefit: t.benefit,
       penalty: t.penalty,
@@ -85,8 +87,9 @@ export async function buildDashboardModel(
   const flow = FLOW_WINDOWS.map((days) => cumulativeFlow(events, days, now));
   // From the done times the flow already read
   const forecast = forecastFromDaily(dailyDone(events.done, DEFAULT_HISTORY_DAYS, now), rows.length, now);
+  const dependencies = await getDependencyGraph(db, projectId, open.map((t) => ({ id: t.id, title: t.title, priority: priority(t) })));
 
-  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow, forecast };
+  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow, forecast, dependencies };
 }
 
 /**
@@ -150,6 +153,37 @@ function flowSection(flow: FlowWindow[], forecast?: Forecast): string {
   ${charts}
   <ul class="legend">${legend}</ul>
   ${forecast ? `<p class="forecast"><strong>Forecast:</strong> ${esc(forecastText(forecast))}</p>` : ""}
+</section>`;
+}
+
+/** The dependency graph card, with the inversions in words below the picture */
+function dependencySection(graph: DependencyGraph): string {
+  const head = `<h2 id="dependencies">Dependencies</h2>`;
+  if (graph.nodes.length === 0) {
+    return `<section class="card" aria-labelledby="dependencies">${head}<p class="empty">No open ticket blocks another.</p></section>`;
+  }
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const named = (id: number) => {
+    const n = byId.get(id)!;
+    return `<strong>${esc(n.title)}</strong> (#${n.rank}, ${n.priority.toFixed(2)})`;
+  };
+  const inversions = graph.edges.filter((e) => e.inversion);
+  const inversionList =
+    inversions.length === 0
+      ? `<p class="meta">No ticket waits for one with a lower priority.</p>`
+      : `<p class="meta">${inversions.length === 1 ? "A ticket waits" : `${inversions.length} tickets wait`} for one with a lower priority:</p>
+  <ul class="inversions">${inversions.map((e) => `<li>${named(e.to)} waits for ${named(e.from)}</li>`).join("")}</ul>`;
+  const more =
+    graph.total > graph.nodes.length
+      ? `<p class="meta">Showing the ${graph.nodes.length} highest-ranked of ${graph.total} tickets with dependencies.</p>`
+      : "";
+  return `<section class="card" aria-labelledby="dependencies">
+  ${head}
+  <p class="meta">Open tickets that block others (blocks, depends-on), left to right: each waits for the ones before it. The rank and priority are the table's; "holds up" counts the open tickets waiting for it, directly or through others.</p>
+  <div class="scroll">${dependencyGraphSvg(graph)}</div>
+  <ul class="legend"><li><span class="swatch node-open"></span>Not started</li><li><span class="swatch node-wip"></span>In progress</li><li><span class="swatch inverted"></span>Waits for a lower priority</li></ul>
+  ${inversionList}
+  ${more}
 </section>`;
 }
 
@@ -342,6 +376,20 @@ ${options.limit !== undefined ? `<meta name="rewelo-limit" content="${options.li
   .legend { list-style: none; padding: 0; margin: .6rem 0 0; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; font-size: .9rem; }
   .swatch { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; margin-right: .4rem; vertical-align: -1px; background: var(--series); }
 
+  .deps { display: block; }
+  .deps .edge { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+  .deps .edge.inversion { stroke: var(--red); stroke-width: 2.5; }
+  .deps marker.arrow path { fill: var(--muted); }
+  .deps marker.inversion path { fill: var(--red); }
+  .deps .node rect { fill: var(--inset); stroke: var(--purple); stroke-width: 1.5; }
+  .deps .node.wip rect { stroke: var(--orange); stroke-width: 2.5; }
+  .deps .node:hover rect { fill: var(--hover); }
+  .deps text { fill: var(--text); font-size: 12px; font-family: inherit; }
+  .deps text.sub { fill: var(--muted); font-size: 11px; }
+  .swatch.node-open { background: transparent; border: 2px solid var(--purple); }
+  .swatch.node-wip { background: transparent; border: 2px solid var(--orange); }
+  .swatch.inverted { background: var(--red); height: .25rem; vertical-align: 3px; }
+  .inversions { margin: .25rem 0 0; padding-left: 1.25rem; font-size: .9rem; }
   .scroll { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; margin-top: .25rem; font-size: .92rem; }
   th, td { border-bottom: 1px solid var(--line); padding: .4rem .6rem; text-align: left; }
@@ -390,6 +438,8 @@ ${flowSection(flow, model.forecast)}
   </div>
   ${more(Math.min(limit, rows.length), rows.length, "open ticket")}
 </section>
+
+${model.dependencies ? dependencySection(model.dependencies) : ""}
 
 <div class="two">
 <section class="card" aria-labelledby="distribution">

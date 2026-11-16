@@ -27,6 +27,18 @@ export async function doneTicketIds(db: DB, projectId: number): Promise<Set<numb
   return new Set(rows.map((r) => r.ticket_id));
 }
 
+/** Tickets holding the tag now called state:wip: in progress at the moment */
+export async function wipTicketIds(db: DB, projectId: number): Promise<Set<number>> {
+  const rows = await db.all<{ ticket_id: number }>(
+    `SELECT DISTINCT tt.ticket_id
+     FROM ticket_tags tt
+     JOIN tags tg ON tg.id = tt.tag_id
+     WHERE tg.project_id = ? AND tg.prefix = '${STATE_PREFIX}' AND tg.value = '${WIP}'`,
+    projectId
+  );
+  return new Set(rows.map((r) => r.ticket_id));
+}
+
 // Work started when the ticket was first tagged state:wip, under the name
 // the tag had then: renaming wip (to e.g. doing) must not erase cycle times,
 // and renaming another tag to wip must not invent them.
