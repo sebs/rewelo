@@ -45,7 +45,13 @@ function inline(text, { link, label }) {
     // Code spans, opened and closed by the same number of backticks
     .replace(/(?<!`)(`+)(?!`)([\s\S]*?[^`])\1(?!`)/g, (_, _ticks, code) => {
       const body = /^ [\s\S]* $/.test(code) && code.trim() !== "" ? code.slice(1, -1) : code;
-      return hold(`<code>${escape(body.replace(/\n/g, " "))}</code>`);
+      // On a narrow screen paths and snake_case names may break after / and
+      // _ rather than anywhere ("claude_desktop_config.jso" + "n"), and an
+      // option stays whole: browsers broke "--rm" after its hyphens
+      const html = escape(body.replace(/\n/g, " "))
+        .replace(/([/_])(?=.)/g, "$1<wbr>")
+        .replace(/(^|\s)(-{1,2}[\p{L}\p{N}][^\s<]*)/gu, '$1<span class="nb">$2</span>');
+      return hold(`<code>${html}</code>`);
     })
     .replace(/<(https?:\/\/[^\s<>]+)>/g, (_, url) => hold(`<a href="${escape(link(url))}">${escape(url)}</a>`))
     .replace(/\\\n/g, () => hold("<br>"))

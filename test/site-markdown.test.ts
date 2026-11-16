@@ -30,6 +30,12 @@ describe("site Markdown renderer", () => {
     assert.equal(render("snapshots -- before each change, `a -- b`, --quiet"), "<p>snapshots — before each change, <code>a -- b</code>, --quiet</p>");
   });
 
+  it("lets inline code break after / and _, not anywhere", () => {
+    assert.equal(render("`~/Claude/claude_desktop.json`"), "<p><code>~/<wbr>Claude/<wbr>claude_<wbr>desktop.json</code></p>");
+    assert.equal(render("```\na/b_c\n```"), "<pre><code>a/b_c</code></pre>");
+    assert.equal(render("`docker run --rm -i x`"), '<p><code>docker run <span class="nb">--rm</span> <span class="nb">-i</span> x</code></p>');
+  });
+
   it("lets the caller name a link by its target", () => {
     const label = (href: string, text: string) => (href === "cli.md" ? "the CLI" : text);
     assert.equal(render("See [cli.md](cli.md) and [x](y.md).", { label }), '<p>See <a href="cli.md">the CLI</a> and <a href="y.md">x</a>.</p>');

@@ -155,7 +155,8 @@ main:focus { outline: none; }
 .prose th, .prose td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
 .prose th { background: var(--surface); }
 .prose .edit { margin-top: 3rem; font-size: 0.9rem; }
-.prose :not(pre) > code { overflow-wrap: anywhere; }
+.prose :not(pre) > code { overflow-wrap: break-word; }
+.prose code .nb { white-space: nowrap; }
 
 .notfound { max-width: 40rem; margin: 0 auto; padding: 4rem clamp(1rem, 4vw, 2.5rem); }
 
