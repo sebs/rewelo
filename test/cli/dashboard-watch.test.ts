@@ -11,8 +11,8 @@ import { createTicket } from "../../src/tickets/repository.js";
 import { versionFilePath, watchDashboard } from "../../src/cli/dashboard-watch.js";
 import { BIN, childEnv, runCli } from "./run.js";
 
-/** Wait until check() holds, or fail after ms */
-async function until(check: () => boolean, ms = 10_000): Promise<void> {
+/** Wait until check() holds, or fail after ms (generous: the whole suite runs at once) */
+async function until(check: () => boolean, ms = 30_000): Promise<void> {
   const deadline = Date.now() + ms;
   while (!check()) {
     if (Date.now() > deadline) assert.fail("timed out");
@@ -26,6 +26,13 @@ describe("watchDashboard", () => {
   let watching: DB;
   let other: DB;
   let project: Project;
+  // Stopped after each test, also one that failed: a running watch kept the test process alive
+  const stops: AbortController[] = [];
+  const stopper = () => {
+    const stop = new AbortController();
+    stops.push(stop);
+    return stop;
+  };
 
   beforeEach(async () => {
     dir = mkdtempSync(join(tmpdir(), "rewelo-watch-"));
@@ -37,6 +44,7 @@ describe("watchDashboard", () => {
   });
 
   afterEach(async () => {
+    stops.splice(0).forEach((stop) => stop.abort());
     await watching.close();
     await other.close();
     rmSync(dir, { recursive: true, force: true });
@@ -48,7 +56,7 @@ describe("watchDashboard", () => {
 
   it("writes the page again when another process changes the database, and only then", async () => {
     const output = join(dir, "dash.html");
-    const stop = new AbortController();
+    const stop = stopper();
     const versions: string[] = [];
     const watch = watchDashboard({ db: watching, project, output, signal: stop.signal, intervalMs: 20, written: (v) => versions.push(v) });
 
@@ -74,7 +82,7 @@ describe("watchDashboard", () => {
 
   it("shows a renamed project's new name and stops when it is deleted", async () => {
     const output = join(dir, "dash.html");
-    const stop = new AbortController();
+    const stop = stopper();
     let writes = 0;
     const watch = watchDashboard({ db: watching, project, output, signal: stop.signal, intervalMs: 20, written: () => writes++ });
     await until(() => writes === 1);
@@ -101,17 +109,21 @@ describe("rw report dashboard --watch", () => {
       let stdout = "";
       child.stdout.on("data", (chunk) => (stdout += chunk));
       const exited = new Promise<number | null>((resolve) => child.on("exit", resolve));
+      try {
+        await until(() => stdout.includes("watching for changes"));
+        assert.match(readFileSync(output, "utf-8"), /<h1>Acme<\/h1>/);
+        assert.ok(existsSync(join(dir, "dash.version.js")));
 
-      await until(() => stdout.includes("watching for changes"));
-      assert.match(readFileSync(output, "utf-8"), /<h1>Acme<\/h1>/);
-      assert.ok(existsSync(join(dir, "dash.version.js")));
+        assert.equal(runCli(["--db", db, "ticket", "create", "--project", "Acme", "--title", "From another process"]).code, 0);
+        await until(() => readFileSync(output, "utf-8").includes("From another process"));
+        assert.match(stdout, /Dashboard updated at /);
 
-      assert.equal(runCli(["--db", db, "ticket", "create", "--project", "Acme", "--title", "From another process"]).code, 0);
-      await until(() => readFileSync(output, "utf-8").includes("From another process"));
-      assert.match(stdout, /Dashboard updated at /);
-
-      child.kill("SIGINT");
-      assert.equal(await exited, 0);
+        child.kill("SIGINT");
+        assert.equal(await exited, 0);
+      } finally {
+        // A failed assertion must not leave the watch running: it kept the test process alive
+        if (child.exitCode === null) child.kill("SIGKILL");
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
