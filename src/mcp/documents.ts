@@ -62,9 +62,11 @@ export async function documentOrLink(build: () => Promise<string>, uri: string, 
   }
 }
 
-export const dashboard = (db: DB, proj: Project, limit?: number) =>
+/** The dashboard with the data version it shows, which the app compares with dashboard_version */
+export const dashboard = async (db: DB, proj: Project, version: string, limit?: number) =>
   renderDashboard(db, proj.id, proj.name, {
     generatedAt: new Date().toISOString(),
     limit,
     limitHint: "a higher <code>limit</code> for <code>report_dashboard</code>",
+    version,
   });

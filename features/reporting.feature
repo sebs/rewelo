@@ -55,3 +55,13 @@ Feature: Reporting
     Given ticket "Old" in "Acme" was scored 120 days ago
     When I view the backlog health for "Acme" with 150 stale days
     Then no ticket should be listed as stale
+
+  Scenario: A dashboard that keeps itself up to date
+    Given I ran "rw report dashboard --project Acme --output dash.html --watch"
+    And "dash.html" is open in a browser
+    When a ticket is added to "Acme" from another terminal
+    Then "dash.html" should be written again within seconds
+    And the page should reload itself and show the ticket, keeping the chosen window
+    And it should not reload while nothing changes
+    When I press Ctrl-C
+    Then the command should end with exit code 0

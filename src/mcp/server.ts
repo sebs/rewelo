@@ -13,6 +13,7 @@ import { currentCall, DbSession } from "./session.js";
 import { limitLines, MAX_MESSAGE_BYTES } from "./stdin-limit.js";
 import { Channel } from "./live/channel.js";
 import { ChangeWatcher } from "./live/watcher.js";
+import { DataChanges } from "../db/changes.js";
 import type { McpContext } from "./toolkit.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { registerTicketTools } from "./tools/tickets.js";
@@ -88,6 +89,8 @@ export function createMcpServer(
     channel?.attach(db);
   });
   const watcher = new ChangeWatcher(server, session, channel, options?.pollIntervalMs ?? 2000);
+  // What the dashboard app polls (dashboard_version) to know when to refresh
+  const changes = new DataChanges();
 
   const ctx: McpContext = {
     server,
@@ -129,6 +132,7 @@ export function createMcpServer(
       // An empty elicitation capability means form mode (the pre-mode rule)
       return elicitation !== undefined && (elicitation.form !== undefined || elicitation.url === undefined);
     },
+    dataVersion: (db) => changes.version(db),
   };
 
   // In this order, which is the order of tools/list

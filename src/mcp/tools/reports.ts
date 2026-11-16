@@ -8,11 +8,11 @@ import { getBacklogHealth } from "../../reports/health.js";
 import { getProjectSummary } from "../../reports/summary.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { dashboard, documentOrLink, MAX_DASHBOARD_ROWS, resourceUri } from "../documents.js";
-import { DASHBOARD_APP_META } from "../app.js";
+import { DASHBOARD_APP_META, DASHBOARD_VERSION_META } from "../app.js";
 import { READ, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerReportTools(ctx: McpContext): void {
-  const { tool, inProject } = ctx;
+  const { tool, inProject, dataVersion } = ctx;
 
   tool(
     "report_summary",
@@ -82,15 +82,27 @@ export function registerReportTools(ctx: McpContext): void {
     },
     READ,
     ({ project, limit }) =>
-      inProject(project, (db, proj) =>
+      inProject(project, async (db, proj) =>
         documentOrLink(
-          () => dashboard(db, proj, limit),
+          // The version first: a change after it is seen on the next poll
+          async () => dashboard(db, proj, await dataVersion(db), limit),
           resourceUri(proj.name, limit === undefined ? "dashboard" : `dashboard/${limit}`),
           "dashboard",
           "text/html"
         )
       ),
     DASHBOARD_APP_META
+  );
+
+  // Hidden from the model (visibility "app"): the dashboard's page calls it
+  // every few seconds and renders the dashboard again only when it changed
+  tool(
+    "dashboard_version",
+    "For the dashboard app: a token that changes whenever the dashboard may have changed (the database changed, or the day did). The page that shows report_dashboard's result calls it to know when to refresh; there is no need to call it otherwise.",
+    { ...PROJECT_ARG },
+    READ,
+    ({ project }) => inProject(project, async (db) => ({ version: await dataVersion(db) })),
+    DASHBOARD_VERSION_META
   );
 
 

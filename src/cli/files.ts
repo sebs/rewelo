@@ -1,4 +1,4 @@
-import { statSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
+import { renameSync, rmSync, statSync, writeFileSync as fsWriteFileSync, readFileSync as fsReadFileSync } from "fs";
 import { describeFsError, ValidationError } from "../errors.js";
 
 // File access on paths the user gave: errors name the path and the problem
@@ -7,6 +7,22 @@ export function writeFile(path: string, data: string): void {
   try {
     fsWriteFileSync(path, data, "utf-8");
   } catch (err) {
+    throw describeFsError(err, "write", path);
+  }
+}
+
+/**
+ * Write a file whole, by renaming a finished copy over it: a browser that
+ * reloads it meanwhile (rw report dashboard --watch) never reads half of it.
+ * The rename replaces a symbolic link rather than writing through it.
+ */
+export function replaceFile(path: string, data: string): void {
+  const partial = `${path}.${process.pid}.partial`;
+  try {
+    fsWriteFileSync(partial, data, "utf-8");
+    renameSync(partial, path);
+  } catch (err) {
+    rmSync(partial, { force: true });
     throw describeFsError(err, "write", path);
   }
 }

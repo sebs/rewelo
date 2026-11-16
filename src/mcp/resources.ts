@@ -147,7 +147,7 @@ export function registerResources(ctx: McpContext): void {
       description: "A project's self-contained HTML dashboard (health, cumulative flow, tickets, distribution, relations), as report_dashboard renders it",
       mimeType: "text/html",
     },
-    (uri, vars) => readResource(uri, "text/html", () => withProject(variable(vars, "project"), (db, proj) => dashboard(db, proj)), MAX_DOCUMENT_BYTES)
+    (uri, vars) => readResource(uri, "text/html", () => withProject(variable(vars, "project"), async (db, proj) => dashboard(db, proj, await ctx.dataVersion(db))), MAX_DOCUMENT_BYTES)
   );
 
   // Where report_dashboard links to with a limit
@@ -168,7 +168,7 @@ export function registerResources(ctx: McpContext): void {
           if (!/^\d+$/.test(limit) || Number(limit) > MAX_DASHBOARD_ROWS) {
             throw new AppError(`Invalid limit "${limit}": expected a whole number up to ${MAX_DASHBOARD_ROWS}`);
           }
-          return withProject(variable(vars, "project"), (db, proj) => dashboard(db, proj, Number(limit)));
+          return withProject(variable(vars, "project"), async (db, proj) => dashboard(db, proj, await ctx.dataVersion(db), Number(limit)));
         },
         MAX_DOCUMENT_BYTES
       )

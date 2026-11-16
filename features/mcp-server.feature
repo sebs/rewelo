@@ -53,6 +53,7 @@ Feature: MCP Server
       | report_distribution   |
       | report_group          |
       | report_dashboard      |
+      | dashboard_version     |
       | event_log             |
       | export_csv            |
       | export_json           |
@@ -199,6 +200,12 @@ Feature: MCP Server
     And reading that resource should return a self-contained page of type "text/html;profile=mcp-app"
     And a host that supports MCP Apps should show the dashboard in that page, in the host's theme
     And a host without them should get the dashboard as HTML text
+
+  Scenario: The dashboard app stays live
+    Given a host shows the dashboard of "Acme" in its app page
+    When the rw CLI adds a ticket to "Acme"
+    Then the page should show the new ticket within seconds, keeping the chosen window
+    And while nothing changes it should only ask dashboard_version, which the model is not offered
 
   Scenario: Subscribers hear about changes
     Given a client subscribed to "rewelo://Acme/backlog"

@@ -237,6 +237,9 @@ export const outputSchemas = {
     withoutState: z.number().int(),
     topByPriority: z.array(z.object({ title: z.string(), priority: z.number() })),
   }),
+  dashboard_version: z.object({
+    version: z.string().describe("Changes whenever the database or the day changes"),
+  }),
   report_times: z.object({
     tickets: z.array(z.object({
       ticketId: z.number().int(),

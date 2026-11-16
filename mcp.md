@@ -245,6 +245,7 @@ A relation that contradicts an existing one (`B blocks A` next to `A blocks B` o
 | `report_distribution` | Fibonacci score distribution   | `project?`                                 |
 | `report_group`    | Group tickets by tag prefix        | `project?`, `prefix`                       |
 | `report_dashboard`| Self-contained HTML dashboard, with a cumulative flow diagram | `project?`, `limit?` |
+| `dashboard_version` | For the dashboard app only: a token that changes when the dashboard may have | `project?` |
 
 `report_health` also lists the stale tickets as `staleTickets`: the open tickets whose scores haven't changed for `staleDays` (default 90), oldest first, with `scoredAt` (when the scores last changed, or the ticket was created) and `days` since then. A change of title, description or tags doesn't count as re-scoring. They are the tickets whose priority rests on the oldest judgement.
 
@@ -320,6 +321,8 @@ The resource list offers a backlog and a dashboard per project, and the server s
 ### The dashboard as an MCP App
 
 Hosts that support [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview) (Claude Desktop, claude.ai, VS Code and others; not Claude Code) show `report_dashboard`'s result to the user as the dashboard itself, in a page the server provides at `ui://rewelo/dashboard.html` (`text/html;profile=mcp-app`), instead of HTML as text. The tool points to it in its `_meta` (`ui.resourceUri`). The page is self-contained, follows the host's light or dark theme, tells the host its height, and fetches a dashboard over 5 MB through the host from the resource the result links to. It shows the dashboard's styles and content only, never a script from it. Hosts without apps get the HTML as text, as before.
+
+The dashboard in the app stays live. Hosts pass no resource notifications to an app's page, so while the page is visible it calls `dashboard_version` every 5 seconds: one query that returns a token, which changes whenever the database changes (through this server or another process, such as the `rw` CLI) or the day does. When the token differs from the one the dashboard was rendered with, the page calls `report_dashboard` again and shows the new dashboard, keeping the chosen window of the cumulative flow. `dashboard_version` is marked for the app only (`_meta.ui.visibility: ["app"]`), so hosts don't offer it to the model. After three failed checks in a row (a host that refuses the calls, a deleted or renamed project) the page stops, leaves the dashboard as it was, and says it isn't refreshing.
 
 `export_csv`, `export_json` and `report_dashboard` return their document inline up to 5 MB. Over that, they return a `resource_link` to the matching resource above instead of an error, so a client can fetch the document without it going through the model's context.
 

@@ -208,7 +208,7 @@ rw report group --project <name> --prefix <prefix>
 rw report distribution --project <name>
 rw report health --project <name> [--threshold <n>] [--stale-days <n>]
 rw report times --project <name>
-rw report dashboard --project <name> --output <path> [--limit <n>]
+rw report dashboard --project <name> --output <path> [--limit <n>] [--watch]
 rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] [--limit <n>]
 ```
 
@@ -219,12 +219,14 @@ rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] 
 | `distribution` | Histogram of Fibonacci scores across benefit, penalty, estimate, risk |
 | `health`       | High/low priority ratio, total backlog cost, done vs open counts, and the open tickets not re-scored for `--stale-days` (default 90): the 10 oldest in the text, all of them under `--json` (`staleTickets`, with `scoredAt` and `days`); a change of title, description or tags doesn't count as re-scoring |
 | `times`        | Lead time (created → done) and cycle time (wip → done) per ticket |
-| `dashboard`    | Self-contained static HTML dashboard: backlog health, a cumulative flow diagram, tickets by priority, score distribution and a table of relations; the ticket and relation tables show 500 rows unless `--limit` says otherwise |
+| `dashboard`    | Self-contained static HTML dashboard: backlog health, a cumulative flow diagram, tickets by priority, score distribution and a table of relations; the ticket and relation tables show 500 rows unless `--limit` says otherwise; `--watch` keeps the file up to date |
 | `event-log`    | Ticket creations, updates, deletions and tag changes: the newest first (default 50), or after `--since`/`--after`, oldest first. `--after` takes an event's `sequence` (in `--json`) and polls without missing events |
 
 `times` requires `state:wip` and `state:done` tags to be assigned to tickets. States are recognised by name: work starts the first time a ticket gets a tag called `state:wip` at that moment, and a ticket is done while it holds the tag now called `state:done` (`report health` counts done tickets the same way). Renaming a state tag changes its meaning: after `state:done` becomes `state:cancelled`, those tickets are no longer done.
 
 The dashboard's cumulative flow diagram counts, at the end of each day (UTC), the tickets that have arrived (were created), started (first got `state:wip`, or `state:done` without it) and are done, by the same rules; deleted tickets aren't counted. It shows the last 30 days and switches to 14, 90 or 365 days or all days since the first ticket; the y axis starts 3 tickets below the lowest done count in the window. Read across, the distance between the arrived and done areas is the lead time; read down, the band between started and done is the work in progress.
+
+With `--watch`, `report dashboard` keeps running and writes the file again whenever the database changes, by `rw` in another terminal or by the MCP server, and when the day changes. It checks every 2 seconds and stops with Ctrl-C. Next to the page it writes `<name>.version.js` with the version the page shows; a page open in a browser loads that file every 2 seconds and reloads when the version differs, keeping the chosen window and the scroll position. Without `--watch` the page has no script.
 
 ### serve (MCP)
 

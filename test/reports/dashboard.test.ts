@@ -164,6 +164,39 @@ describe("dashboard cumulative flow", () => {
   });
 });
 
+describe("dashboard for live pages", () => {
+  let db: DB;
+  let projectId: number;
+
+  beforeEach(async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    projectId = (await createProject(db, "Live")).id;
+  });
+
+  afterEach(async () => {
+    await db.close();
+  });
+
+  it("names its project, limit and version for a page that refreshes it", async () => {
+    const html = await renderDashboard(db, projectId, "A \"B\"", { limit: 3, version: "run.1.2026-03-10" });
+    assert.match(html, /<meta name="rewelo-project" content="A &quot;B&quot;">/);
+    assert.match(html, /<meta name="rewelo-limit" content="3">/);
+    assert.match(html, /<meta name="rewelo-version" content="run\.1\.2026-03-10">/);
+    assert.doesNotMatch(html, /<script/);
+    assert.doesNotMatch(await renderDashboard(db, projectId, "Live"), /rewelo-limit|rewelo-version/);
+  });
+
+  it("reloads itself from its version file only when it is watched", async () => {
+    const html = await renderDashboard(db, projectId, "Live", { version: "v1", reloadFrom: "dash.version.js" });
+    assert.match(html, /<script>[\s\S]*script\.src = "dash\.version\.js" \+ "\?" \+ Date\.now\(\)[\s\S]*<\/script>/);
+    assert.match(html, /window\.reweloDashboardVersion = /);
+    // A file name can't end the script early
+    const odd = await renderDashboard(db, projectId, "Live", { version: "v1", reloadFrom: "</script><b>.js" });
+    assert.doesNotMatch(odd, /<\/script><b>/);
+  });
+});
+
 describe("renderDashboardHtml", () => {
   // The page from a model alone, without a database
   const model: DashboardModel = {

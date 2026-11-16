@@ -28,7 +28,37 @@ describe("MCP App: the dashboard", () => {
     const dashboard = tools.find((t) => t.name === "report_dashboard")!;
     assert.deepEqual(dashboard._meta, { ui: { resourceUri: "ui://rewelo/dashboard.html" }, "ui/resourceUri": "ui://rewelo/dashboard.html" });
     // No other tool has a UI
-    assert.deepEqual(tools.filter((t) => t._meta?.ui).map((t) => t.name), ["report_dashboard"]);
+    assert.deepEqual(tools.filter((t) => (t._meta?.ui as { resourceUri?: string })?.resourceUri).map((t) => t.name), ["report_dashboard"]);
+  });
+
+  it("offers the app, and only the app, the version it polls to stay live", async () => {
+    const { tools } = await client.listTools();
+    const version = tools.find((t) => t.name === "dashboard_version")!;
+    assert.deepEqual(version._meta, { ui: { visibility: ["app"] } });
+    assert.equal(version.annotations?.readOnlyHint, true);
+  });
+
+  it("says in the dashboard which version it shows, and changes the version with the data", async () => {
+    await client.callTool({ name: "project_create", arguments: { name: "Acme" } });
+    const versionNow = async () =>
+      ((await client.callTool({ name: "dashboard_version", arguments: { project: "Acme" } })).structuredContent as { version: string }).version;
+
+    const before = await versionNow();
+    assert.equal(await versionNow(), before);
+    const html = ((await client.callTool({ name: "report_dashboard", arguments: { project: "Acme", limit: 7 } })).content as any)[0].text;
+    assert.match(html, new RegExp(`<meta name="rewelo-version" content="${before}">`));
+    assert.match(html, /<meta name="rewelo-project" content="Acme">/);
+    assert.match(html, /<meta name="rewelo-limit" content="7">/);
+    // The page is shown in the app without its scripts: it has none anyway
+    assert.doesNotMatch(html, /<script/);
+
+    await client.callTool({ name: "ticket_create", arguments: { project: "Acme", title: "New" } });
+    assert.notEqual(await versionNow(), before);
+  });
+
+  it("refuses a version for a project that doesn't exist, which stops the page refreshing", async () => {
+    const r = await client.callTool({ name: "dashboard_version", arguments: { project: "Nope" } });
+    assert.equal(r.isError, true);
   });
 
   it("serves the app as one self-contained HTML document with the MCP App type", async () => {
@@ -42,6 +72,12 @@ describe("MCP App: the dashboard", () => {
     assert.match(app.text, /"ui\/initialize"/);
     assert.match(app.text, /"2026-01-26"/);
     assert.match(app.text, /"ui\/notifications\/tool-result"/);
+    // Live: it polls dashboard_version, refreshes through report_dashboard, and stops on teardown
+    assert.match(app.text, /name: "dashboard_version"/);
+    assert.match(app.text, /name: "report_dashboard"/);
+    assert.match(app.text, /setInterval\(poll, 5000\)/);
+    assert.match(app.text, /"ui\/resource-teardown"/);
+    assert.doesNotMatch(app.text, /__POLL_MS__|__VERSION__|__PROTOCOL__/);
   });
 
   it("lists the app among the resources", async () => {

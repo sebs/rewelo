@@ -25,6 +25,8 @@ export interface McpContext {
   inProject<T>(project: string | undefined, fn: (db: DB, project: Project) => Promise<T>): Promise<T>;
   /** Whether the client can show the user a form (elicitation) */
   canAskUser(): boolean;
+  /** A token that changes whenever the database does, or the day (DataChanges) */
+  dataVersion(db: DB): Promise<string>;
 }
 
 export async function resolveTicket(db: DB, projectId: number, title?: string, id?: number): Promise<Ticket> {

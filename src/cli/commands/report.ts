@@ -14,6 +14,9 @@ import { withProject, type GlobalOptions } from "../context.js";
 import { PROJECT_OPTION, parseFloatOption, parseNonNegativeIntOption, type ProjectOptions } from "../options.js";
 import { emptyPage, escapeControls, formatTable, printRows, reportWritten } from "../output.js";
 import { writeFile } from "../files.js";
+import { versionFilePath, watchDashboard } from "../dashboard-watch.js";
+import type { DB } from "../../db/connection.js";
+import type { Project } from "../../projects/repository.js";
 
 export function registerReportCommands(program: Command): void {
   const reportCmd = program.command("report").description("reporting commands");
@@ -196,9 +199,11 @@ export function registerReportCommands(program: Command): void {
     .option(...PROJECT_OPTION)
     .requiredOption("--output <path>", "output HTML file path")
     .option("--limit <n>", "rows per table (default 500)", parseNonNegativeIntOption)
-    .action(async (cmdOpts: ProjectOptions & { output: string; limit?: number }, cmd: Command) => {
+    .option("--watch", "write it again whenever the database changes, until stopped (Ctrl-C); an open page reloads itself")
+    .action(async (cmdOpts: ProjectOptions & { output: string; limit?: number; watch?: boolean }, cmd: Command) => {
       const opts = cmd.optsWithGlobals<GlobalOptions>();
       await withProject(opts, cmdOpts.project, async (db, project) => {
+        if (cmdOpts.watch) return watch(opts, db, project, cmdOpts);
         const html = await renderDashboard(db, project.id, project.name, {
           generatedAt: new Date().toISOString(),
           limit: cmdOpts.limit,
@@ -208,4 +213,38 @@ export function registerReportCommands(program: Command): void {
         reportWritten(opts, outPath, `Dashboard written to ${outPath}`);
       });
     });
+
+  // Until Ctrl-C (or SIGTERM), which ends the command normally: the
+  // database is closed and the exit code is 0
+  async function watch(opts: GlobalOptions, db: DB, project: Project, cmdOpts: { output: string; limit?: number }): Promise<void> {
+    const outPath = validateExportPath(cmdOpts.output, [".html"]);
+    validateExportPath(versionFilePath(outPath), [".js"]);
+    const stop = new AbortController();
+    const onSignal = () => stop.abort();
+    process.once("SIGINT", onSignal);
+    process.once("SIGTERM", onSignal);
+    let first = true;
+    try {
+      await watchDashboard({
+        db,
+        project,
+        output: outPath,
+        limit: cmdOpts.limit,
+        signal: stop.signal,
+        written: () => {
+          reportWritten(
+            opts,
+            outPath,
+            first
+              ? `Dashboard written to ${outPath}; watching for changes (Ctrl-C to stop)`
+              : `Dashboard updated at ${new Date().toISOString()}`
+          );
+          first = false;
+        },
+      });
+    } finally {
+      process.off("SIGINT", onSignal);
+      process.off("SIGTERM", onSignal);
+    }
+  }
 }
