@@ -72,6 +72,15 @@ describe("website (site/build.mjs)", () => {
     assert.match(toc, /<a href="#report" class="sub">report<\/a>/);
   });
 
+  it("lets a keyboard user skip the navigation to the page's one main landmark", () => {
+    for (const page of ["index.html", "docs/index.html", "docs/cli/index.html", "404.html"]) {
+      const html = readFileSync(join(out, page), "utf-8");
+      assert.match(html, /<body>\n<a class="skip" href="#content">Skip to content<\/a>/, page);
+      assert.equal(html.match(/<main\b/g)?.length, 1, page);
+      assert.match(html, /<main id="content">/, page);
+    }
+  });
+
   it("puts the contents into a closed <details> for narrow screens", () => {
     const mcp = readFileSync(join(out, "docs/mcp/index.html"), "utf-8");
     assert.match(mcp, /<details class="contents"><summary>Contents<\/summary><nav aria-label="Docs">/);

@@ -81,11 +81,14 @@ function page({ title, description, active, main }) {
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 </head>
 <body>
+<a class="skip" href="#content">Skip to content</a>
 <header class="top">
   <a class="brand" href="/">rewelo</a>
   <nav>${nav}<a href="${REPO}">GitHub</a></nav>
 </header>
+<main id="content">
 ${main}
+</main>
 <footer class="foot">
   <p>rewelo ${escape(pkg.version)} · ${escape(pkg.license)} licence · <a href="${REPO}">source on GitHub</a> · <a href="https://www.npmjs.com/package/rewelo">npm</a></p>
 </footer>
@@ -162,7 +165,7 @@ write(
     title: "Not found — rewelo",
     description: "This page does not exist.",
     active: "",
-    main: `<main class="notfound"><h1>Not found</h1><p>This page does not exist. Try the <a href="/">home page</a> or the <a href="/docs/">docs</a>.</p></main>`,
+    main: `<div class="notfound"><h1>Not found</h1><p>This page does not exist. Try the <a href="/">home page</a> or the <a href="/docs/">docs</a>.</p></div>`,
   })
 );
 
