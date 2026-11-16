@@ -20,6 +20,12 @@ rw ticket list --project Acme --sort priority</code></pre>
     <p>Every command is in the <a href="/docs/cli/">CLI reference</a>.</p>
   </div>
   <div>
+    <h2>MCP server from npm</h2>
+    <pre><code>npm install -g rewelo
+claude mcp add rewelo -- rw serve</code></pre>
+    <p>That's Claude Code; the <a href="/docs/mcp/#without-docker">MCP guide</a> has the configuration for Claude Desktop and other clients. rewelo is in the <a href="https://registry.modelcontextprotocol.io">MCP Registry</a> as <code>io.github.sebs/rewelo</code>.</p>
+  </div>
+  <div>
     <h2>MCP server in Docker</h2>
     <pre><code>docker run --rm -i --init --cap-drop=ALL \
   --read-only --memory=256m \
@@ -41,12 +47,20 @@ rw ticket list --project Acme --sort priority</code></pre>
 
 <section class="features">
   <div class="card">
-    <h3>Tags, not fields</h3>
-    <p><code>prefix:value</code> tags such as <code>state:wip</code> or <code>feature:auth</code> organise tickets, one value per prefix, with every change in an audit log.</p>
+    <h3>Flow and forecasts</h3>
+    <p>A cumulative flow diagram, throughput per week, cycle-time percentiles, the work in progress by age, and the dates by which the backlog is likely done, simulated from the pace you actually had.</p>
   </div>
   <div class="card">
-    <h3>Reports</h3>
-    <p>Summary, backlog health, score distribution, lead and cycle times, an event stream, diffs since any date, and a self-contained HTML dashboard.</p>
+    <h3>A live dashboard</h3>
+    <p>One self-contained page: health, flow and forecast, the ranking, what changed in it and why, and the dependencies, with priority inversions in red. <code>--watch</code> keeps it current; in Claude Desktop and claude.ai it shows in the chat and refreshes itself.</p>
+  </div>
+  <div class="card">
+    <h3>Checks on the scoring</h3>
+    <p>Whether your estimates predict how long tickets take, which scores have gone stale, and what moved in the ranking since a date, with the reason for each move.</p>
+  </div>
+  <div class="card">
+    <h3>Tags, not fields</h3>
+    <p><code>prefix:value</code> tags such as <code>state:wip</code> or <code>feature:auth</code> organise tickets, one value per prefix, with every change in an audit log.</p>
   </div>
   <div class="card">
     <h3>Your data, one file</h3>
@@ -54,7 +68,7 @@ rw ticket list --project Acme --sort priority</code></pre>
   </div>
   <div class="card">
     <h3>Built for assistants</h3>
-    <p>MCP tools let Claude create, score, tag, relate and report on tickets, with the same validation as the CLI.</p>
+    <p>Over 40 MCP tools let Claude create, score, tag, relate and report on tickets, with the same validation as the CLI, and skills guide it through intake, sprint planning, stand-ups, re-prioritising and retrospectives.</p>
   </div>
 </section>
 </div>

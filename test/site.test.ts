@@ -72,6 +72,14 @@ describe("website (site/build.mjs)", () => {
     assert.match(toc, /<a href="#report" class="sub">report<\/a>/);
   });
 
+  it("shows the current features and both ways to run the MCP server on the landing page", () => {
+    const home = readFileSync(join(out, "index.html"), "utf-8");
+    for (const text of ["MCP server from npm", "claude mcp add rewelo -- rw serve", "MCP server in Docker", "Flow and forecasts", "A live dashboard", "Checks on the scoring"]) {
+      assert.ok(home.includes(text), text);
+    }
+    assert.match(home, /href="\/rewelo\/docs\/mcp\/#without-docker"/);
+  });
+
   it("lets a keyboard user skip the navigation to the page's one main landmark", () => {
     for (const page of ["index.html", "docs/index.html", "docs/cli/index.html", "404.html"]) {
       const html = readFileSync(join(out, page), "utf-8");

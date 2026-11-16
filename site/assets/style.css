@@ -101,6 +101,9 @@ main:focus { outline: none; }
 .button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
 
 .install { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1.5rem; margin: 1rem 0 2.5rem; }
+.install > div { min-width: 0; }
+/* The command line across, then the two ways to run the MCP server side by side */
+.install > div:first-child { grid-column: 1 / -1; }
 .install h2, .method h2 { font-size: 1.2rem; margin: 0 0 0.6rem; }
 .install p { color: var(--muted); font-size: 0.95rem; }
 .install .more { grid-column: 1 / -1; margin: 0; }
@@ -118,7 +121,7 @@ main:focus { outline: none; }
 }
 .formula .k { font-weight: 700; color: var(--accent); }
 
-.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 1rem; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; }
 .card h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
 .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
