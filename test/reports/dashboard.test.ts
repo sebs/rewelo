@@ -122,6 +122,48 @@ describe("dashboard report", () => {
   });
 });
 
+describe("dashboard cumulative flow", () => {
+  let db: DB;
+  let projectId: number;
+
+  beforeEach(async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    projectId = (await createProject(db, "Flow")).id;
+  });
+
+  afterEach(async () => {
+    await db.close();
+  });
+
+  it("charts every window, ending on the day it was generated, the 30 days checked", async () => {
+    const t = await createTicket(db, { projectId, title: "Story" });
+    await assignTag(db, t.id, (await createTag(db, projectId, "state", "wip")).id);
+    await db.run("UPDATE tickets SET created_at = '2026-03-01T08:00:00.000Z' WHERE id = ?", t.id);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-03-04T08:00:00.000Z' WHERE ticket_id = ?", t.id);
+
+    const html = await renderDashboard(db, projectId, "Flow", { generatedAt: "2026-03-10T12:00:00.000Z" });
+    assert.match(html, /<h2 id="flow">Cumulative flow<\/h2>/);
+    for (const id of ["flow-14", "flow-30", "flow-90", "flow-365", "flow-all"]) {
+      assert.match(html, new RegExp(`<input type="radio" name="flow-window" id="${id}"`));
+      assert.match(html, new RegExp(`<figure class="flow ${id}">`));
+    }
+    assert.match(html, /id="flow-30" checked>/);
+    assert.equal(html.match(/ checked>/g)?.length, 1);
+    assert.equal(html.match(/<svg class="cfd"/g)?.length, 5);
+    assert.match(html, /<title>2026-03-10: 1 arrived, 1 started, 0 done<\/title>/);
+    assert.match(html, /Since Mar 1, 2026: 1 arrived, 1 started, 0 done\. At the end, 1 in progress and 0 not started\./);
+    // Still self-contained and script-free
+    assert.doesNotMatch(html, /src=|href=|<script/i);
+  });
+
+  it("says there is nothing to chart without tickets", async () => {
+    const html = await renderDashboard(db, projectId, "Flow");
+    assert.match(html, /No tickets to chart yet\./);
+    assert.doesNotMatch(html, /<svg/);
+  });
+});
+
 describe("renderDashboardHtml", () => {
   // The page from a model alone, without a database
   const model: DashboardModel = {
@@ -132,6 +174,7 @@ describe("renderDashboardHtml", () => {
     distribution: [],
     health: { totalTickets: 2, doneTickets: 2, openTickets: 0, highPriorityCount: 0, lowPriorityCount: 0, highToLowRatio: null, totalBacklogCost: 0, staleDays: 90, staleTickets: [] },
     relations: [],
+    flow: [],
   };
 
   it("escapes the project name and says why the ticket table is empty", () => {

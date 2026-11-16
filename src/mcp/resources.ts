@@ -144,7 +144,7 @@ export function registerResources(ctx: McpContext): void {
     }),
     {
       title: "Dashboard",
-      description: "A project's self-contained HTML dashboard (tickets, distribution, health, relations), as report_dashboard renders it",
+      description: "A project's self-contained HTML dashboard (health, cumulative flow, tickets, distribution, relations), as report_dashboard renders it",
       mimeType: "text/html",
     },
     (uri, vars) => readResource(uri, "text/html", () => withProject(variable(vars, "project"), (db, proj) => dashboard(db, proj)), MAX_DOCUMENT_BYTES)

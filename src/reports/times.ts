@@ -35,12 +35,21 @@ function timesOf(ticket: { id: number; title: string; created_at: string }, wipA
   };
 }
 
+export interface WorkflowDates {
+  /** The project's tickets, oldest first */
+  tickets: Array<{ id: number; created_at: string; title: string }>;
+  /** Per ticket id, when work started (first tagged state:wip) */
+  wipAt: Map<number, string>;
+  /** Per ticket id, when it was done (tickets currently state:done only) */
+  doneAt: Map<number, string>;
+}
+
 /**
- * Times for every ticket of a project, in ticket list order, with three
+ * When each ticket of a project was created, started and done, with three
  * queries in all: per ticket, report times took 2.3 s and ~870 MB for 30,000
  * tickets.
  */
-export async function getProjectTimes(db: DB, projectId: number): Promise<TimeResult[]> {
+export async function getWorkflowDates(db: DB, projectId: number): Promise<WorkflowDates> {
   const tickets = await db.all<{ id: number; created_at: string; title: string }>(
     `SELECT id, created_at, title FROM tickets WHERE project_id = ? ORDER BY created_at`,
     projectId
@@ -52,9 +61,13 @@ export async function getProjectTimes(db: DB, projectId: number): Promise<TimeRe
         projectId
       )).map((r) => [r.ticket_id, r.at])
     );
-  const wip = await byTicket(WIP_STARTS_SQL);
-  const done = await byTicket(DONE_AT_SQL);
-  return tickets.map((t) => timesOf(t, wip.get(t.id), done.get(t.id)));
+  return { tickets, wipAt: await byTicket(WIP_STARTS_SQL), doneAt: await byTicket(DONE_AT_SQL) };
+}
+
+/** Times for every ticket of a project, in ticket list order */
+export async function getProjectTimes(db: DB, projectId: number): Promise<TimeResult[]> {
+  const { tickets, wipAt, doneAt } = await getWorkflowDates(db, projectId);
+  return tickets.map((t) => timesOf(t, wipAt.get(t.id), doneAt.get(t.id)));
 }
 
 export function averageLeadTime(times: TimeResult[]): number | undefined {
