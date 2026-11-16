@@ -116,7 +116,8 @@ describe("rw report dashboard --watch", () => {
 
         assert.equal(runCli(["--db", db, "ticket", "create", "--project", "Acme", "--title", "From another process"]).code, 0);
         await until(() => readFileSync(output, "utf-8").includes("From another process"));
-        assert.match(stdout, /Dashboard updated at /);
+        // Printed after the files are written: it may reach this process a little later
+        await until(() => /Dashboard updated at /.test(stdout));
 
         child.kill("SIGINT");
         assert.equal(await exited, 0);
