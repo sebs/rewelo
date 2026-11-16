@@ -36,7 +36,7 @@ describe("website (site/build.mjs)", () => {
   it("has no broken links within the site, all under the Pages base path", () => {
     const broken: string[] = [];
     for (const file of htmlFiles(out)) {
-      for (const [, href] of readFileSync(file, "utf-8").matchAll(/(?:href|src)="([^"]+)"/g)) {
+      for (const [, href] of readFileSync(file, "utf-8").matchAll(/(?:href|src|srcset)="([^"]+)"/g)) {
         if (/^(https?:|mailto:|#)/.test(href)) continue;
         if (!href.startsWith("/rewelo/")) {
           broken.push(`${file}: ${href} (outside the base path)`);
@@ -78,6 +78,12 @@ describe("website (site/build.mjs)", () => {
       assert.ok(home.includes(text), text);
     }
     assert.match(home, /href="\/rewelo\/docs\/mcp\/#without-docker"/);
+  });
+
+  it("shows the dashboard, in the reader's light or dark", () => {
+    const home = readFileSync(join(out, "index.html"), "utf-8");
+    assert.match(home, /<source srcset="\/rewelo\/assets\/dashboard-dark\.png" media="\(prefers-color-scheme: dark\)">/);
+    assert.match(home, /<img src="\/rewelo\/assets\/dashboard-light\.png" width="1200" height="876" alt="The dashboard of a demo project/);
   });
 
   it("shows what the CLI example prints", () => {

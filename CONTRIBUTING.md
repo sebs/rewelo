@@ -16,6 +16,7 @@ npm test
 
 - **Build**: `npm run build` (compiles TypeScript and injects version)
 - **Test**: `npm test` (compiles `src` and `test` into `build/` and runs them with Node's built-in test runner, `node --test`)
+- **Website**: `npm run site` builds it into `_site/`; after a change to the dashboard's look, `npm run build && npm run site:screenshots` takes its pictures again (headless Chrome; `CHROME` names another browser)
 
 Tests use in-memory SQLite databases, so no setup is needed beyond `npm install`.
 

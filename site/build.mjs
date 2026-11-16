@@ -24,7 +24,7 @@ const REPO = "https://github.com/sebs/rewelo";
 // Leading slash added and trailing one dropped: "rewelo" and "/rewelo/" both
 // mean "/rewelo" (without the leading slash every asset link was relative).
 const BASE = (process.env.SITE_BASE ?? "/rewelo").replace(/^\/*/, "/").replace(/\/+$/, "");
-const withBase = (html) => (BASE ? html.replace(/(href|src)="\//g, `$1="${BASE}/`) : html);
+const withBase = (html) => (BASE ? html.replace(/(href|src|srcset)="\//g, `$1="${BASE}/`) : html);
 
 const docs = [
   { file: "Readme.md", slug: "", label: "Overview", sub: "What rewelo is, how the method works, and how to run it." },
