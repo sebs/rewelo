@@ -12,6 +12,7 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { render } from "./markdown.mjs";
+import { changelog } from "../scripts/changelog.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -36,8 +37,22 @@ const docs = [
   { file: "mcp.md", slug: "mcp", label: "MCP server", sub: "Connect AI assistants and use the tools." },
   { file: "calculations.md", slug: "calculations", label: "Calculations", sub: "Priority, weighted priority and relative weights." },
   { file: "examples.md", slug: "examples", label: "Examples", sub: "Worked scenarios as Claude Code prompts over MCP and as rw commands." },
+  // From the git history, as the releases' CHANGELOG.md is (scripts/changelog.mjs)
+  { slug: "changelog", label: "Changelog", sub: "What changed in each release.", generated: true },
 ];
-const pageOf = new Map(docs.map((d) => [d.file.toLowerCase(), d.slug ? `/docs/${d.slug}/` : "/docs/"]));
+
+// The release notes of every version. A checkout without the tags (a
+// shallow clone) has none: then the page points to GitHub's releases
+function changelogMarkdown() {
+  try {
+    const { markdown, versions } = changelog(root);
+    if (versions > 0) return markdown;
+  } catch {
+    // Not a git checkout, or no git: as without tags, below
+  }
+  return `# Changelog\n\nThe release notes are on [GitHub](${REPO}/releases).\n`;
+}
+const pageOf = new Map(docs.filter((d) => d.file).map((d) => [d.file.toLowerCase(), d.slug ? `/docs/${d.slug}/` : "/docs/"]));
 
 // A line ending in this comment is for GitHub only, not the website (the
 // Readme's link to the website, for one); GitHub doesn't show the comment
@@ -55,7 +70,7 @@ function link(href) {
 
 // A link whose text is just the doc's file name ("calculations.md") reads as
 // the page's name on the site, where there are no files
-const labelOf = new Map(docs.map((d) => [d.file.toLowerCase(), d.label]));
+const labelOf = new Map(docs.filter((d) => d.file).map((d) => [d.file.toLowerCase(), d.label]));
 function label(href, text) {
   const file = href.split("#")[0].replace(/^\.\//, "").toLowerCase();
   const page = labelOf.get(file);
@@ -144,7 +159,8 @@ write(
 // ── docs ──
 for (const doc of docs) {
   const headings = [];
-  const body = render(readFileSync(join(root, doc.file), "utf-8").replace(SITE_OMIT, ""), { link, label, headings });
+  const markdown = doc.generated ? changelogMarkdown() : readFileSync(join(root, doc.file), "utf-8");
+  const body = render(markdown.replace(SITE_OMIT, ""), { link, label, headings });
   const sidebar = docs
     .map((d) => {
       const href = d.slug ? `/docs/${d.slug}/` : "/docs/";
@@ -153,8 +169,9 @@ for (const doc of docs) {
     .join("");
   // Sections and, indented, their subsections: on the CLI page the commands
   // are subsections, and a list of the sections alone named none of them
+  // The changelog's subsections are the same few (Features, Fixes) per release
   const toc = headings
-    .filter((h) => h.level === 2 || h.level === 3)
+    .filter((h) => h.level === 2 || (h.level === 3 && !doc.generated))
     .map((h) => `<a href="#${h.id}"${h.level === 3 ? ' class="sub"' : ""}>${escape(h.text.replace(/`/g, ""))}</a>`)
     .join("");
   write(
@@ -173,7 +190,7 @@ for (const doc of docs) {
 <aside class="sidebar" aria-label="Docs"><h4>Docs</h4>${sidebar}${toc ? `<h4>On this page</h4>${toc}` : ""}</aside>
 <details class="contents"><summary>Contents</summary><nav aria-label="Docs"><h4>Docs</h4>${sidebar}${toc ? `<h4>On this page</h4>${toc}` : ""}</nav></details>
 <article class="prose">${body}
-<p class="edit"><a href="${REPO}/blob/main/${doc.file}">Edit ${doc.file} on GitHub</a></p></article>
+<p class="edit">${doc.generated ? `Made from the commit history; the <a href="${REPO}/releases">releases</a> have the files.` : `<a href="${REPO}/blob/main/${doc.file}">Edit ${doc.file} on GitHub</a>`}</p></article>
 </div>`,
     })
   );

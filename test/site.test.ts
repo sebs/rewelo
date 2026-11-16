@@ -28,7 +28,7 @@ describe("website (site/build.mjs)", () => {
   });
 
   it("builds the landing page, a page per doc and the 404 page", () => {
-    for (const page of ["index.html", "404.html", ".nojekyll", "docs/index.html", "docs/cli/index.html", "docs/mcp/index.html", "docs/calculations/index.html", "docs/examples/index.html"]) {
+    for (const page of ["index.html", "404.html", ".nojekyll", "docs/index.html", "docs/cli/index.html", "docs/mcp/index.html", "docs/calculations/index.html", "docs/examples/index.html", "docs/changelog/index.html"]) {
       assert.ok(existsSync(join(out, page)), page);
     }
   });
@@ -78,6 +78,21 @@ describe("website (site/build.mjs)", () => {
       assert.ok(home.includes(text), text);
     }
     assert.match(home, /href="\/rewelo\/docs\/mcp\/#without-docker"/);
+  });
+
+  it("has a changelog page made from the releases, linked from the landing page", () => {
+    const page = readFileSync(join(out, "docs/changelog/index.html"), "utf-8");
+    // A clone with the tags lists the releases; a shallow one (CI) links to them
+    const tags = execFileSync("git", ["tag", "--list", "v*"], { cwd: resolve(__dirname, "../.."), stdio: "pipe" }).toString().trim();
+    if (tags) {
+      assert.match(page, /<h2 id="0100"><a class="anchor" href="#0100">0\.10\.0<\/a><\/h2>/);
+      assert.match(page, /forecast when tickets will be done/);
+      const toc = page.slice(page.indexOf("On this page"), page.indexOf("</aside>"));
+      assert.doesNotMatch(toc, /class="sub"/);
+    } else {
+      assert.match(page, /The release notes are on <a href="https:\/\/github\.com\/sebs\/rewelo\/releases">GitHub<\/a>/);
+    }
+    assert.match(readFileSync(join(out, "index.html"), "utf-8"), /<a href="\/rewelo\/docs\/changelog\/">what&#39;s new<\/a>|<a href="\/rewelo\/docs\/changelog\/">what's new<\/a>/);
   });
 
   it("gives every page a link preview with absolute URLs", () => {

@@ -14,14 +14,20 @@
  * Commits are grouped by conventional-commit prefix (feat, fix, etc.).
  * Commits without a recognised prefix go under "Other"; version bump commits
  * ("0.6.1", as `npm version` writes them) are left out.
+ *
+ * changelog() gives the whole changelog without writing a file: the website
+ * shows it (site/build.mjs).
  */
 
 import { execSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync } from "fs";
+import { pathToFileURL } from "url";
+
+const git = (command, cwd) => execSync(`git ${command}`, { cwd, stdio: ["ignore", "pipe", "pipe"] }).toString().trim();
 
 // Newest first, with a prerelease (v0.7.0-rc.1) before its release (v0.7.0):
 // plain version sorting puts the prerelease after it
-const tags = execSync("git -c versionsort.suffix=- tag --sort=-version:refname").toString().trim().split("\n").filter(Boolean);
+const releaseTags = (cwd) => git("-c versionsort.suffix=- tag --sort=-version:refname", cwd).split("\n").filter(Boolean);
 
 const labels = {
   breaking: "Breaking Changes",
@@ -38,8 +44,8 @@ const labels = {
 };
 
 // The changelog entry for the commits in `range`, or undefined if there are none
-function entryFor(version, range) {
-  const log = execSync(`git log ${range} --pretty=format:"%s" --no-merges`).toString().trim();
+function entryFor(version, range, cwd) {
+  const log = git(`log ${range} --pretty=format:"%s" --no-merges`, cwd);
   const groups = Object.fromEntries(Object.keys(labels).map((key) => [key, []]));
   for (const line of log.split("\n").filter(Boolean)) {
     if (/^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(line.trim())) continue; // version bump
@@ -71,56 +77,69 @@ const isPrerelease = (tag) => tag.includes("-");
 // The range of commits a tag released: a prerelease from the tag before it,
 // a stable release from the stable release before it (from its release
 // candidate, 0.7.0's notes held only the fixes made after 0.7.0-rc.1)
-function rangeFor(tag) {
+function rangeFor(tag, tags) {
   const older = tags.slice(tags.indexOf(tag) + 1);
   const previous = isPrerelease(tag) ? older[0] : older.find((t) => !isPrerelease(t));
   return previous ? `${previous}..${tag}` : tag;
 }
 
-const changelogPath = "CHANGELOG.md";
-
-if (process.argv[2] === "--all") {
-  const entries = tags.map((tag) => entryFor(tag.replace(/^v/, ""), rangeFor(tag))).filter(Boolean);
-  writeFileSync(changelogPath, `# Changelog\n\n${entries.join("")}`);
-  console.error(`Wrote ${changelogPath} with ${entries.length} versions`);
-  process.exit(0);
+/** The changelog of every release, newest first, as Markdown (what --all writes) */
+export function changelog(cwd = process.cwd()) {
+  const tags = releaseTags(cwd);
+  const entries = tags.map((tag) => entryFor(tag.replace(/^v/, ""), rangeFor(tag, tags), cwd)).filter(Boolean);
+  return { markdown: `# Changelog\n\n${entries.join("")}`, versions: entries.length };
 }
 
-let version;
-let range;
-if (process.argv[2] === undefined) {
-  // What has happened since the latest release
-  version = "Unreleased";
-  range = tags.length > 0 ? `${tags[0]}..HEAD` : "HEAD";
-} else {
-  const tag = process.argv[2];
-  version = tag.replace(/^v/, "");
-  const vTag = tag.startsWith("v") ? tag : `v${tag}`;
-  if (!tags.includes(vTag)) {
-    console.error(`Unknown tag "${tag}". Known tags: ${tags.slice(0, 5).join(", ")}${tags.length > 5 ? ", ..." : ""}`);
+// The command line, when run rather than imported
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+
+function main() {
+  const changelogPath = "CHANGELOG.md";
+  const tags = releaseTags();
+
+  if (process.argv[2] === "--all") {
+    const { markdown, versions } = changelog();
+    writeFileSync(changelogPath, markdown);
+    console.error(`Wrote ${changelogPath} with ${versions} versions`);
+    process.exit(0);
+  }
+
+  let version;
+  let range;
+  if (process.argv[2] === undefined) {
+    // What has happened since the latest release
+    version = "Unreleased";
+    range = tags.length > 0 ? `${tags[0]}..HEAD` : "HEAD";
+  } else {
+    const tag = process.argv[2];
+    version = tag.replace(/^v/, "");
+    const vTag = tag.startsWith("v") ? tag : `v${tag}`;
+    if (!tags.includes(vTag)) {
+      console.error(`Unknown tag "${tag}". Known tags: ${tags.slice(0, 5).join(", ")}${tags.length > 5 ? ", ..." : ""}`);
+      process.exit(1);
+    }
+    range = rangeFor(vTag, tags);
+  }
+
+  const entry = entryFor(version, range);
+  if (!entry) {
+    console.error("No commits found.");
     process.exit(1);
   }
-  range = rangeFor(vTag);
-}
 
-const entry = entryFor(version, range);
-if (!entry) {
-  console.error("No commits found.");
-  process.exit(1);
-}
+  // Add to CHANGELOG.md, replacing an entry for the same version (running the
+  // script twice used to add a second one)
+  if (existsSync(changelogPath)) {
+    const existing = readFileSync(changelogPath, "utf-8");
+    const header = "# Changelog\n\n";
+    const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const body = existing
+      .replace(/^# Changelog\s*\n*/, "")
+      .replace(new RegExp(`^## ${escaped}\\n[\\s\\S]*?(?=^## |(?![\\s\\S]))`, "m"), "");
+    writeFileSync(changelogPath, header + entry + body);
+  } else {
+    writeFileSync(changelogPath, `# Changelog\n\n${entry}`);
+  }
 
-// Add to CHANGELOG.md, replacing an entry for the same version (running the
-// script twice used to add a second one)
-if (existsSync(changelogPath)) {
-  const existing = readFileSync(changelogPath, "utf-8");
-  const header = "# Changelog\n\n";
-  const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const body = existing
-    .replace(/^# Changelog\s*\n*/, "")
-    .replace(new RegExp(`^## ${escaped}\\n[\\s\\S]*?(?=^## |(?![\\s\\S]))`, "m"), "");
-  writeFileSync(changelogPath, header + entry + body);
-} else {
-  writeFileSync(changelogPath, `# Changelog\n\n${entry}`);
+  console.log(entry.trim());
 }
-
-console.log(entry.trim());
