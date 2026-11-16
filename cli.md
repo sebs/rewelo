@@ -4,12 +4,14 @@ Prioritisation tool using the relative weight method. Stores data in SQLite.
 
 ## Installation
 
+rewelo needs Node.js 24 or newer. Install it from npm, which puts `rw` on your path:
+
 ```bash
-npm install
-npm run build
+npm install -g rewelo
+rw --version
 ```
 
-The CLI is available as `rw` (via `npm link`) or directly with `node dist/index.js`.
+Or run a single command without installing, with `npx rewelo <command>` (for example `npx rewelo project list`). The Docker image runs the same CLI; see [Docker](#docker) below. To work on rewelo itself, build it from a checkout as described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Global Options
 
