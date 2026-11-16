@@ -53,6 +53,7 @@ Feature: MCP Server
       | report_flow           |
       | report_forecast       |
       | report_estimates      |
+      | report_changes        |
       | report_distribution   |
       | report_group          |
       | report_dashboard      |

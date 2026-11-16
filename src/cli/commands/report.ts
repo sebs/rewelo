@@ -9,6 +9,7 @@ import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from 
 import { DEFAULT_FLOW_WEEKS, getFlowReport, type Percentiles } from "../../reports/flow-metrics.js";
 import { DEFAULT_HISTORY_DAYS, forecastText, getForecast } from "../../reports/forecast.js";
 import { getEstimateAccuracy } from "../../reports/estimates.js";
+import { DEFAULT_CHANGE_DAYS, getRankingChanges, rankMove } from "../../reports/ranking-changes.js";
 import { validateExportPath } from "../../validation/paths.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { displayWidth } from "../../display-width.js";
@@ -258,6 +259,32 @@ export function registerReportCommands(program: Command): void {
           headers: ["Estimate", "Tickets", "Median", "85%"],
           row: (e) => [String(e.estimate), String(e.count), days(e.p50), days(e.p85)],
           below: ["", ...notes],
+        });
+      });
+    });
+
+  reportCmd
+    .command("changes")
+    .description("what changed in the ranking since a date, and why")
+    .option(...PROJECT_OPTION)
+    .option("--since <timestamp>", `ISO date or timestamp (default: ${DEFAULT_CHANGE_DAYS} days ago)`)
+    .action(async (cmdOpts: ProjectOptions & { since?: string }, cmd: Command) => {
+      const opts = cmd.optsWithGlobals<GlobalOptions>();
+      await withProject(opts, cmdOpts.project, async (db, project) => {
+        const report = await getRankingChanges(db, project.id, cmdOpts.since);
+        const notes = [
+          ...(report.shifted > 0 ? [`${report.shifted} other ${report.shifted === 1 ? "ticket" : "tickets"} moved only because these did.`] : []),
+          ...(report.deleted.length > 0 ? [`Deleted since: ${report.deleted.map(escapeControls).join(", ")}`] : []),
+        ];
+        printRows(opts, report.changes, {
+          json: report,
+          quiet: (c) => `${escapeControls(c.title)}\t${c.rankThen ?? ""}\t${c.rankNow ?? ""}\t${c.reasons.join("; ")}`,
+          isEmpty: report.changes.length === 0,
+          empty: [`No ranking changes since ${report.since}.`, ...notes].join("\n"),
+          above: [`Project: ${project.name}`, `Open tickets by priority, ${report.since} (${report.openThen}) and now (${report.openNow}):`],
+          headers: ["Ticket", "Rank", "Why"],
+          row: (c) => [c.title, rankMove(c), c.reasons.join("; ")],
+          below: notes.length > 0 ? ["", ...notes] : [],
         });
       });
     });

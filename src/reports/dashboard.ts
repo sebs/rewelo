@@ -14,6 +14,7 @@ import { FLOW_SERIES, flowChartSvg, flowSummary } from "./flow-chart.js";
 import { forecastFromDaily, forecastText, dailyDone, DEFAULT_HISTORY_DAYS, type Forecast } from "./forecast.js";
 import { getDependencyGraph, type DependencyGraph } from "./dependencies.js";
 import { dependencyGraphSvg } from "./dependency-graph.js";
+import { DEFAULT_CHANGE_DAYS, getRankingChanges, rankMove, type RankingChanges } from "./ranking-changes.js";
 
 export interface DashboardOptions {
   /** ISO timestamp shown in the header; omit to leave it blank. */
@@ -54,6 +55,8 @@ export interface DashboardModel {
   forecast?: Forecast;
   /** Which open tickets block which */
   dependencies?: DependencyGraph;
+  /** What changed in the ranking in the last DEFAULT_CHANGE_DAYS days */
+  rankingChanges?: RankingChanges;
 }
 
 /** What the dashboard shows, read from the database; the flow ends on now's day */
@@ -89,7 +92,9 @@ export async function buildDashboardModel(
   const forecast = forecastFromDaily(dailyDone(events.done, DEFAULT_HISTORY_DAYS, now), rows.length, now);
   const dependencies = await getDependencyGraph(db, projectId, open.map((t) => ({ id: t.id, title: t.title, priority: priority(t) })));
 
-  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow, forecast, dependencies };
+  const rankingChanges = await getRankingChanges(db, projectId, undefined, now);
+
+  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow, forecast, dependencies, rankingChanges };
 }
 
 /**
@@ -153,6 +158,37 @@ function flowSection(flow: FlowWindow[], forecast?: Forecast): string {
   ${charts}
   <ul class="legend">${legend}</ul>
   ${forecast ? `<p class="forecast"><strong>Forecast:</strong> ${esc(forecastText(forecast))}</p>` : ""}
+</section>`;
+}
+
+/** Ranking changes shown on the dashboard: a summary; the report lists them all */
+export const DASHBOARD_CHANGES = 20;
+
+/** The ranking changes card: the tickets with a change of their own */
+function changesSection(report: RankingChanges, limit: number): string {
+  const head = `<h2 id="changes">Ranking changes in the last ${DEFAULT_CHANGE_DAYS} days</h2>`;
+  const notes = [
+    ...(report.shifted > 0 ? [`${report.shifted} other ${report.shifted === 1 ? "ticket" : "tickets"} moved only because these did.`] : []),
+    ...(report.deleted.length > 0 ? [`Deleted: ${report.deleted.map(esc).join(", ")}.`] : []),
+    ...(report.changes.length > limit ? [`Showing ${limit} of ${report.changes.length} changes; <code>rw report changes</code> or <code>report_changes</code> lists them all.`] : []),
+  ].map((n) => `<p class="meta">${n}</p>`).join("");
+  if (report.changes.length === 0) {
+    return `<section class="card" aria-labelledby="changes">${head}<p class="empty">No ticket changed rank for a reason of its own.</p>${notes}</section>`;
+  }
+  const rows = report.changes
+    .slice(0, limit)
+    .map((c) => `<tr><td>${esc(c.title)}</td><td class="move">${esc(rankMove(c))}</td><td>${esc(c.reasons.join("; "))}</td></tr>`)
+    .join("");
+  return `<section class="card" aria-labelledby="changes">
+  ${head}
+  <p class="meta">Open tickets by priority, as in the table above, then and now, with what changed about each.</p>
+  <div class="scroll">
+  <table aria-labelledby="changes">
+    <thead><tr><th scope="col">Ticket</th><th scope="col">Rank</th><th scope="col">Why</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  </div>
+  ${notes}
 </section>`;
 }
 
@@ -399,6 +435,7 @@ ${options.limit !== undefined ? `<meta name="rewelo-limit" content="${options.li
   td.n { text-align: right; font-variant-numeric: tabular-nums; }
   td.strong { font-weight: 700; }
   td.rel { color: var(--muted); }
+  td.move { white-space: nowrap; font-variant-numeric: tabular-nums; }
   td.empty { text-align: center; }
   abbr { text-decoration: none; }
   footer { color: var(--muted); font-size: .8rem; text-align: center; }
@@ -438,6 +475,8 @@ ${flowSection(flow, model.forecast)}
   </div>
   ${more(Math.min(limit, rows.length), rows.length, "open ticket")}
 </section>
+
+${model.rankingChanges ? changesSection(model.rankingChanges, Math.min(limit, DASHBOARD_CHANGES)) : ""}
 
 ${model.dependencies ? dependencySection(model.dependencies) : ""}
 

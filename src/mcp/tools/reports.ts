@@ -12,6 +12,7 @@ import { DASHBOARD_APP_META, DASHBOARD_VERSION_META } from "../app.js";
 import { DEFAULT_FLOW_WEEKS, getFlowReport } from "../../reports/flow-metrics.js";
 import { DEFAULT_HISTORY_DAYS, FORECAST_TRIALS, getForecast } from "../../reports/forecast.js";
 import { getEstimateAccuracy } from "../../reports/estimates.js";
+import { DEFAULT_CHANGE_DAYS, getRankingChanges } from "../../reports/ranking-changes.js";
 import { READ, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerReportTools(ctx: McpContext): void {
@@ -73,6 +74,17 @@ export function registerReportTools(ctx: McpContext): void {
   );
 
   tool(
+    "report_changes",
+    `What changed in the ranking since a date, and why: the open tickets by priority (value / cost) then and now, and the tickets with a change of their own, with their rank then and now and the reasons (new, done, reopened, re-scored with the scores from and to, now blocked by a ticket, no longer blocked because the blocker is done). Tickets that only moved because others did are counted as shifted. The scores then come from the revisions, done from the tag changes; weights, relations removed since and the scores of deleted tickets aren't in the history, so deleted tickets are listed by title only. Default since: ${DEFAULT_CHANGE_DAYS} days ago.`,
+    {
+      ...PROJECT_ARG,
+      since: z.string().optional().describe(`ISO date or timestamp (default: ${DEFAULT_CHANGE_DAYS} days ago)`),
+    },
+    READ,
+    ({ project, since }) => inProject(project, (db, proj) => getRankingChanges(db, proj.id, since))
+  );
+
+  tool(
     "report_health",
     "Assess backlog health: high/low priority ratio, open ticket count, total cost, and the stale tickets: open ones whose scores haven't changed for staleDays (a change of title, description or tags doesn't count), oldest first, worth re-scoring. highToLowRatio is null when no open ticket is low priority, also when there are no open tickets.",
     {
@@ -109,7 +121,7 @@ export function registerReportTools(ctx: McpContext): void {
 
   tool(
     "report_dashboard",
-    "Render a self-contained HTML dashboard (health, cumulative flow and forecast, tickets, dependency graph, distribution, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it. Hosts that support MCP Apps show it to the user in its page (ui://rewelo/dashboard.html).",
+    "Render a self-contained HTML dashboard (health, cumulative flow and forecast, tickets, ranking changes, dependency graph, distribution, relations). Returns the HTML document as text, or, when it is over 5 MB, a link to the resource with it. Hosts that support MCP Apps show it to the user in its page (ui://rewelo/dashboard.html).",
     {
       ...PROJECT_ARG,
       limit: z.number().int().nonnegative().max(MAX_DASHBOARD_ROWS).optional().describe("Rows per table (default 500)"),

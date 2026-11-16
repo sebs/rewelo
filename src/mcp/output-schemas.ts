@@ -285,6 +285,23 @@ export const outputSchemas = {
     correlation: z.number().nullable().describe("Spearman's rank correlation, -1 to 1"),
     verdict: z.string(),
   }),
+  report_changes: z.object({
+    since: timestamp,
+    now: timestamp,
+    openThen: z.number().int(),
+    openNow: z.number().int(),
+    changes: z.array(z.object({
+      ticketId: z.number().int(),
+      title: z.string(),
+      rankThen: z.number().int().nullable(),
+      rankNow: z.number().int().nullable(),
+      priorityThen: z.number().nullable(),
+      priorityNow: z.number().nullable(),
+      reasons: z.array(z.string()),
+    })),
+    shifted: z.number().int(),
+    deleted: z.array(z.string()),
+  }),
   report_times: z.object({
     tickets: z.array(z.object({
       ticketId: z.number().int(),

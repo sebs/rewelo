@@ -243,11 +243,12 @@ A relation that contradicts an existing one (`B blocks A` next to `A blocks B` o
 | `report_times`    | Lead and cycle time report         | `project?`                                 |
 | `report_forecast` | When the open tickets (or `items` of them) will be done, by Monte Carlo from the recent pace | `project?`, `items?`, `historyDays?` |
 | `report_estimates` | Whether estimates predict cycle time: cycle time per estimate at the start of work, rank correlation, verdict | `project?` |
+| `report_changes`  | What changed in the ranking since a date, and why | `project?`, `since?` |
 | `report_flow`     | Throughput per week, cycle and lead time percentiles, work in progress by age | `project?`, `weeks?` |
 | `report_health`   | Backlog health report, with the stale tickets | `project?`, `threshold?`, `staleDays?` |
 | `report_distribution` | Fibonacci score distribution   | `project?`                                 |
 | `report_group`    | Group tickets by tag prefix        | `project?`, `prefix`                       |
-| `report_dashboard`| Self-contained HTML dashboard, with a cumulative flow diagram, a forecast and a dependency graph | `project?`, `limit?` |
+| `report_dashboard`| Self-contained HTML dashboard, with a cumulative flow diagram, a forecast, the ranking changes and a dependency graph | `project?`, `limit?` |
 | `dashboard_version` | For the dashboard app only: a token that changes when the dashboard may have | `project?` |
 
 `report_health` also lists the stale tickets as `staleTickets`: the open tickets whose scores haven't changed for `staleDays` (default 90), oldest first, with `scoredAt` (when the scores last changed, or the ticket was created) and `days` since then. A change of title, description or tags doesn't count as re-scoring. They are the tickets whose priority rests on the oldest judgement.

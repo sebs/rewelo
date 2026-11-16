@@ -65,3 +65,17 @@ Feature: Reporting
     And it should not reload while nothing changes
     When I press Ctrl-C
     Then the command should end with exit code 0
+
+  Scenario: What changed in the ranking, and why
+    Given on "2026-03-01" the open tickets ranked "A", "B", "C"
+    And "C" was re-scored on "2026-03-05" from benefit 3 to 21
+    When I view the ranking changes for "Acme" since "2026-03-01"
+    Then "C" should be listed as "#3 → #1", re-scored: benefit 3 → 21
+    And "A" and "B" should not be listed, but counted as moved only because "C" did
+
+  Scenario: New, done and reopened tickets, and blockers
+    Given since last week a ticket was created, one was done and one was reopened
+    And a ticket got a new blocker, and another one's blocker was done
+    When I view the ranking changes for "Acme" for the last 7 days
+    Then each should be listed with what changed about it
+    And the dashboard should show the same changes

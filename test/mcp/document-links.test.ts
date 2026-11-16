@@ -80,7 +80,8 @@ describe("MCP links to documents over 5 MB", () => {
     assert.equal(resource.uri, `rewelo://Big%20Project/dashboard/${TICKETS}`);
     const content = await read(resource.uri);
     assert.equal(content.mimeType, "text/html");
-    assert.doesNotMatch(content.text, /Showing \d+ of/);
+    // The ticket and relation tables show every row (the ranking changes are a summary, capped on purpose)
+    assert.doesNotMatch(content.text, /Showing \d+ of \d+ (open tickets?|relations?)/);
   });
 
   it("refuses a document over 10 MB as sent, which would drop the SDK's stdio client", async () => {

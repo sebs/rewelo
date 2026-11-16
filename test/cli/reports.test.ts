@@ -67,6 +67,15 @@ describe("rw report (CLI)", () => {
     assert.equal(json.correlation, null);
   });
 
+  it("report changes lists the tickets with a change of their own", () => {
+    rw("ticket", "create", "--project", "P", "--title", "New one", "--benefit", "8");
+    const text = rw("report", "changes", "--project", "P", "--since", "2000-01-01").stdout;
+    assert.match(text, /^New one \| new at #1 \| new$/m);
+    assert.equal(JSON.parse(rw("--json", "report", "changes", "--project", "P").stdout).changes[0].reasons[0], "new");
+    assert.match(rw("report", "changes", "--project", "P", "--since", "2999-01-01").stdout, /^No ranking changes since 2999-01-01T00:00:00\.000Z\.$/m);
+    assert.match(rw("report", "changes", "--project", "P", "--since", "soon").stderr, /Invalid timestamp/);
+  });
+
   it("report group names the prefix it searched for when it finds nothing", () => {
     assert.equal(rw("report", "group", "--project", "P", "--prefix", " Nope ").stdout, 'No tickets with "nope:" tags found.\n');
   });
