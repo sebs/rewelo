@@ -107,6 +107,8 @@ main:focus { outline: none; }
 .install h2, .method h2 { font-size: 1.2rem; margin: 0 0 0.6rem; }
 .install p { color: var(--muted); font-size: 0.95rem; }
 .install .more { grid-column: 1 / -1; margin: 0; }
+.output-label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 1.25rem 0 0.4rem; }
+pre.output { background: var(--surface); border: 1px solid var(--border); }
 
 .method { margin: 0 0 2.5rem; max-width: 46rem; }
 .formula {

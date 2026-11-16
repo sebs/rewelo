@@ -16,8 +16,16 @@
 rw project create Acme
 rw ticket create --project Acme --title "Login page" \
   --benefit 8 --penalty 5 --estimate 3 --risk 2
+# … and three more tickets
 rw ticket list --project Acme --sort priority</code></pre>
-    <p>Every command is in the <a href="/docs/cli/">CLI reference</a>.</p>
+    <h3 class="output-label">What you get</h3>
+    <pre class="output"><code>Title          | B |  P | E | R | Value | Cost | Priority
+-------------- | - | -- | - | - | ----- | ---- | --------
+Password reset | 5 |  8 | 2 | 1 |    13 |    3 |     4.33
+Login page     | 8 |  5 | 3 | 2 |    13 |    5 |     2.60
+Audit log      | 3 | 13 | 8 | 5 |    16 |   13 |     1.23
+Dark mode      | 3 |  1 | 5 | 2 |     4 |    7 |     0.57</code></pre>
+    <p>The password reset comes first: as much value as the login page for three fifths of the cost. Every command is in the <a href="/docs/cli/">CLI reference</a>.</p>
   </div>
   <div>
     <h2>MCP server from npm</h2>

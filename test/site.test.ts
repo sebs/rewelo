@@ -80,6 +80,12 @@ describe("website (site/build.mjs)", () => {
     assert.match(home, /href="\/rewelo\/docs\/mcp\/#without-docker"/);
   });
 
+  it("shows what the CLI example prints", () => {
+    const home = readFileSync(join(out, "index.html"), "utf-8");
+    assert.match(home, /What you get<\/h3>\s*<pre class="output"><code>Title +\| B/);
+    assert.match(home, /Password reset \| 5 \| +8 \| 2 \| 1 \| +13 \| +3 \| +4\.33/);
+  });
+
   it("lets a keyboard user skip the navigation to the page's one main landmark", () => {
     for (const page of ["index.html", "docs/index.html", "docs/cli/index.html", "404.html"]) {
       const html = readFileSync(join(out, page), "utf-8");
