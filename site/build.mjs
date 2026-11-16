@@ -24,6 +24,10 @@ const REPO = "https://github.com/sebs/rewelo";
 // Leading slash added and trailing one dropped: "rewelo" and "/rewelo/" both
 // mean "/rewelo" (without the leading slash every asset link was relative).
 const BASE = (process.env.SITE_BASE ?? "/rewelo").replace(/^\/*/, "/").replace(/\/+$/, "");
+// Where the site is published, for the absolute URLs that link previews
+// need (Open Graph); SITE_URL for another place, as SITE_BASE for the path
+const SITE_URL = (process.env.SITE_URL ?? pkg.homepage).replace(/\/+$/, "");
+const PREVIEW = { image: "assets/dashboard-light.png", width: 1200, height: 876, alt: "The rewelo dashboard: backlog health, a cumulative flow diagram and a forecast." };
 const withBase = (html) => (BASE ? html.replace(/(href|src|srcset)="\//g, `$1="${BASE}/`) : html);
 
 const docs = [
@@ -60,7 +64,21 @@ function label(href, text) {
 
 const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-function page({ title, description, active, main }) {
+/** path: the page's path below the site, e.g. "docs/cli/" ("" for the home page) */
+function page({ title, description, active, main, path }) {
+  // What a chat or social network shows for a shared link
+  const url = `${SITE_URL}/${path}`;
+  const preview = `<link rel="canonical" href="${url}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="rewelo">
+<meta property="og:title" content="${escape(title)}">
+<meta property="og:description" content="${escape(description)}">
+<meta property="og:url" content="${url}">
+<meta property="og:image" content="${SITE_URL}/${PREVIEW.image}">
+<meta property="og:image:width" content="${PREVIEW.width}">
+<meta property="og:image:height" content="${PREVIEW.height}">
+<meta property="og:image:alt" content="${escape(PREVIEW.alt)}">
+<meta name="twitter:card" content="summary_large_image">`;
   const nav = [
     ["/", "Home", "home"],
     ["/docs/", "Docs", "docs"],
@@ -77,6 +95,7 @@ function page({ title, description, active, main }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(title)}</title>
 <meta name="description" content="${escape(description)}">
+${preview}
 <link rel="stylesheet" href="/assets/style.css">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 </head>
@@ -115,7 +134,8 @@ write(
   "index.html",
   page({
     title: "rewelo — relative weight prioritisation for backlogs",
-    description: pkg.description,
+    description: "Rank your backlog by value for effort with the relative weight method, chart its flow, forecast when it's done, from the command line or your AI assistant.",
+    path: "",
     active: "home",
     main: readFileSync(join(here, "landing.html"), "utf-8").replace("{{version}}", escape(pkg.version)),
   })
@@ -142,6 +162,7 @@ for (const doc of docs) {
     page({
       title: `${doc.label} — rewelo`,
       description: doc.sub,
+      path: doc.slug ? `docs/${doc.slug}/` : "docs/",
       active: ["cli", "mcp", "examples"].includes(doc.slug) ? doc.slug : "docs",
       // On a phone the contents came before the page, 17 links on the MCP
       // page: there they are a closed <details> instead. Without a script one
@@ -164,6 +185,7 @@ write(
   page({
     title: "Not found — rewelo",
     description: "This page does not exist.",
+    path: "404.html",
     active: "",
     main: `<div class="notfound"><h1>Not found</h1><p>This page does not exist. Try the <a href="/">home page</a> or the <a href="/docs/">docs</a>.</p></div>`,
   })

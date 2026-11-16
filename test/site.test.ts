@@ -80,6 +80,17 @@ describe("website (site/build.mjs)", () => {
     assert.match(home, /href="\/rewelo\/docs\/mcp\/#without-docker"/);
   });
 
+  it("gives every page a link preview with absolute URLs", () => {
+    const cli = readFileSync(join(out, "docs/cli/index.html"), "utf-8");
+    assert.match(cli, /<link rel="canonical" href="https:\/\/sebs\.github\.io\/rewelo\/docs\/cli\/">/);
+    assert.match(cli, /<meta property="og:title" content="CLI — rewelo">/);
+    assert.match(cli, /<meta property="og:image" content="https:\/\/sebs\.github\.io\/rewelo\/assets\/dashboard-light\.png">/);
+    assert.match(cli, /<meta name="twitter:card" content="summary_large_image">/);
+    const home = readFileSync(join(out, "index.html"), "utf-8");
+    assert.match(home, /<meta property="og:url" content="https:\/\/sebs\.github\.io\/rewelo\/">/);
+    assert.ok(existsSync(join(out, "assets/dashboard-light.png")));
+  });
+
   it("shows the dashboard, in the reader's light or dark", () => {
     const home = readFileSync(join(out, "index.html"), "utf-8");
     assert.match(home, /<source srcset="\/rewelo\/assets\/dashboard-dark\.png" media="\(prefers-color-scheme: dark\)">/);
