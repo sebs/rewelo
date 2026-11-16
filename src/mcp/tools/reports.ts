@@ -11,6 +11,7 @@ import { dashboard, documentOrLink, MAX_DASHBOARD_ROWS, resourceUri } from "../d
 import { DASHBOARD_APP_META, DASHBOARD_VERSION_META } from "../app.js";
 import { DEFAULT_FLOW_WEEKS, getFlowReport } from "../../reports/flow-metrics.js";
 import { DEFAULT_HISTORY_DAYS, FORECAST_TRIALS, getForecast } from "../../reports/forecast.js";
+import { getEstimateAccuracy } from "../../reports/estimates.js";
 import { READ, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerReportTools(ctx: McpContext): void {
@@ -61,6 +62,14 @@ export function registerReportTools(ctx: McpContext): void {
     },
     READ,
     ({ project, items, historyDays }) => inProject(project, (db, proj) => getForecast(db, proj.id, { items, historyDays }))
+  );
+
+  tool(
+    "report_estimates",
+    "Whether estimates predict how long tickets take: for the done tickets with a cycle time (wip→done), the median and 85th percentile of cycle time in days per estimate, the estimate taken as it was when work started (not after a re-estimate), Spearman's rank correlation of estimate and cycle time (null under 5 tickets, or when nothing varies) and a verdict in words. Also how many tickets were re-estimated after work started, and how many done tickets have no cycle time.",
+    { ...PROJECT_ARG },
+    READ,
+    ({ project }) => inProject(project, (db, proj) => getEstimateAccuracy(db, proj.id))
   );
 
   tool(

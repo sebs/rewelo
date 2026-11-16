@@ -91,3 +91,21 @@ Feature: Lead Time and Cycle Time
     Given no ticket was done in "Acme" in the last 90 days
     When I ask for the forecast for "Acme"
     Then I should be told there is no pace to forecast from
+
+  Scenario: Do estimates predict cycle time?
+    Given these tickets are done:
+      | title | estimate | cycle time |
+      | S1    |        1 | 1 day      |
+      | S2    |        1 | 2 days     |
+      | M1    |        3 | 4 days     |
+      | M2    |        3 | 6 days     |
+      | L1    |        8 | 10 days    |
+    When I view the estimates report for "Acme"
+    Then I should see the median and 85th percentile cycle time per estimate
+    And a rank correlation of 0.95, with the verdict that estimates predict cycle time well
+
+  Scenario: The estimate counts as it was when work started
+    Given "Grew" was estimated 1, took 9 days, and was re-estimated 13 after it was done
+    When I view the estimates report for "Acme"
+    Then "Grew" should count with estimate 1
+    And the report should say 1 ticket was re-estimated after work started

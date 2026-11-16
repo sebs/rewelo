@@ -38,7 +38,7 @@ describe("MCP tool annotations", () => {
       "calc_priority", "calc_weights", "dashboard_version", "event_log", "explain_priority", "export_csv", "export_json",
       "plan_capacity", "project_diff", "project_history", "project_list",
       "relation_list", "relation_list_all",
-      "report_dashboard", "report_distribution", "report_flow", "report_forecast", "report_group", "report_health", "report_summary", "report_times",
+      "report_dashboard", "report_distribution", "report_estimates", "report_flow", "report_forecast", "report_group", "report_health", "report_summary", "report_times",
       "server_version", "simulate", "suggest_scores", "tag_list", "ticket_history", "ticket_list", "weight_get",
     ]);
   });

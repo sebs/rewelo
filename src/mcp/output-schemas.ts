@@ -272,6 +272,19 @@ export const outputSchemas = {
       date: z.string().nullable().describe("YYYY-MM-DD"),
     })),
   }),
+  report_estimates: z.object({
+    tickets: z.number().int(),
+    withoutCycleTime: z.number().int(),
+    reEstimated: z.number().int(),
+    byEstimate: z.array(z.object({
+      estimate: score,
+      count: z.number().int(),
+      p50: z.number().nullable(),
+      p85: z.number().nullable(),
+    })),
+    correlation: z.number().nullable().describe("Spearman's rank correlation, -1 to 1"),
+    verdict: z.string(),
+  }),
   report_times: z.object({
     tickets: z.array(z.object({
       ticketId: z.number().int(),

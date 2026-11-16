@@ -8,6 +8,7 @@ import { renderDashboard } from "../../reports/dashboard.js";
 import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from "../../reports/times.js";
 import { DEFAULT_FLOW_WEEKS, getFlowReport, type Percentiles } from "../../reports/flow-metrics.js";
 import { DEFAULT_HISTORY_DAYS, forecastText, getForecast } from "../../reports/forecast.js";
+import { getEstimateAccuracy } from "../../reports/estimates.js";
 import { validateExportPath } from "../../validation/paths.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { displayWidth } from "../../display-width.js";
@@ -229,6 +230,34 @@ export function registerReportCommands(program: Command): void {
           above: [`Project: ${project.name}`, forecastText(forecast), ""],
           headers: ["Likelihood", "Days", "Done by"],
           row: (o) => [`${o.likelihood}%`, o.days === null ? none : String(o.days), o.date ?? "not within ten years"],
+        });
+      });
+    });
+
+  reportCmd
+    .command("estimates")
+    .description("whether estimates predict cycle time: cycle time per estimate, and their correlation")
+    .option(...PROJECT_OPTION)
+    .action(async (cmdOpts: ProjectOptions, cmd: Command) => {
+      const opts = cmd.optsWithGlobals<GlobalOptions>();
+      await withProject(opts, cmdOpts.project, async (db, project) => {
+        const accuracy = await getEstimateAccuracy(db, project.id);
+        const none = opts.csv ? "" : "-";
+        const days = (d: number | null) => (d === null ? none : String(d));
+        const notes = [
+          ...(accuracy.correlation !== null ? [`Rank correlation of estimate and cycle time: ${accuracy.correlation}`] : []),
+          accuracy.verdict,
+          ...(accuracy.reEstimated > 0 ? [`${accuracy.reEstimated} of ${accuracy.tickets} tickets were re-estimated after work started; the estimate at the start counts.`] : []),
+          ...(accuracy.withoutCycleTime > 0 ? [`${accuracy.withoutCycleTime} done tickets never were state:wip and have no cycle time.`] : []),
+        ];
+        printRows(opts, accuracy.byEstimate, {
+          json: accuracy,
+          quiet: (e) => `${e.estimate}\t${e.count}\t${e.p50 ?? ""}\t${e.p85 ?? ""}`,
+          empty: accuracy.verdict,
+          above: [`Project: ${project.name}`, `Cycle time in days by estimate when work started (${accuracy.tickets} done tickets):`],
+          headers: ["Estimate", "Tickets", "Median", "85%"],
+          row: (e) => [String(e.estimate), String(e.count), days(e.p50), days(e.p85)],
+          below: ["", ...notes],
         });
       });
     });

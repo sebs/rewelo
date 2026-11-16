@@ -55,6 +55,18 @@ describe("rw report (CLI)", () => {
     assert.equal(json.outcomes[0].days, 0);
   });
 
+  it("report estimates says when there are too few tickets, in text and JSON", () => {
+    rw("ticket", "create", "--project", "P", "--title", "A", "--estimate", "3");
+    rw("tag", "assign", "state:wip", "--project", "P", "--ticket", "A");
+    rw("tag", "assign", "state:done", "--project", "P", "--ticket", "A");
+    const text = rw("report", "estimates", "--project", "P").stdout;
+    assert.match(text, /Cycle time in days by estimate when work started \(1 done tickets\):/);
+    assert.match(text, /Too few done tickets with a cycle time \(1\) to tell/);
+    const json = JSON.parse(rw("--json", "report", "estimates", "--project", "P").stdout);
+    assert.deepEqual(json.byEstimate.map((e: { estimate: number }) => e.estimate), [3]);
+    assert.equal(json.correlation, null);
+  });
+
   it("report group names the prefix it searched for when it finds nothing", () => {
     assert.equal(rw("report", "group", "--project", "P", "--prefix", " Nope ").stdout, 'No tickets with "nope:" tags found.\n');
   });

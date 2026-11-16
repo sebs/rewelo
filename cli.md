@@ -210,6 +210,7 @@ rw report health --project <name> [--threshold <n>] [--stale-days <n>]
 rw report times --project <name>
 rw report flow --project <name> [--weeks <n>]
 rw report forecast --project <name> [--items <n>] [--history-days <n>]
+rw report estimates --project <name>
 rw report dashboard --project <name> --output <path> [--limit <n>] [--watch]
 rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] [--limit <n>]
 ```
@@ -222,6 +223,7 @@ rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] 
 | `health`       | High/low priority ratio, total backlog cost, done vs open counts, and the open tickets not re-scored for `--stale-days` (default 90): the 10 oldest in the text, all of them under `--json` (`staleTickets`, with `scoredAt` and `days`); a change of title, description or tags doesn't count as re-scoring |
 | `times`        | Lead time (created → done) and cycle time (wip → done) per ticket |
 | `forecast`     | When the open tickets (or `--items` of them) will be done at the pace of the last `--history-days` (default 90): the date in 50, 85 and 95% of 10,000 simulated runs |
+| `estimates`    | Whether estimates predict cycle time: median and 85th percentile of cycle time per estimate (as it was when work started), their rank correlation and what it means |
 | `flow`         | Tickets done per week over the last `--weeks` complete weeks (default 12, 0 for all) and the current week so far, cycle and lead time as 50th/85th/95th percentiles, and the tickets in progress by age |
 | `dashboard`    | Self-contained static HTML dashboard: backlog health, a cumulative flow diagram, tickets by priority, score distribution and a table of relations; the ticket and relation tables show 500 rows unless `--limit` says otherwise; `--watch` keeps the file up to date |
 | `event-log`    | Ticket creations, updates, deletions and tag changes: the newest first (default 50), or after `--since`/`--after`, oldest first. `--after` takes an event's `sequence` (in `--json`) and polls without missing events |
@@ -231,6 +233,8 @@ rw report event-log --project <name> [--since <timestamp>] [--after <sequence>] 
 `flow` gives times as percentiles, which an average hides: "85% within 6 days" says what to expect of most tickets, while one ticket that took months moves the average. The percentiles are taken over the tickets done in the window (nearest rank, so each is a time some ticket took). The tickets in progress are those started and not done, oldest first; those already older than the 85th percentile of cycle time are flagged, as they are stuck or about to be late. Weeks start on Monday, UTC.
 
 `forecast` doesn't use estimates but the pace the project actually had. A Monte Carlo simulation replays days drawn at random from the history (how many tickets were done on each, weekends and slow days included) until the tickets are done, 10,000 times; the 85% date is the one by which 85% of the runs were done. It counts tickets, not their size, and assumes the coming weeks look like the recent ones: re-run it as the pace changes. The same data gives the same forecast. Without a ticket done in the history there is no pace, and no forecast. The dashboard shows the forecast for the open tickets under the cumulative flow. For how much fits into a capacity of estimate points, see `rw calc plan`.
+
+`estimates` checks the estimates against what happened: estimate is half of cost in the priority formula, so the ranking is only as good as they are. It looks at the done tickets with a cycle time and takes the estimate each had when work started; a ticket re-estimated afterwards, often to what it turned out to take, would make the estimates look better than they were. Spearman's rank correlation says whether larger estimates took longer: from 0.6 well, from 0.3 somewhat, under that not at all. It needs at least 5 tickets.
 
 The dashboard's cumulative flow diagram counts, at the end of each day (UTC), the tickets that have arrived (were created), started (first got `state:wip`, or `state:done` without it) and are done, by the same rules; deleted tickets aren't counted. It shows the last 30 days and switches to 14, 90 or 365 days or all days since the first ticket; the y axis starts 3 tickets below the lowest done count in the window. Read across, the distance between the arrived and done areas is the lead time; read down, the band between started and done is the work in progress.
 

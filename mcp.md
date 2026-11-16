@@ -242,6 +242,7 @@ A relation that contradicts an existing one (`B blocks A` next to `A blocks B` o
 | `report_summary`  | Project summary by state           | `project?`, `topN?`                        |
 | `report_times`    | Lead and cycle time report         | `project?`                                 |
 | `report_forecast` | When the open tickets (or `items` of them) will be done, by Monte Carlo from the recent pace | `project?`, `items?`, `historyDays?` |
+| `report_estimates` | Whether estimates predict cycle time: cycle time per estimate at the start of work, rank correlation, verdict | `project?` |
 | `report_flow`     | Throughput per week, cycle and lead time percentiles, work in progress by age | `project?`, `weeks?` |
 | `report_health`   | Backlog health report, with the stale tickets | `project?`, `threshold?`, `staleDays?` |
 | `report_distribution` | Fibonacci score distribution   | `project?`                                 |

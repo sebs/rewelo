@@ -2,7 +2,7 @@
 name: retro-accuracy
 description: Compare original estimates against actual outcomes to find scoring biases
 argument-hint: "[project]"
-allowed-tools: mcp__rewelo__ticket_list, mcp__rewelo__ticket_history, mcp__rewelo__event_log, mcp__rewelo__report_times, mcp__rewelo__calc_priority, mcp__rewelo__tag_list
+allowed-tools: mcp__rewelo__report_estimates, mcp__rewelo__ticket_list, mcp__rewelo__ticket_history, mcp__rewelo__event_log, mcp__rewelo__report_times, mcp__rewelo__calc_priority, mcp__rewelo__tag_list
 ---
 
 # Retrospective Accuracy Tracker
@@ -21,10 +21,10 @@ Analyze estimation accuracy for completed tickets in project **$0**.
 
 ### Estimate vs. Actual
 
-Compare the original **estimate** score against actual cycle time:
-- Group tickets by estimate score (1, 2, 3, 5, 8, 13, 21)
-- For each group, show average actual cycle time
+Start from `report_estimates`: it groups the done tickets by the estimate they had when work started, gives the median and 85th percentile of cycle time per estimate, the rank correlation of estimate and cycle time with a verdict, and how many tickets were re-estimated after work started. Don't recompute these.
+- Name the estimates whose tickets took about as long as smaller ones (the medians don't rise with the estimate)
 - Identify where estimates consistently under- or over-predict
+- When the verdict says estimates don't predict cycle time, say what that means for the ranking: estimate is half of cost in priority
 
 ### Risk vs. Actual Rework
 
