@@ -140,8 +140,14 @@ for (const doc of docs) {
       title: `${doc.label} — rewelo`,
       description: doc.sub,
       active: ["cli", "mcp", "examples"].includes(doc.slug) ? doc.slug : "docs",
+      // On a phone the contents came before the page, 17 links on the MCP
+      // page: there they are a closed <details> instead. Without a script one
+      // element can't be open on a wide screen and closed on a narrow one, so
+      // there are two, and CSS shows one (display: none hides the other from
+      // screen readers too)
       main: `<div class="docs">
-<aside class="sidebar"><h4>Docs</h4>${sidebar}${toc ? `<h4>On this page</h4>${toc}` : ""}</aside>
+<aside class="sidebar" aria-label="Docs"><h4>Docs</h4>${sidebar}${toc ? `<h4>On this page</h4>${toc}` : ""}</aside>
+<details class="contents"><summary>Contents</summary><nav aria-label="Docs"><h4>Docs</h4>${sidebar}${toc ? `<h4>On this page</h4>${toc}` : ""}</nav></details>
 <article class="prose">${body}
 <p class="edit"><a href="${REPO}/blob/main/${doc.file}">Edit ${doc.file} on GitHub</a></p></article>
 </div>`,

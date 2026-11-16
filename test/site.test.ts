@@ -72,6 +72,12 @@ describe("website (site/build.mjs)", () => {
     assert.match(toc, /<a href="#report" class="sub">report<\/a>/);
   });
 
+  it("puts the contents into a closed <details> for narrow screens", () => {
+    const mcp = readFileSync(join(out, "docs/mcp/index.html"), "utf-8");
+    assert.match(mcp, /<details class="contents"><summary>Contents<\/summary><nav aria-label="Docs">/);
+    assert.doesNotMatch(mcp, /<details class="contents" open/);
+  });
+
   it("names links to a doc by its page, not its file name", () => {
     const overview = readFileSync(join(out, "docs/index.html"), "utf-8");
     assert.match(overview, /<a href="\/rewelo\/docs\/calculations\/">Calculations<\/a>/);
