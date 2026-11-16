@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 // The website's Markdown renderer (site/markdown.mjs); build/test -> root
-let render: (markdown: string, options?: { link?: (href: string) => string }) => string;
+let render: (markdown: string, options?: { link?: (href: string) => string; label?: (href: string, text: string) => string }) => string;
 
 describe("site Markdown renderer", () => {
   before(async () => {
@@ -24,6 +24,16 @@ describe("site Markdown renderer", () => {
   it("leaves link targets alone while formatting link text", () => {
     assert.equal(render("[**a**](https://x.com/**b**)"), '<p><a href="https://x.com/**b**"><strong>a</strong></a></p>');
     assert.equal(render("see `**x**` and *y*"), "<p>see <code>**x**</code> and <em>y</em></p>");
+  });
+
+  it("turns a spaced double hyphen into a dash, but not in code or options", () => {
+    assert.equal(render("snapshots -- before each change, `a -- b`, --quiet"), "<p>snapshots — before each change, <code>a -- b</code>, --quiet</p>");
+  });
+
+  it("lets the caller name a link by its target", () => {
+    const label = (href: string, text: string) => (href === "cli.md" ? "the CLI" : text);
+    assert.equal(render("See [cli.md](cli.md) and [x](y.md).", { label }), '<p>See <a href="cli.md">the CLI</a> and <a href="y.md">x</a>.</p>');
+    assert.equal(render("- [cli.md](cli.md)", { label }), '<ul><li><a href="cli.md">the CLI</a></li></ul>');
   });
 
   it("gives every heading a unique, non-empty id", () => {

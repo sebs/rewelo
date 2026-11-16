@@ -35,7 +35,7 @@ const emphasis = (s) =>
 // A link or image target: no spaces, parentheses only in balanced pairs
 const TARGET = "((?:[^()\\s]|\\((?:[^()\\s])*\\))+)";
 
-function inline(text, link) {
+function inline(text, { link, label }) {
   // Pieces that must not be touched by later steps become placeholders:
   // code spans, autolinks, escaped characters, line breaks, links, images
   const held = [];
@@ -59,9 +59,12 @@ function inline(text, link) {
   const target = (href) => escape(link(href.replace(/&amp;/g, "&")));
   s = s
     .replace(new RegExp(`!\\[([^\\]]*)\\]\\(${TARGET}\\)`, "g"), (_, alt, src) => hold(`<img src="${target(src)}" alt="${alt}">`))
-    .replace(new RegExp(`\\[([^\\]]+)\\]\\(${TARGET}\\)`, "g"), (_, label, href) => hold(`<a href="${target(href)}">${emphasis(label)}</a>`));
+    .replace(new RegExp(`\\[([^\\]]+)\\]\\(${TARGET}\\)`, "g"), (_, text, href) =>
+      hold(`<a href="${target(href)}">${emphasis(label(href.replace(/&amp;/g, "&"), text))}</a>`)
+    );
 
-  s = emphasis(s);
+  // A dash typed as " -- " (code spans are held above, so options keep theirs)
+  s = emphasis(s).replace(/ -- /g, " — ");
   // Placeholders may hold placeholders (code in a link's text)
   while (/\u0000\d+\u0000/.test(s)) s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => held[i]);
   return s;
@@ -87,7 +90,7 @@ function interruptsParagraph(line) {
   return Boolean(m) && m[3].trim() !== "" && (!/\d/.test(m[2]) || parseInt(m[2], 10) === 1);
 }
 
-function renderList(lines, link) {
+function renderList(lines, ctx) {
   // Items sit at the smallest indent of the list, even if the first line is
   // indented deeper (it used to become the parent of everything after it)
   const base = Math.min(...lines.filter((l) => LIST_ITEM.test(l)).map(indentOf));
@@ -109,10 +112,10 @@ function renderList(lines, link) {
     if (current && current[0].ordered === item.ordered) current.push(item);
     else lists.push([item]);
   }
-  return lists.map((list) => renderItems(list, link)).join("");
+  return lists.map((list) => renderItems(list, ctx)).join("");
 }
 
-function renderItems(items, link) {
+function renderItems(items, ctx) {
   const ordered = items[0].ordered;
   const start = ordered ? items[0].number : 1;
   const body = items
@@ -120,7 +123,7 @@ function renderItems(items, link) {
       // An item holding a code fence is rendered as blocks (text, fence, ...)
       if (rest.some((l) => FENCE.test(l.trim()))) {
         const dedent = new RegExp(`^ {0,${indent}}`);
-        return `<li>${render([first, ...rest.map((l) => l.replace(dedent, ""))].join("\n"), { link })}</li>`;
+        return `<li>${render([first, ...rest.map((l) => l.replace(dedent, ""))].join("\n"), ctx)}</li>`;
       }
       // Lines before the first nested item continue this item's text; from
       // there on they belong to the nested list (and its items' text)
@@ -128,13 +131,13 @@ function renderItems(items, link) {
       const k = nested.findIndex((l) => LIST_ITEM.test(l));
       const text = [first, ...(k < 0 ? nested : nested.slice(0, k)).map((l) => l.trim())].join(" ");
       const sub = k < 0 ? [] : nested.slice(k);
-      return `<li>${inline(text, link)}${sub.length > 0 ? renderList(sub, link) : ""}</li>`;
+      return `<li>${inline(text, ctx)}${sub.length > 0 ? renderList(sub, ctx) : ""}</li>`;
     })
     .join("");
   return ordered ? `<ol${start !== 1 ? ` start="${start}"` : ""}>${body}</ol>` : `<ul>${body}</ul>`;
 }
 
-function renderTable(lines, link) {
+function renderTable(lines, ctx) {
   // Split on pipes that are not escaped (\|); outer pipes are optional
   const split = (line) => line.trim().replace(/^\|/, "").replace(/(?<!\\)\|$/, "").split(/(?<!\\)\|/).map((c) => c.trim());
   const [head, separator, ...rows] = lines;
@@ -142,7 +145,7 @@ function renderTable(lines, link) {
     /^:-+:$/.test(c) ? "center" : /^-+:$/.test(c) ? "right" : /^:-+$/.test(c) ? "left" : ""
   );
   const cell = (tag, text, i) =>
-    `<${tag}${align[i] ? ` style="text-align:${align[i]}"` : ""}>${inline(text.replace(/\\\|/g, "|"), link)}</${tag}>`;
+    `<${tag}${align[i] ? ` style="text-align:${align[i]}"` : ""}>${inline(text.replace(/\\\|/g, "|"), ctx)}</${tag}>`;
   return (
     `<div class="table"><table><thead><tr>${split(head).map((c, i) => cell("th", c, i)).join("")}</tr></thead>` +
     `<tbody>${rows.map((r) => `<tr>${split(r).map((c, i) => cell("td", c, i)).join("")}</tr>`).join("")}</tbody></table></div>`
@@ -151,11 +154,13 @@ function renderTable(lines, link) {
 
 /**
  * Render Markdown to HTML. `link` rewrites link targets (e.g. cli.md to the
- * site's page); headings get anchors, collected in `headings`.
+ * site's page), `label` a link's text given its target (e.g. "cli.md" to the
+ * page's name); headings get anchors, collected in `headings`.
  */
-export function render(markdown, { link = (href) => href, headings = [], ids = new Set() } = {}) {
+export function render(markdown, { link = (href) => href, label = (_href, text) => text, headings = [], ids = new Set() } = {}) {
   const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
   const out = [];
+  const ctx = { link, label, headings, ids };
 
   const heading = (level, text) => {
     // Unique across the page (block quotes included): foo, foo-1, foo-2,
@@ -165,7 +170,7 @@ export function render(markdown, { link = (href) => href, headings = [], ids = n
     for (let n = 1; ids.has(id); n++) id = `${base}-${n}`;
     ids.add(id);
     headings.push({ level, text, id });
-    return `<h${level} id="${id}"><a class="anchor" href="#${id}">${inline(text, link)}</a></h${level}>`;
+    return `<h${level} id="${id}"><a class="anchor" href="#${id}">${inline(text, ctx)}</a></h${level}>`;
   };
 
   let i = 0;
@@ -202,11 +207,11 @@ export function render(markdown, { link = (href) => href, headings = [], ids = n
     } else if (tableStartsAt(lines, i)) {
       const table = [];
       for (; i < lines.length && lines[i].trim() !== "" && lines[i].includes("|"); i++) table.push(lines[i]);
-      out.push(renderTable(table, link));
+      out.push(renderTable(table, ctx));
     } else if (/^ {0,3}>/.test(line)) {
       const quote = [];
       for (; i < lines.length && /^ {0,3}>/.test(lines[i]); i++) quote.push(lines[i].replace(/^ {0,3}>\s?/, ""));
-      out.push(`<blockquote>${render(quote.join("\n"), { link, headings, ids })}</blockquote>`);
+      out.push(`<blockquote>${render(quote.join("\n"), ctx)}</blockquote>`);
     } else if (LIST_ITEM.test(line)) {
       const list = [];
       for (; i < lines.length; i++) {
@@ -221,7 +226,7 @@ export function render(markdown, { link = (href) => href, headings = [], ids = n
         if (!LIST_ITEM.test(l) && indentOf(l) === 0) break;
         list.push(l);
       }
-      out.push(renderList(list, link));
+      out.push(renderList(list, ctx));
     } else if (/^ {0,3}(-\s*){3,}$|^ {0,3}(\*\s*){3,}$|^ {0,3}(_\s*){3,}$/.test(line)) {
       out.push("<hr>");
       i++;
@@ -247,7 +252,7 @@ export function render(markdown, { link = (href) => href, headings = [], ids = n
         para.push(l.replace(/^\s+/, ""));
       }
       const text = para.join("\n").replace(/\s+$/, "");
-      out.push(setext ? heading(setext, text.replace(/\n/g, " ")) : `<p>${inline(text, link)}</p>`);
+      out.push(setext ? heading(setext, text.replace(/\n/g, " ")) : `<p>${inline(text, ctx)}</p>`);
     }
   }
   return out.join("\n");

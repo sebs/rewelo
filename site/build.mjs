@@ -49,6 +49,15 @@ function link(href) {
   return `${REPO}/blob/main/${path.replace(/^\.\//, "")}${anchor ? `#${anchor}` : ""}`;
 }
 
+// A link whose text is just the doc's file name ("calculations.md") reads as
+// the page's name on the site, where there are no files
+const labelOf = new Map(docs.map((d) => [d.file.toLowerCase(), d.label]));
+function label(href, text) {
+  const file = href.split("#")[0].replace(/^\.\//, "").toLowerCase();
+  const page = labelOf.get(file);
+  return page && text.replace(/`/g, "").trim().toLowerCase() === file ? page : text;
+}
+
 const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 function page({ title, description, active, main }) {
@@ -112,7 +121,7 @@ write(
 // ── docs ──
 for (const doc of docs) {
   const headings = [];
-  const body = render(readFileSync(join(root, doc.file), "utf-8").replace(SITE_OMIT, ""), { link, headings });
+  const body = render(readFileSync(join(root, doc.file), "utf-8").replace(SITE_OMIT, ""), { link, label, headings });
   const sidebar = docs
     .map((d) => {
       const href = d.slug ? `/docs/${d.slug}/` : "/docs/";

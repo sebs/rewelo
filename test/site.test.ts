@@ -65,6 +65,13 @@ describe("website (site/build.mjs)", () => {
     assert.ok(readFileSync(join(out, "index.html"), "utf-8").includes('href="/rewelo/docs/examples/"'));
   });
 
+  it("names links to a doc by its page, not its file name", () => {
+    const overview = readFileSync(join(out, "docs/index.html"), "utf-8");
+    assert.match(overview, /<a href="\/rewelo\/docs\/calculations\/">Calculations<\/a>/);
+    assert.doesNotMatch(overview, />calculations\.md</);
+    assert.doesNotMatch(overview, / -- /);
+  });
+
   it("leaves out what the docs mark as for GitHub only, and the maintainers' release steps", () => {
     const overview = readFileSync(join(out, "docs/index.html"), "utf-8");
     assert.doesNotMatch(overview, /Website and docs|site:omit/);
