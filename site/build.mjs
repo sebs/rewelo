@@ -35,6 +35,10 @@ const docs = [
 ];
 const pageOf = new Map(docs.map((d) => [d.file.toLowerCase(), d.slug ? `/docs/${d.slug}/` : "/docs/"]));
 
+// A line ending in this comment is for GitHub only, not the website (the
+// Readme's link to the website, for one); GitHub doesn't show the comment
+const SITE_OMIT = /^.*<!-- site:omit -->\s*$\n?/gm;
+
 // Links between the docs go to their pages; links to other repository files
 // go to GitHub.
 function link(href) {
@@ -108,7 +112,7 @@ write(
 // ── docs ──
 for (const doc of docs) {
   const headings = [];
-  const body = render(readFileSync(join(root, doc.file), "utf-8"), { link, headings });
+  const body = render(readFileSync(join(root, doc.file), "utf-8").replace(SITE_OMIT, ""), { link, headings });
   const sidebar = docs
     .map((d) => {
       const href = d.slug ? `/docs/${d.slug}/` : "/docs/";

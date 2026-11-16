@@ -64,6 +64,35 @@ adr/            Architecture decision records
 - Run `npm test` before submitting a pull request
 - Keep pull requests small and focused -- large PRs will not be reviewed
 
+## Releasing a New Version
+
+Four GitHub Actions workflows in `.github/workflows/` cover building, releasing and publishing:
+
+| Workflow      | Runs on                   | Does |
+|---------------|---------------------------|------|
+| `ci.yml`      | pushes and pull requests to `main` | Type check, build, test, and a smoke test of the Docker image |
+| `release.yml` | pushing a `v*` tag        | Checks the tag matches `package.json`, tests, and creates the GitHub release with the npm tarball, SBOM, OCI image and changelog; pushes the image to `ghcr.io/sebs/rewelo` |
+| `publish.yml` | manual (with a version)   | Publishes that tagged version to npm via trusted publishing, with provenance, then lists it in the MCP Registry as `io.github.sebs/rewelo` |
+| `pages.yml`   | pushes to `main`          | Builds the website from `site/` and the docs, and deploys it to GitHub Pages |
+
+To release:
+
+1. Bump the version, which commits it (with `server.json`, the MCP Registry entry, set to the same version) and creates the matching tag:
+
+```bash
+npm version patch   # 0.1.0 → 0.1.1 (or minor, major)
+```
+
+2. Push the commit and the tag; `release.yml` builds the release:
+
+```bash
+git push --follow-tags
+```
+
+3. Publish to npm: run the Publish workflow with the new version (Actions → Publish → Run workflow), or `gh workflow run publish.yml -f version=0.1.1`. Once npm shows the version, the workflow lists it in the [MCP Registry](https://registry.modelcontextprotocol.io) too (mcp-publisher, logged in with the workflow's GitHub OIDC token, so without a secret). Prereleases such as `0.2.0-beta.1` are published under the `next` dist-tag, and a backport older than the current latest (0.5.2 after 0.6.1) under `backport`, so `npm install rewelo` keeps getting the newest stable version.
+
+One-time setup: add `sebs/rewelo` with workflow `publish.yml` as a trusted publisher of the `rewelo` package on npmjs.com, and set Settings → Pages → Source to "GitHub Actions".
+
 ## Architecture Decisions
 
 See the [adr/](adr/) directory for recorded architecture decisions.

@@ -65,6 +65,13 @@ describe("website (site/build.mjs)", () => {
     assert.ok(readFileSync(join(out, "index.html"), "utf-8").includes('href="/rewelo/docs/examples/"'));
   });
 
+  it("leaves out what the docs mark as for GitHub only, and the maintainers' release steps", () => {
+    const overview = readFileSync(join(out, "docs/index.html"), "utf-8");
+    assert.doesNotMatch(overview, /Website and docs|site:omit/);
+    assert.doesNotMatch(overview, /Releasing a New Version/);
+    assert.match(overview, /<h2 id="docker">/);
+  });
+
   it("adds the leading slash SITE_BASE is missing", () => {
     const other = mkdtempSync(join(tmpdir(), "rw-site-"));
     try {
