@@ -79,3 +79,15 @@ Feature: Lead Time and Cycle Time
     And the average per complete week
     And cycle time as 50th, 85th and 95th percentiles: 3, 9 and 9 days
     And "Story D" in progress, flagged as older than 85% of finished tickets took
+
+  Scenario: Forecast from the recent pace
+    Given 2 tickets were done on each of the last 30 days in "Acme"
+    And "Acme" has 10 open tickets
+    When I ask for the forecast for "Acme"
+    Then the 10 tickets should be done in 5 days with 50, 85 and 95% likelihood
+    And the same data should give the same forecast
+
+  Scenario: No forecast without a pace
+    Given no ticket was done in "Acme" in the last 90 days
+    When I ask for the forecast for "Acme"
+    Then I should be told there is no pace to forecast from

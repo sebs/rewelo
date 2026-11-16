@@ -157,6 +157,16 @@ describe("dashboard cumulative flow", () => {
     assert.doesNotMatch(html, /src=|href=|<script/i);
   });
 
+  it("forecasts the open tickets under the chart", async () => {
+    const done = (await createTag(db, projectId, "state", "done")).id;
+    const t = await createTicket(db, { projectId, title: "Done" });
+    await assignTag(db, t.id, done);
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-03-09T08:00:00.000Z' WHERE ticket_id = ?", t.id);
+    await createTicket(db, { projectId, title: "Open" });
+    const html = await renderDashboard(db, projectId, "Flow", { generatedAt: "2026-03-10T12:00:00.000Z" });
+    assert.match(html, /<p class="forecast"><strong>Forecast:<\/strong> At the pace of the last 90 days \(1 done\), 1 ticket will be done: 50% by 2026-/);
+  });
+
   it("says there is nothing to chart without tickets", async () => {
     const html = await renderDashboard(db, projectId, "Flow");
     assert.match(html, /No tickets to chart yet\./);

@@ -51,6 +51,7 @@ Feature: MCP Server
       | report_times          |
       | report_health         |
       | report_flow           |
+      | report_forecast       |
       | report_distribution   |
       | report_group          |
       | report_dashboard      |

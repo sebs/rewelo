@@ -10,6 +10,7 @@ import { validateTagPrefix } from "../../validation/strings.js";
 import { dashboard, documentOrLink, MAX_DASHBOARD_ROWS, resourceUri } from "../documents.js";
 import { DASHBOARD_APP_META, DASHBOARD_VERSION_META } from "../app.js";
 import { DEFAULT_FLOW_WEEKS, getFlowReport } from "../../reports/flow-metrics.js";
+import { DEFAULT_HISTORY_DAYS, FORECAST_TRIALS, getForecast } from "../../reports/forecast.js";
 import { READ, PROJECT_ARG, type McpContext } from "../toolkit.js";
 
 export function registerReportTools(ctx: McpContext): void {
@@ -48,6 +49,18 @@ export function registerReportTools(ctx: McpContext): void {
     },
     READ,
     ({ project, weeks }) => inProject(project, (db, proj) => getFlowReport(db, proj.id, weeks ?? DEFAULT_FLOW_WEEKS))
+  );
+
+  tool(
+    "report_forecast",
+    `When the open tickets, or a number of them, will be done at the pace the project actually had: a Monte Carlo simulation replays days drawn at random from the last historyDays (how many tickets were done on each), ${FORECAST_TRIALS} times, and gives the number of days and the date by which the tickets are done in 50, 85 and 95% of the runs. It counts tickets, not their size, and assumes the coming weeks look like the recent ones. No outcomes when no ticket was done in the history. For "how much fits into N points of capacity" use plan_capacity instead.`,
+    {
+      ...PROJECT_ARG,
+      items: z.number().int().nonnegative().optional().describe("Tickets to forecast (default: the open ones, not state:done)"),
+      historyDays: z.number().int().positive().optional().describe(`Days of recent pace to go by (default ${DEFAULT_HISTORY_DAYS})`),
+    },
+    READ,
+    ({ project, items, historyDays }) => inProject(project, (db, proj) => getForecast(db, proj.id, { items, historyDays }))
   );
 
   tool(

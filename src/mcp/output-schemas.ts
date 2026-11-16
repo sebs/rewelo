@@ -261,6 +261,17 @@ export const outputSchemas = {
       olderThanP85: z.boolean(),
     })),
   }),
+  report_forecast: z.object({
+    items: z.number().int(),
+    historyDays: z.number().int(),
+    doneInHistory: z.number().int(),
+    trials: z.number().int(),
+    outcomes: z.array(z.object({
+      likelihood: z.number().int().describe("Percent of the runs done by then"),
+      days: z.number().int().nullable().describe("Days from today; null when not within ten years"),
+      date: z.string().nullable().describe("YYYY-MM-DD"),
+    })),
+  }),
   report_times: z.object({
     tickets: z.array(z.object({
       ticketId: z.number().int(),

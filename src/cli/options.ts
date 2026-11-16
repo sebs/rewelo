@@ -51,6 +51,15 @@ export function parseNonNegativeIntOption(value: string): number {
   return n;
 }
 
+// For spans that can't be empty (the days a forecast goes by)
+export function parsePositiveIntOption(value: string): number {
+  const n = parseIntOption(value);
+  if (n < 1) {
+    throw new ValidationError(`"${value}" must be 1 or greater`);
+  }
+  return n;
+}
+
 // Scores must be exact integers. `parseInt` would silently accept lossy input
 // (8.5 -> 8, "13xyz" -> 13, "0x8" -> 8) before Fibonacci validation ever ran,
 // so validate the raw string is a plain integer first.

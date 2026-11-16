@@ -43,6 +43,18 @@ describe("rw report (CLI)", () => {
     assert.match(rw("--quiet", "report", "flow", "--project", "P").stdout, /^in_progress_days\tStarted\t0$/m);
   });
 
+  it("report forecast says there is no pace yet, and forecasts once there is", () => {
+    rw("ticket", "create", "--project", "P", "--title", "Open");
+    assert.equal(
+      rw("report", "forecast", "--project", "P").stdout,
+      "No ticket was done in the last 90 days: there is no pace to forecast 1 ticket from.\n"
+    );
+    assert.match(rw("report", "forecast", "--project", "P", "--history-days", "0").stderr, /must be 1 or greater/);
+    const json = JSON.parse(rw("--json", "report", "forecast", "--project", "P", "--items", "0").stdout);
+    assert.equal(json.items, 0);
+    assert.equal(json.outcomes[0].days, 0);
+  });
+
   it("report group names the prefix it searched for when it finds nothing", () => {
     assert.equal(rw("report", "group", "--project", "P", "--prefix", " Nope ").stdout, 'No tickets with "nope:" tags found.\n');
   });

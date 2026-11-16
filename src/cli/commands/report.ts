@@ -7,12 +7,13 @@ import { getEventLog } from "../../reports/event-log.js";
 import { renderDashboard } from "../../reports/dashboard.js";
 import { averageCycleTime, averageLeadTime, getProjectTimes, timesReport } from "../../reports/times.js";
 import { DEFAULT_FLOW_WEEKS, getFlowReport, type Percentiles } from "../../reports/flow-metrics.js";
+import { DEFAULT_HISTORY_DAYS, forecastText, getForecast } from "../../reports/forecast.js";
 import { validateExportPath } from "../../validation/paths.js";
 import { validateTagPrefix } from "../../validation/strings.js";
 import { displayWidth } from "../../display-width.js";
 import { FIBONACCI } from "../../domain/scores.js";
 import { withProject, type GlobalOptions } from "../context.js";
-import { PROJECT_OPTION, parseFloatOption, parseNonNegativeIntOption, type ProjectOptions } from "../options.js";
+import { PROJECT_OPTION, parseFloatOption, parseNonNegativeIntOption, parsePositiveIntOption, type ProjectOptions } from "../options.js";
 import { emptyPage, escapeControls, formatTable, printRows, reportWritten } from "../output.js";
 import { writeFile } from "../files.js";
 import { versionFilePath, watchDashboard } from "../dashboard-watch.js";
@@ -206,6 +207,29 @@ export function registerReportCommands(program: Command): void {
             }
           }
         }
+      });
+    });
+
+  reportCmd
+    .command("forecast")
+    .description("when the open tickets (or --items of them) will be done, at the recent pace")
+    .option(...PROJECT_OPTION)
+    .option("--items <n>", "tickets to forecast (default: the open ones)", parseNonNegativeIntOption)
+    .option("--history-days <n>", "days of recent pace to go by", parsePositiveIntOption, DEFAULT_HISTORY_DAYS)
+    .action(async (cmdOpts: ProjectOptions & { items?: number; historyDays: number }, cmd: Command) => {
+      const opts = cmd.optsWithGlobals<GlobalOptions>();
+      await withProject(opts, cmdOpts.project, async (db, project) => {
+        const forecast = await getForecast(db, project.id, { items: cmdOpts.items, historyDays: cmdOpts.historyDays });
+        const none = opts.csv ? "" : "-";
+        printRows(opts, forecast.outcomes, {
+          json: forecast,
+          quiet: (o) => `${o.likelihood}\t${o.days ?? ""}\t${o.date ?? ""}`,
+          isEmpty: forecast.outcomes.length === 0,
+          empty: forecastText(forecast),
+          above: [`Project: ${project.name}`, forecastText(forecast), ""],
+          headers: ["Likelihood", "Days", "Done by"],
+          row: (o) => [`${o.likelihood}%`, o.days === null ? none : String(o.days), o.date ?? "not within ten years"],
+        });
       });
     });
 

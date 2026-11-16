@@ -11,6 +11,7 @@ import { DEFAULT_WEIGHTS } from "../domain/weights.js";
 import { esc } from "./html.js";
 import { cumulativeFlow, DEFAULT_FLOW_WINDOW, FLOW_WINDOWS, getFlowEvents, type FlowWindow } from "./flow.js";
 import { FLOW_SERIES, flowChartSvg, flowSummary } from "./flow-chart.js";
+import { forecastFromDaily, forecastText, dailyDone, DEFAULT_HISTORY_DAYS, type Forecast } from "./forecast.js";
 
 export interface DashboardOptions {
   /** ISO timestamp shown in the header; omit to leave it blank. */
@@ -47,6 +48,8 @@ export interface DashboardModel {
   relations: ProjectRelationView[];
   /** The cumulative flow, one window per FLOW_WINDOWS entry; no points without tickets */
   flow: FlowWindow[];
+  /** When the open tickets will be done, at the recent pace */
+  forecast?: Forecast;
 }
 
 /** What the dashboard shows, read from the database; the flow ends on now's day */
@@ -80,8 +83,10 @@ export async function buildDashboardModel(
   const relations = await listProjectRelations(db, projectId);
   const events = await getFlowEvents(db, projectId);
   const flow = FLOW_WINDOWS.map((days) => cumulativeFlow(events, days, now));
+  // From the done times the flow already read
+  const forecast = forecastFromDaily(dailyDone(events.done, DEFAULT_HISTORY_DAYS, now), rows.length, now);
 
-  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow };
+  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow, forecast };
 }
 
 /**
@@ -113,7 +118,7 @@ const flowWindowCss = [
 ].join("\n  ");
 
 /** The cumulative flow card: a chart per window and the switch between them */
-function flowSection(flow: FlowWindow[]): string {
+function flowSection(flow: FlowWindow[], forecast?: Forecast): string {
   const head = `<h2 id="flow">Cumulative flow</h2>`;
   if (flow.every((w) => w.points.length === 0)) {
     return `<section class="card flow-card" aria-labelledby="flow">${head}<p class="empty">No tickets to chart yet.</p></section>`;
@@ -144,6 +149,7 @@ function flowSection(flow: FlowWindow[]): string {
   <p class="meta">Tickets that have arrived, started and are done, counted at the end of each day (UTC). Hover a day for its counts.</p>
   ${charts}
   <ul class="legend">${legend}</ul>
+  ${forecast ? `<p class="forecast"><strong>Forecast:</strong> ${esc(forecastText(forecast))}</p>` : ""}
 </section>`;
 }
 
@@ -332,6 +338,7 @@ ${options.limit !== undefined ? `<meta name="rewelo-limit" content="${options.li
   .cfd .area.started { fill: rgba(249, 115, 22, .5); }
   .cfd .area.done { fill: rgba(59, 130, 246, .5); }
   .cfd .line { stroke: var(--series); }
+  .forecast { margin: .75rem 0 0; padding: .5rem .75rem; border-left: 3px solid var(--teal); background: var(--inset); border-radius: 4px; font-size: .9rem; }
   .legend { list-style: none; padding: 0; margin: .6rem 0 0; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; font-size: .9rem; }
   .swatch { display: inline-block; width: .8rem; height: .8rem; border-radius: 2px; margin-right: .4rem; vertical-align: -1px; background: var(--series); }
 
@@ -369,7 +376,7 @@ ${generated}
   </div>
 </section>
 
-${flowSection(flow)}
+${flowSection(flow, model.forecast)}
 
 <section class="card" aria-labelledby="tickets">
   <h2 id="tickets">Open tickets by priority</h2>
