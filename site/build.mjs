@@ -208,4 +208,14 @@ write(
   })
 );
 
+// ── sitemap ──
+// For search engines: every page but the 404, by the absolute URL the
+// canonical link names. On GitHub Pages it can't be announced in a
+// robots.txt (crawlers read that only at the domain's root, not below
+// /rewelo/): it is submitted in Search Console instead
+const urls = ["", ...docs.map((d) => (d.slug ? `docs/${d.slug}/` : "docs/"))]
+  .map((path) => `  <url><loc>${escape(`${SITE_URL}/${path}`)}</loc></url>\n`)
+  .join("");
+writeFileSync(join(out, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}</urlset>\n`);
+
 console.log(`Built the site into ${out}`);

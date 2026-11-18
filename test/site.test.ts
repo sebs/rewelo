@@ -106,6 +106,14 @@ describe("website (site/build.mjs)", () => {
     assert.ok(existsSync(join(out, "assets/dashboard-light.png")));
   });
 
+  it("lists every page in a sitemap for search engines, by absolute URL", () => {
+    const sitemap = readFileSync(join(out, "sitemap.xml"), "utf-8");
+    assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
+    const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => url);
+    const site = "https://sebs.github.io/rewelo/";
+    assert.deepEqual(urls, ["", "docs/", "docs/cli/", "docs/mcp/", "docs/calculations/", "docs/examples/", "docs/changelog/"].map((path) => site + path));
+  });
+
   it("shows the dashboard, in the reader's light or dark", () => {
     const home = readFileSync(join(out, "index.html"), "utf-8");
     assert.match(home, /<source srcset="\/rewelo\/assets\/dashboard-dark\.png" media="\(prefers-color-scheme: dark\)">/);
