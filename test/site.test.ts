@@ -97,12 +97,12 @@ describe("website (site/build.mjs)", () => {
 
   it("gives every page a link preview with absolute URLs", () => {
     const cli = readFileSync(join(out, "docs/cli/index.html"), "utf-8");
-    assert.match(cli, /<link rel="canonical" href="https:\/\/sebs\.github\.io\/rewelo\/docs\/cli\/">/);
+    assert.match(cli, /<link rel="canonical" href="https:\/\/sebs\.maschinenlesbar\.org\/rewelo\/docs\/cli\/">/);
     assert.match(cli, /<meta property="og:title" content="CLI — rewelo">/);
-    assert.match(cli, /<meta property="og:image" content="https:\/\/sebs\.github\.io\/rewelo\/assets\/dashboard-light\.png">/);
+    assert.match(cli, /<meta property="og:image" content="https:\/\/sebs\.maschinenlesbar\.org\/rewelo\/assets\/dashboard-light\.png">/);
     assert.match(cli, /<meta name="twitter:card" content="summary_large_image">/);
     const home = readFileSync(join(out, "index.html"), "utf-8");
-    assert.match(home, /<meta property="og:url" content="https:\/\/sebs\.github\.io\/rewelo\/">/);
+    assert.match(home, /<meta property="og:url" content="https:\/\/sebs\.maschinenlesbar\.org\/rewelo\/">/);
     assert.ok(existsSync(join(out, "assets/dashboard-light.png")));
   });
 
@@ -110,7 +110,7 @@ describe("website (site/build.mjs)", () => {
     const sitemap = readFileSync(join(out, "sitemap.xml"), "utf-8");
     assert.match(sitemap, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
     const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => url);
-    const site = "https://sebs.github.io/rewelo/";
+    const site = "https://sebs.maschinenlesbar.org/rewelo/";
     assert.deepEqual(urls, ["", "docs/", "docs/cli/", "docs/mcp/", "docs/calculations/", "docs/examples/", "docs/changelog/"].map((path) => site + path));
   });
 

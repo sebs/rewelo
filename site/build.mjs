@@ -20,7 +20,7 @@ const out = resolve(process.argv[2] || join(root, "_site"));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
 
 const REPO = "https://github.com/sebs/rewelo";
-// GitHub Pages serves the project under https://sebs.github.io/rewelo/, so
+// GitHub Pages serves the project under https://sebs.maschinenlesbar.org/rewelo/, so
 // root-absolute links need that prefix. SITE_BASE='' for a custom domain.
 // Leading slash added and trailing one dropped: "rewelo" and "/rewelo/" both
 // mean "/rewelo" (without the leading slash every asset link was relative).

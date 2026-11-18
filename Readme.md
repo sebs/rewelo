@@ -4,7 +4,7 @@
 
 A prioritization tool that uses the **relative weight** method to rank stories and tickets by different criteria. Built on SQLite (Node's built-in `node:sqlite`) for embedded, zero-dependency data storage, exposed through a CLI or as a Docker-based MCP server.
 
-* [Website and docs](https://sebs.github.io/rewelo/) <!-- site:omit -->
+* [Website and docs](https://sebs.maschinenlesbar.org/rewelo/) <!-- site:omit -->
 * [Blogpost](https://dev.to/sebs/i-was-so-angry-i-actually-shipped-it-2m19)
 * [Initial Idea](https://dev.to/sebs/i-was-so-angry-i-built-my-own-4mj1)
 
