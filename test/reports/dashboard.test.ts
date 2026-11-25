@@ -84,7 +84,8 @@ describe("dashboard report", () => {
     for (let i = 1; i < 4; i++) await createRelation(db, projectId, ids[0], ids[i], "blocks");
 
     const html = await renderDashboard(db, projectId, "DashTest", { limit: 2 });
-    assert.equal(html.match(/<td class="n strong">/g)?.length, 2);
+    // The page's tables, not the ticket browser's dialog
+    assert.equal(html.split("<dialog")[0].match(/<td class="n strong">/g)?.length, 2);
     assert.equal(html.match(/<td class="rel">/g)?.length, 2);
     assert.match(html, /Showing 2 of 4 open tickets/);
     assert.match(html, /Showing 2 of 3 relations/);
@@ -178,7 +179,8 @@ describe("dashboard cumulative flow", () => {
     }
     assert.match(html, /id="flow-30" checked>/);
     assert.match(html, /id="measure-count" checked>/);
-    assert.equal(html.match(/ checked>/g)?.length, 2);
+    // The page's own, not the ticket browser's
+    assert.equal(html.split("<dialog")[0].match(/ checked>/g)?.length, 2);
     // Five windows in seven measures
     assert.equal(html.match(/<svg class="cfd"/g)?.length, 35);
     assert.match(html, /<title>2026-03-10: 1 arrived, 1 started, 0 done<\/title>/);
@@ -225,6 +227,112 @@ describe("dashboard cumulative flow", () => {
   });
 });
 
+describe("dashboard ticket browser", () => {
+  let db: DB;
+  let projectId: number;
+
+  beforeEach(async () => {
+    db = await DB.open(":memory:");
+    await migrate(db);
+    projectId = (await createProject(db, "Browse")).id;
+  });
+
+  afterEach(async () => {
+    await db.close();
+  });
+
+  it("opens every ticket, done ones too, in a dialog without a script", async () => {
+    const done = await createTicket(db, { projectId, title: "Shipped", benefit: 21 });
+    await createTicket(db, { projectId, title: "Waiting" });
+    await assignTag(db, done.id, (await createTag(db, projectId, "state", "done")).id);
+
+    const html = await renderDashboard(db, projectId, "Browse");
+    assert.match(html, /<button type="button" class="open-browser" commandfor="ticket-browser" command="show-modal">Browse all tickets<\/button>/);
+    assert.match(html, /<dialog id="ticket-browser" class="browser" closedby="any" aria-labelledby="browser-title">/);
+    assert.match(html, /<button type="button" class="link" commandfor="ticket-\d+" command="show-modal">Shipped<\/button><\/td><td><span class="badge">done<\/span><\/td>/);
+    assert.match(html, /command="show-modal">Waiting<\/button>/);
+    assert.doesNotMatch(html, /<script|src=|href=/i);
+  });
+
+  it("filters by the state tags the tickets hold, with a count each", async () => {
+    const wip = (await createTag(db, projectId, "state", "wip")).id;
+    const done = (await createTag(db, projectId, "state", "done")).id;
+    for (const [title, tag] of [["A", wip], ["B", done], ["C", done], ["D", undefined]] as const) {
+      const t = await createTicket(db, { projectId, title });
+      if (tag) await assignTag(db, t.id, tag);
+    }
+    const html = await renderDashboard(db, projectId, "Browse");
+    const labels = [...html.matchAll(/<label for="browser-state-(\d)">([^<]*) <span class="count">(\d+)<\/span><\/label>/g)].map((m) => `${m[2]} ${m[3]}`);
+    assert.deepEqual(labels, ["All 4", "done 2", "wip 1", "No state 1"]);
+    assert.match(html, /<input type="radio" name="browser-state" id="browser-state-0" checked>/);
+    assert.match(html, /\.browser:has\(#browser-state-1:checked\) \.list-1 \{ display: block; \}/);
+    // A ticket is listed under All and its state, its details once
+    assert.equal(html.match(/command="show-modal">B<\/button>/g)?.length, 2);
+    assert.equal(html.match(/<dialog id="ticket-\d+"/g)?.length, 4);
+  });
+
+  it("has no state filter but All when no ticket has a state", async () => {
+    await createTicket(db, { projectId, title: "A" });
+    const html = await renderDashboard(db, projectId, "Browse");
+    assert.equal(html.match(/name="browser-state"/g)?.length, 1);
+  });
+
+  it("pages the tickets, twenty at a time", async () => {
+    for (let i = 0; i < 45; i++) await createTicket(db, { projectId, title: `T${i}` });
+    const html = await renderDashboard(db, projectId, "Browse");
+    assert.equal(html.match(/<tbody class="page page-\d">/g)?.length, 3);
+    assert.equal(html.match(/name="browser-page-0"/g)?.length, 3);
+    assert.match(html, /<input type="radio" name="browser-page-0" id="browser-page-0-1" value="1" checked>/);
+    assert.match(html, /\.browser-list:has\(\.pager input\[value="3"\]:checked\) \.page-3 \{ display: table-row-group; \}/);
+    const third = html.split(`<tbody class="page page-3">`)[1].split("</tbody>")[0];
+    assert.equal(third.match(/<tr>/g)?.length, 5);
+  });
+
+  it("shows a ticket's scores, description, tags and relations in its details", async () => {
+    const a = await createTicket(db, { projectId, title: "Login", description: "Line one\n<b>two</b>", benefit: 8, penalty: 5, estimate: 3, risk: 2 });
+    const b = await createTicket(db, { projectId, title: "Signup" });
+    const c = await createTicket(db, { projectId, title: "Old" });
+    await createRelation(db, projectId, b.id, a.id, "blocks");
+    await createRelation(db, projectId, a.id, c.id, "relates-to");
+    await assignTag(db, c.id, (await createTag(db, projectId, "state", "done")).id);
+    await assignTag(db, a.id, (await createTag(db, projectId, "team", "web")).id);
+
+    const html = await renderDashboard(db, projectId, "Browse");
+    const detail = html.split(`<dialog id="ticket-${a.id}"`)[1].split("</dialog>")[0];
+    assert.match(detail, /<h2 id="ticket-\d+-title">Login<\/h2>/);
+    assert.match(detail, /<dt>Value<\/dt><dd>13<\/dd>/);
+    assert.match(detail, /<dt>Priority<\/dt><dd>2\.60<\/dd>/);
+    assert.match(detail, /<p class="desc">Line one\n&lt;b&gt;two&lt;\/b&gt;<\/p>/);
+    assert.match(detail, /<li class="badge">team:web<\/li>/);
+    // Read from this ticket: Signup blocks it
+    assert.match(detail, /<li><span class="muted">is-blocked-by<\/span> Signup<\/li>/);
+    assert.match(detail, /<li><span class="muted">relates-to<\/span> Old <span class="badge">done<\/span><\/li>/);
+    assert.match(detail, /commandfor="ticket-\d+" command="close"/);
+    const other = html.split(`<dialog id="ticket-${b.id}"`)[1].split("</dialog>")[0];
+    assert.match(other, /No description\./);
+    assert.match(other, /No tags\./);
+  });
+
+  it("lists as many tickets as the limit, and says how many are left out", async () => {
+    for (let i = 0; i < 4; i++) await createTicket(db, { projectId, title: `T${i}` });
+    const html = await renderDashboard(db, projectId, "Browse", { limit: 2 });
+    const browser = html.split(`<dialog id="ticket-browser"`)[1].split("</dialog>")[0];
+    assert.match(browser, /Showing 2 of 4 tickets/);
+    assert.equal(html.match(/<dialog id="ticket-\d+"/g)?.length, 2);
+  });
+
+  it("cuts a long description in the details", async () => {
+    await createTicket(db, { projectId, title: "Long", description: "x".repeat(2500) });
+    const html = await renderDashboard(db, projectId, "Browse");
+    assert.match(html, new RegExp(`<p class="desc">x{2000}…</p><p class="meta">The first 2,000 characters;`));
+  });
+
+  it("offers no browser without tickets", async () => {
+    const html = await renderDashboard(db, projectId, "Browse");
+    assert.doesNotMatch(html, /open-browser"|<dialog/);
+  });
+});
+
 describe("dashboard for live pages", () => {
   let db: DB;
   let projectId: number;
@@ -252,8 +360,10 @@ describe("dashboard for live pages", () => {
     const html = await renderDashboard(db, projectId, "Live", { version: "v1", reloadFrom: "dash.version.js" });
     assert.match(html, /<script>[\s\S]*script\.src = "dash\.version\.js" \+ "\?" \+ Date\.now\(\)[\s\S]*<\/script>/);
     assert.match(html, /window\.reweloDashboardVersion = /);
-    // Every choice made on the page survives the reload, not only the window
+    // Every choice made on the page survives the reload, not only the window, and the dialogs open
     assert.match(html, /sessionStorage\.setItem\(key, JSON\.stringify\(choices\(\)\)\)/);
+    assert.match(html, /sessionStorage\.setItem\(dialogsKey, /);
+    assert.match(html, /dialog\.showModal\(\)/);
     // A file name can't end the script early
     const odd = await renderDashboard(db, projectId, "Live", { version: "v1", reloadFrom: "</script><b>.js" });
     assert.doesNotMatch(odd, /<\/script><b>/);

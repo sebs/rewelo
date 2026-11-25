@@ -25,6 +25,7 @@ import { forecastFromDaily, forecastText, dailyDone, DEFAULT_HISTORY_DAYS, type 
 import { getDependencyGraph, type DependencyGraph } from "./dependencies.js";
 import { dependencyGraphSvg } from "./dependency-graph.js";
 import { DEFAULT_CHANGE_DAYS, getRankingChanges, rankMove, type RankingChanges } from "./ranking-changes.js";
+import { browserButton, browserCss, browserHtml, getTicketBrowser, type TicketBrowser } from "./ticket-browser.js";
 
 export interface DashboardOptions {
   /** ISO timestamp shown in the header; omit to leave it blank. */
@@ -73,6 +74,8 @@ export interface DashboardModel {
   dependencies?: DependencyGraph;
   /** What changed in the ranking in the last DEFAULT_CHANGE_DAYS days */
   rankingChanges?: RankingChanges;
+  /** Every ticket, done ones too, for the ticket browser */
+  browser?: TicketBrowser;
 }
 
 /** What the dashboard shows, read from the database; the flow ends on now's day */
@@ -80,12 +83,13 @@ export async function buildDashboardModel(
   db: DB,
   projectId: number,
   projectName: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  limit: number = DEFAULT_DASHBOARD_LIMIT
 ): Promise<DashboardModel> {
-  const tickets = await listTickets(db, projectId, { withDescription: false });
+  const tickets = (await listTickets(db, projectId, { withDescription: false })).sort(byPriority);
   // The ranking is what to do next: open tickets only, as the health cards count
   const done = await doneTicketIds(db, projectId);
-  const open = tickets.filter((t) => !done.has(t.id)).sort(byPriority);
+  const open = tickets.filter((t) => !done.has(t.id));
   const rows = open.map((t) => ({
       title: t.title,
       benefit: t.benefit,
@@ -101,7 +105,8 @@ export async function buildDashboardModel(
   const customWeights = (["w1", "w2", "w3", "w4"] as const).some((w) => weights[w] !== DEFAULT_WEIGHTS[w]);
   const distribution = await getDistribution(db, projectId);
   const health = await getBacklogHealth(db, projectId);
-  const relations = (await listProjectRelations(db, projectId)).map((r) => ({
+  const projectRelations = await listProjectRelations(db, projectId);
+  const relations = projectRelations.map((r) => ({
     ...r,
     sourceDone: done.has(r.source_id),
     targetDone: done.has(r.target_id),
@@ -117,8 +122,9 @@ export async function buildDashboardModel(
   const dependencies = await getDependencyGraph(db, projectId, open.map((t) => ({ id: t.id, title: t.title, priority: priority(t) })));
 
   const rankingChanges = await getRankingChanges(db, projectId, undefined, now);
+  const browser = await getTicketBrowser(db, projectId, tickets, projectRelations, done, limit);
 
-  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow, forecast, dependencies, rankingChanges };
+  return { projectName, rows, doneCount: done.size, customWeights, distribution, health, relations, flow, forecast, dependencies, rankingChanges, browser };
 }
 
 /**
@@ -133,7 +139,7 @@ export async function renderDashboard(
   options: DashboardOptions = {}
 ): Promise<string> {
   const now = options.generatedAt ? new Date(options.generatedAt) : new Date();
-  return renderDashboardHtml(await buildDashboardModel(db, projectId, projectName, now), options);
+  return renderDashboardHtml(await buildDashboardModel(db, projectId, projectName, now, options.limit ?? DEFAULT_DASHBOARD_LIMIT), options);
 }
 
 const windowId = (days: number) => `flow-${days > 0 ? days : "all"}`;
@@ -276,14 +282,16 @@ export const RELOAD_CHECK_MS = 2000;
 
 // A page opened from a file can't fetch another file, but it can load one as
 // a script: the version file calls reweloDashboardVersion("…"). The choices
-// made on the page (the flow's window, switches) survive the reload in
-// sessionStorage; the browser keeps the scroll position.
+// made on the page (the flow's window, switches, the ticket browser's filter
+// and page) and the dialogs open survive the reload in sessionStorage; the
+// browser keeps the scroll position.
 function reloadScript(versionFile: string): string {
   // JSON is valid JavaScript; "<" escaped so a file name can't end the script
   const src = JSON.stringify(versionFile).replace(/</g, "\\u003c");
   return `<script>
 (() => {
   const key = "rewelo-dashboard-choices";
+  const dialogsKey = "rewelo-dashboard-dialogs";
   const shown = document.querySelector('meta[name="rewelo-version"]').content;
   const choices = () => [...document.querySelectorAll("input[id]")]
     .filter((input) => input.type === "radio" || input.type === "checkbox")
@@ -293,13 +301,25 @@ function reloadScript(versionFile: string): string {
       const input = document.getElementById(id);
       if (input) input.checked = checked;
     }
+    // The dialogs open before the reload, in the order they were opened
+    for (const id of JSON.parse(sessionStorage.getItem(dialogsKey) || "[]")) {
+      const dialog = document.getElementById(id);
+      if (dialog && dialog.showModal && !dialog.open) dialog.showModal();
+    }
+    sessionStorage.removeItem(dialogsKey);
   } catch {
     // No session storage (blocked): the defaults it is
   }
   document.addEventListener("change", () => {
     try { sessionStorage.setItem(key, JSON.stringify(choices())); } catch { /* as above */ }
   });
-  window.reweloDashboardVersion = (version) => { if (version !== shown) location.reload(); };
+  window.reweloDashboardVersion = (version) => {
+    if (version === shown) return;
+    try {
+      sessionStorage.setItem(dialogsKey, JSON.stringify([...document.querySelectorAll("dialog[open]")].map((dialog) => dialog.id)));
+    } catch { /* as above */ }
+    location.reload();
+  };
   setInterval(() => {
     if (document.hidden) return;
     const script = document.createElement("script");
@@ -318,17 +338,11 @@ export function renderDashboardHtml(model: DashboardModel, options: DashboardOpt
   const priorityRows =
     rows
       .slice(0, limit)
+      // One line a row: the indentation took a tenth of a dashboard of 12,000 rows
       .map(
-        (t) => `<tr>
-        <td>${esc(t.title)}</td>
-        <td class="n">${t.benefit}</td>
-        <td class="n">${t.penalty}</td>
-        <td class="n">${t.estimate}</td>
-        <td class="n">${t.risk}</td>
-        <td class="n">${t.value}</td>
-        <td class="n">${t.cost}</td>
-        <td class="n strong">${t.priority.toFixed(2)}</td>
-      </tr>`
+        (t) =>
+          `<tr><td>${esc(t.title)}</td><td class="n">${t.benefit}</td><td class="n">${t.penalty}</td><td class="n">${t.estimate}</td>` +
+          `<td class="n">${t.risk}</td><td class="n">${t.value}</td><td class="n">${t.cost}</td><td class="n strong">${t.priority.toFixed(2)}</td></tr>`
       )
       .join("") +
     // Only when there are none: with --limit 0 the note below says how many
@@ -433,7 +447,8 @@ ${options.limit !== undefined ? `<meta name="rewelo-limit" content="${options.li
 
   .switches { display: grid; gap: .35rem; justify-items: end; }
   .window { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
-  .window legend { float: left; margin-right: .3rem; min-width: 4.2rem; text-align: right; font-size: .85rem; color: var(--muted); }
+  .window legend { float: left; margin-right: .3rem; font-size: .85rem; color: var(--muted); }
+  .switches .window legend { min-width: 4.2rem; text-align: right; }
   .window input { position: absolute; opacity: 0; width: 1px; height: 1px; }
   .window label { font-size: .85rem; padding: .2rem .6rem; border-radius: 4px; border: 1px solid var(--line); background: var(--inset); cursor: pointer; }
   .window label:hover { border-color: var(--purple); }
@@ -495,6 +510,35 @@ ${options.limit !== undefined ? `<meta name="rewelo-limit" content="${options.li
   .relations-card:has(#relations-open:checked) tr.none-open { display: table-row; }
   abbr { text-decoration: none; }
   footer { color: var(--muted); font-size: .8rem; text-align: center; }
+
+  /* The ticket browser and a ticket's details: dialogs opened without a script */
+  .open-browser, .close { font: inherit; font-size: .85rem; color: var(--text); padding: .25rem .7rem; border-radius: 4px; border: 1px solid var(--line); background: var(--inset); cursor: pointer; }
+  .open-browser:hover, .close:hover { border-color: var(--purple); }
+  .open-browser:focus-visible, .close:focus-visible, button.link:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+  .close { font-size: 1.1rem; line-height: 1; padding: .2rem .5rem; }
+  dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; box-shadow: 0 10px 40px rgba(0, 0, 0, .35); width: min(64rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); }
+  dialog::backdrop { background: rgba(10, 10, 16, .55); }
+  .ticket-detail { width: min(40rem, calc(100vw - 2rem)); }
+  .dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+  .dialog-head h2 { margin: 0 0 .5rem; overflow-wrap: anywhere; }
+  .browser .window { margin: .25rem 0 .5rem; }
+  .browser .pager { margin-top: .6rem; }
+  .count { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .window input:checked + label .count { color: inherit; opacity: .8; }
+  button.link { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  button.link:hover { color: var(--purple); text-decoration-color: currentColor; }
+  h3 { margin: .9rem 0 .35rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .scores { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(4.6rem, 1fr)); margin: .25rem 0 0; }
+  .scores div { background: var(--inset); border-radius: 6px; padding: .35rem .6rem; }
+  .scores dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .scores dd { margin: 0; font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .desc { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+  .tags { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .35rem; }
+  .tags .badge { font-size: .8rem; }
+  .related { margin: 0; padding-left: 1.25rem; }
+  .ticket-detail .empty { margin: 0; }
+  .ticket-detail > .meta:last-child { margin: .9rem 0 0; }
+  ${model.browser ? browserCss(model.browser) : ""}
 </style>
 </head>
 <body>
@@ -520,7 +564,10 @@ ${generated}
 ${flowSection(flow, model.forecast)}
 
 <section class="card" aria-labelledby="tickets">
-  <h2 id="tickets">Open tickets by priority</h2>
+  <div class="card-head">
+    <h2 id="tickets">Open tickets by priority</h2>
+    ${model.browser && model.browser.total > 0 ? browserButton() : ""}
+  </div>
   ${doneCount > 0 ? `<p class="meta">${doneCount} done ticket${doneCount === 1 ? " is" : "s are"} not listed.</p>` : ""}
   ${customWeights ? `<p class="meta">Priority is value / cost without the project's weights; <code>rw calc priority</code> shows the weighted priority.</p>` : ""}
   <div class="scroll">
@@ -564,6 +611,7 @@ ${model.dependencies ? dependencySection(model.dependencies) : ""}
 
 <footer>Generated by Rewelo.</footer>
 </div>
+${model.browser && model.browser.total > 0 ? browserHtml(model.browser, more(model.browser.tickets.length, model.browser.total, "ticket")) : ""}
 ${options.reloadFrom !== undefined && options.version !== undefined ? reloadScript(options.reloadFrom) : ""}
 </body>
 </html>

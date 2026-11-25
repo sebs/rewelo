@@ -77,8 +77,11 @@ describe("MCP App: the dashboard", () => {
     assert.match(app.text, /name: "report_dashboard"/);
     assert.match(app.text, /setInterval\(poll, 5000\)/);
     assert.match(app.text, /"ui\/resource-teardown"/);
-    // A refresh keeps every choice made on the dashboard (window, switches)
+    // A refresh keeps every choice made on the dashboard (window, switches) and the dialogs open
     assert.match(app.text, /const chosen = choices\(\);/);
+    assert.match(app.text, /dialogs: \[\.\.\.document\.querySelectorAll\("dialog\[open\]"\)\]/);
+    // The ticket browser opens at its button in a frame as tall as the dashboard
+    assert.match(app.text, /position-anchor: --rewelo-browse; top: anchor\(top\)/);
     assert.doesNotMatch(app.text, /__POLL_MS__|__VERSION__|__PROTOCOL__/);
   });
 

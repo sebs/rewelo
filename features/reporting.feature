@@ -61,10 +61,19 @@ Feature: Reporting
     And "dash.html" is open in a browser
     When a ticket is added to "Acme" from another terminal
     Then "dash.html" should be written again within seconds
-    And the page should reload itself and show the ticket, keeping the chosen window
+    And the page should reload itself and show the ticket, keeping the choices made on it and the dialogs open
     And it should not reload while nothing changes
     When I press Ctrl-C
     Then the command should end with exit code 0
+
+  Scenario: Browsing every ticket on the dashboard
+    Given "Acme" has 45 tickets, 10 of them tagged "state:done" and 5 "state:wip"
+    When I generate the dashboard for "Acme"
+    And I choose "Browse all tickets"
+    Then a dialog should list every ticket, done ones too, highest priority first, 20 to a page
+    And I should be able to filter it by "done", "wip" or "No state", and page through each, without a script
+    When I choose a ticket
+    Then a dialog should show its scores, value, cost, priority, description, tags and relations
 
   Scenario: What changed in the ranking, and why
     Given on "2026-03-01" the open tickets ranked "A", "B", "C"

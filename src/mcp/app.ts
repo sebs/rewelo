@@ -130,11 +130,15 @@ const script = String.raw`
 
   document.addEventListener("visibilitychange", () => void poll());
 
-  // The choices made on the dashboard (the flow's window, switches), kept when it is replaced
-  const choices = () =>
-    [...document.querySelectorAll("input[id]")]
+  // The choices made on the dashboard (the flow's window, switches, the
+  // ticket browser's filter and page) and the dialogs open, in the order
+  // they were opened, kept when it is replaced
+  const choices = () => ({
+    inputs: [...document.querySelectorAll("input[id]")]
       .filter((input) => input.type === "radio" || input.type === "checkbox")
-      .map((input) => [input.id, input.checked]);
+      .map((input) => [input.id, input.checked]),
+    dialogs: [...document.querySelectorAll("dialog[open]")].map((dialog) => dialog.id),
+  });
 
   const show = (html, chosen) => {
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -148,9 +152,13 @@ const script = String.raw`
     }
     if (doc.title) document.title = doc.title;
     document.body.replaceChildren(...[...doc.body.childNodes].map((node) => document.importNode(node, true)));
-    for (const [id, checked] of chosen || []) {
+    for (const [id, checked] of chosen ? chosen.inputs : []) {
       const input = document.getElementById(id);
       if (input) input.checked = checked;
+    }
+    for (const id of chosen ? chosen.dialogs : []) {
+      const dialog = document.getElementById(id);
+      if (dialog && dialog.showModal && !dialog.open) dialog.showModal();
     }
     goLive(doc);
   };
@@ -231,6 +239,16 @@ export function dashboardAppHtml(): string {
   .status { opacity: .7; }
   .rewelo-live { margin: .5rem 1rem 0; font: 12px system-ui, sans-serif; color: var(--muted, GrayText); }
   .rewelo-live[data-state="live"]::before { content: "\\25CF  "; color: #56d7c6; }
+  /* The frame is as tall as the dashboard (the host sizes it to the page): a
+     dialog centred in it could open far from where it was asked for. Where
+     anchors work, the ticket browser opens at its button and a ticket's
+     details over the browser. */
+  @supports (anchor-name: --a) {
+    html .open-browser { anchor-name: --rewelo-browse; }
+    html dialog.browser { anchor-name: --rewelo-browser; }
+    html dialog.browser:modal { position-anchor: --rewelo-browse; top: anchor(top); bottom: auto; margin-top: 0; max-height: 44rem; }
+    html dialog.ticket-detail:modal { position-anchor: --rewelo-browser; top: anchor(top); bottom: auto; margin-top: 2rem; max-height: 40rem; }
+  }
 </style>
 </head>
 <body>
