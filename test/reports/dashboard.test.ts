@@ -174,15 +174,38 @@ describe("dashboard cumulative flow", () => {
     assert.match(html, /<h2 id="flow">Cumulative flow<\/h2>/);
     for (const id of ["flow-14", "flow-30", "flow-90", "flow-365", "flow-all"]) {
       assert.match(html, new RegExp(`<input type="radio" name="flow-window" id="${id}"`));
-      assert.match(html, new RegExp(`<figure class="flow ${id}">`));
+      assert.match(html, new RegExp(`<figure class="flow ${id} measure-count">`));
     }
     assert.match(html, /id="flow-30" checked>/);
-    assert.equal(html.match(/ checked>/g)?.length, 1);
-    assert.equal(html.match(/<svg class="cfd"/g)?.length, 5);
+    assert.match(html, /id="measure-count" checked>/);
+    assert.equal(html.match(/ checked>/g)?.length, 2);
+    // Five windows in seven measures
+    assert.equal(html.match(/<svg class="cfd"/g)?.length, 35);
     assert.match(html, /<title>2026-03-10: 1 arrived, 1 started, 0 done<\/title>/);
     assert.match(html, /Since Mar 1, 2026: 1 arrived, 1 started, 0 done\. At the end, 1 in progress and 0 not started\./);
     // Still self-contained and script-free
     assert.doesNotMatch(html, /src=|href=|<script/i);
+  });
+
+  it("charts the sum of a score on the y axis when the measure is switched", async () => {
+    const wip = (await createTag(db, projectId, "state", "wip")).id;
+    const a = await createTicket(db, { projectId, title: "A", benefit: 8, penalty: 5, estimate: 3, risk: 2 });
+    await createTicket(db, { projectId, title: "B", benefit: 13, penalty: 1, estimate: 1, risk: 1 });
+    await assignTag(db, a.id, wip);
+    await db.run("UPDATE tickets SET created_at = '2026-03-01T08:00:00.000Z'");
+    await db.run("UPDATE ticket_tag_changes SET changed_at = '2026-03-04T08:00:00.000Z'");
+
+    const html = await renderDashboard(db, projectId, "Flow", { generatedAt: "2026-03-10T12:00:00.000Z" });
+    for (const [id, label] of [["count", "Count"], ["benefit", '<abbr title="Benefit">B</abbr>'], ["penalty", '<abbr title="Penalty">P</abbr>'], ["estimate", '<abbr title="Estimate">E</abbr>'], ["risk", '<abbr title="Risk">R</abbr>'], ["value", "Value"], ["cost", "Cost"]]) {
+      assert.ok(html.includes(`<input type="radio" name="flow-measure" id="measure-${id}"`), id);
+      assert.ok(html.includes(`<label for="measure-${id}">${label}</label>`), id);
+    }
+    // Value is benefit + penalty: 13 + 14 arrived, 13 started
+    assert.match(html, /<figure class="flow flow-all measure-value">/);
+    assert.match(html, /<title>2026-03-10, by value: 27 arrived, 13 started, 0 done<\/title>/);
+    assert.match(html, /Since Mar 1, 2026, by cost: 7 arrived, 5 started, 0 done\. At the end, 5 in progress and 2 not started\./);
+    assert.match(html, /\.flow-card:has\(#flow-90:checked\):has\(#measure-risk:checked\) \.flow-90\.measure-risk \{ display: block; \}/);
+    assert.doesNotMatch(html, /<script/);
   });
 
   it("forecasts the open tickets under the chart", async () => {

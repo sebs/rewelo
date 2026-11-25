@@ -9,8 +9,18 @@ import { getWeights } from "../weights/repository.js";
 import { FIBONACCI } from "../domain/scores.js";
 import { DEFAULT_WEIGHTS } from "../domain/weights.js";
 import { esc } from "./html.js";
-import { cumulativeFlow, DEFAULT_FLOW_WINDOW, FLOW_WINDOWS, getFlowEvents, type FlowWindow } from "./flow.js";
-import { FLOW_SERIES, flowChartSvg, flowSummary } from "./flow-chart.js";
+import {
+  cumulativeFlow,
+  DEFAULT_FLOW_MEASURE,
+  DEFAULT_FLOW_WINDOW,
+  FLOW_MEASURES,
+  FLOW_WINDOWS,
+  flowEventsIn,
+  getScoredFlowEvents,
+  type FlowMeasure,
+  type FlowWindow,
+} from "./flow.js";
+import { FLOW_MEASURE_LABELS, FLOW_SERIES, flowChartSvg, flowSummary } from "./flow-chart.js";
 import { forecastFromDaily, forecastText, dailyDone, DEFAULT_HISTORY_DAYS, type Forecast } from "./forecast.js";
 import { getDependencyGraph, type DependencyGraph } from "./dependencies.js";
 import { dependencyGraphSvg } from "./dependency-graph.js";
@@ -55,7 +65,7 @@ export interface DashboardModel {
   health: BacklogHealth;
   /** Every relation, with whether either ticket is done (the card can hide those) */
   relations: DashboardRelation[];
-  /** The cumulative flow, one window per FLOW_WINDOWS entry; no points without tickets */
+  /** The cumulative flow, one window per FLOW_WINDOWS entry and FLOW_MEASURES entry; no points without tickets */
   flow: FlowWindow[];
   /** When the open tickets will be done, at the recent pace */
   forecast?: Forecast;
@@ -96,8 +106,12 @@ export async function buildDashboardModel(
     sourceDone: done.has(r.source_id),
     targetDone: done.has(r.target_id),
   }));
-  const events = await getFlowEvents(db, projectId);
-  const flow = FLOW_WINDOWS.map((days) => cumulativeFlow(events, days, now));
+  const scored = await getScoredFlowEvents(db, projectId);
+  const events = flowEventsIn(scored, "count");
+  const flow = FLOW_MEASURES.flatMap((measure) => {
+    const measured = measure === "count" ? events : flowEventsIn(scored, measure);
+    return FLOW_WINDOWS.map((days) => cumulativeFlow(measured, days, now));
+  });
   // From the done times the flow already read
   const forecast = forecastFromDaily(dailyDone(events.done, DEFAULT_HISTORY_DAYS, now), rows.length, now);
   const dependencies = await getDependencyGraph(db, projectId, open.map((t) => ({ id: t.id, title: t.title, priority: priority(t) })));
@@ -124,33 +138,45 @@ export async function renderDashboard(
 
 const windowId = (days: number) => `flow-${days > 0 ? days : "all"}`;
 const windowName = (days: number) => (days > 0 ? `${days} days` : "All");
+const measureId = (measure: FlowMeasure) => `measure-${measure}`;
+const DEFAULT_CHART = `.${windowId(DEFAULT_FLOW_WINDOW)}.${measureId(DEFAULT_FLOW_MEASURE)}`;
 
-// The window switch works without a script, which the MCP App page would not
-// run: a radio button per window, and :has() shows the checked one's chart.
-// A browser without :has() shows the default window.
+// The switches work without a script, which the MCP App page would not run:
+// a radio button per window and per measure, and :has() shows the chart of
+// the checked pair. A browser without :has() shows the default chart.
 const flowWindowCss = [
   `.flow { display: none; margin: 0; }`,
-  `.flow-card .${windowId(DEFAULT_FLOW_WINDOW)} { display: block; }`,
-  `.flow-card:has(.window input:checked:not(#${windowId(DEFAULT_FLOW_WINDOW)})) .${windowId(DEFAULT_FLOW_WINDOW)} { display: none; }`,
-  ...FLOW_WINDOWS.map((days) => `.flow-card:has(#${windowId(days)}:checked) .${windowId(days)} { display: block; }`),
+  `.flow-card ${DEFAULT_CHART} { display: block; }`,
+  `.flow-card:has(.window input:checked:not(#${windowId(DEFAULT_FLOW_WINDOW)})) ${DEFAULT_CHART},` +
+    ` .flow-card:has(.measure input:checked:not(#${measureId(DEFAULT_FLOW_MEASURE)})) ${DEFAULT_CHART} { display: none; }`,
+  ...FLOW_MEASURES.flatMap((measure) =>
+    FLOW_WINDOWS.map(
+      (days) =>
+        `.flow-card:has(#${windowId(days)}:checked):has(#${measureId(measure)}:checked) .${windowId(days)}.${measureId(measure)} { display: block; }`
+    )
+  ),
 ].join("\n  ");
 
-/** The cumulative flow card: a chart per window and the switch between them */
+/** A radio button, styled as a button by its label */
+const radio = (name: string, id: string, label: string, checked: boolean) =>
+  `<input type="radio" name="${name}" id="${id}"${checked ? " checked" : ""}><label for="${id}">${label}</label>`;
+
+/** The cumulative flow card: a chart per window and measure, and the switches between them */
 function flowSection(flow: FlowWindow[], forecast?: Forecast): string {
   const head = `<h2 id="flow">Cumulative flow</h2>`;
   if (flow.every((w) => w.points.length === 0)) {
     return `<section class="card flow-card" aria-labelledby="flow">${head}<p class="empty">No tickets to chart yet.</p></section>`;
   }
-  const radios = flow
-    .map(
-      ({ days }) =>
-        `<input type="radio" name="flow-window" id="${windowId(days)}"${days === DEFAULT_FLOW_WINDOW ? " checked" : ""}>` +
-        `<label for="${windowId(days)}">${windowName(days)}</label>`
-    )
-    .join("");
+  const windows = FLOW_WINDOWS.map((days) => radio("flow-window", windowId(days), windowName(days), days === DEFAULT_FLOW_WINDOW)).join("");
+  const measures = FLOW_MEASURES.map((measure) => {
+    const { label, name } = FLOW_MEASURE_LABELS[measure];
+    // B, P, E and R spelt out, as in the ticket table
+    const text = label.length === 1 ? `<abbr title="${name[0].toUpperCase()}${name.slice(1)}">${label}</abbr>` : label;
+    return radio("flow-measure", measureId(measure), text, measure === DEFAULT_FLOW_MEASURE);
+  }).join("");
   const charts = flow
     .map(
-      (w) => `<figure class="flow ${windowId(w.days)}">
+      (w) => `<figure class="flow ${windowId(w.days)} ${measureId(w.measure)}">
     ${flowChartSvg(w)}
     <figcaption>${esc(flowSummary(w))}</figcaption>
   </figure>`
@@ -162,9 +188,12 @@ function flowSection(flow: FlowWindow[], forecast?: Forecast): string {
   return `<section class="card flow-card" aria-labelledby="flow">
   <div class="card-head">
     ${head}
-    <fieldset class="window"><legend>Window</legend>${radios}</fieldset>
+    <div class="switches">
+      <fieldset class="window"><legend>Window</legend>${windows}</fieldset>
+      <fieldset class="window measure"><legend>Measure</legend>${measures}</fieldset>
+    </div>
   </div>
-  <p class="meta">Tickets that have arrived, started and are done, counted at the end of each day (UTC). Hover a day for its counts.</p>
+  <p class="meta">Tickets that have arrived, started and are done, counted at the end of each day (UTC); by a measure, the sum of the tickets' scores (as they are scored now). Hover a day for its numbers.</p>
   ${charts}
   <ul class="legend">${legend}</ul>
   ${forecast ? `<p class="forecast"><strong>Forecast:</strong> ${esc(forecastText(forecast))}</p>` : ""}
@@ -402,8 +431,9 @@ ${options.limit !== undefined ? `<meta name="rewelo-limit" content="${options.li
   .blue { --accent: var(--blue); }
   .red { --accent: var(--red); }
 
+  .switches { display: grid; gap: .35rem; justify-items: end; }
   .window { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
-  .window legend { float: left; margin-right: .3rem; font-size: .85rem; color: var(--muted); }
+  .window legend { float: left; margin-right: .3rem; min-width: 4.2rem; text-align: right; font-size: .85rem; color: var(--muted); }
   .window input { position: absolute; opacity: 0; width: 1px; height: 1px; }
   .window label { font-size: .85rem; padding: .2rem .6rem; border-radius: 4px; border: 1px solid var(--line); background: var(--inset); cursor: pointer; }
   .window label:hover { border-color: var(--purple); }

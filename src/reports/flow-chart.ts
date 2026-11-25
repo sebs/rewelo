@@ -1,5 +1,5 @@
 import { esc } from "./html.js";
-import type { FlowPoint, FlowWindow } from "./flow.js";
+import type { FlowMeasure, FlowPoint, FlowWindow } from "./flow.js";
 
 // The cumulative flow diagram as inline SVG, drawn the way DevOps Infinity
 // draws its own: three overlapping filled lines, all tickets at the back,
@@ -41,11 +41,25 @@ function niceStep(range: number): number {
 
 const round = (n: number) => Math.round(n * 10) / 10;
 
+/** The switch's label and the measure in words, for the dashboard */
+export const FLOW_MEASURE_LABELS: Record<FlowMeasure, { label: string; name: string }> = {
+  count: { label: "Count", name: "tickets" },
+  benefit: { label: "B", name: "benefit" },
+  penalty: { label: "P", name: "penalty" },
+  estimate: { label: "E", name: "estimate" },
+  risk: { label: "R", name: "risk" },
+  value: { label: "Value", name: "value" },
+  cost: { label: "Cost", name: "cost" },
+};
+
+/** ", by value" after a period or a day; nothing for tickets, which are counted */
+const byMeasure = (measure: FlowMeasure) => (measure === "count" ? "" : `, by ${FLOW_MEASURE_LABELS[measure].name}`);
+
 /** What the window shows, in a sentence: the chart's accessible name and its caption */
 export function flowSummary(window: FlowWindow): string {
-  const { points, start, days } = window;
+  const { points, start, days, measure } = window;
   const last = points[points.length - 1];
-  const period = days > 0 ? `Last ${days} days` : `Since ${dayLabel(points[0].date, true)}`;
+  const period = (days > 0 ? `Last ${days} days` : `Since ${dayLabel(points[0].date, true)}`) + byMeasure(measure);
   return (
     `${period}: ${last.arrived - start.arrived} arrived, ${last.started - start.started} started, ` +
     `${last.done - start.done} done. At the end, ${last.started - last.done} in progress ` +
@@ -102,7 +116,7 @@ export function flowChartSvg(window: FlowWindow): string {
     const right = i === points.length - 1 ? MARGIN.left + PLOT_WIDTH : (x(i) + x(i + 1)) / 2;
     return (
       `<rect class="hit" x="${round(left)}" y="${MARGIN.top}" width="${round(right - left)}" height="${PLOT_HEIGHT}">` +
-      `<title>${esc(`${p.date}: ${p.arrived} arrived, ${p.started} started, ${p.done} done`)}</title></rect>`
+      `<title>${esc(`${p.date}${byMeasure(window.measure)}: ${p.arrived} arrived, ${p.started} started, ${p.done} done`)}</title></rect>`
     );
   });
 

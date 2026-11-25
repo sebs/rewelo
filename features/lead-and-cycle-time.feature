@@ -67,6 +67,16 @@ Feature: Lead Time and Cycle Time
     And its y axis should start 3 tickets below the lowest done count in the window, or at 0
     And hovering a day should show its counts
 
+  Scenario: The cumulative flow of a score
+    Given a ticket "Login page" with benefit 8 and penalty 5 was created on "2026-01-01"
+    And a ticket "Signup" with benefit 3 and penalty 2 was created on "2026-01-05"
+    And "Login page" was tagged "state:wip" on "2026-01-10"
+    When I open the dashboard for "Acme" on "2026-01-25"
+    Then the cumulative flow should count tickets
+    And I should be able to switch its y axis to the sum of benefit, penalty, estimate, risk, value or cost, without a script
+    And by value it should show 18 arrived, 13 started and 0 done on "2026-01-25"
+    And the scores summed should be the tickets' current ones
+
   Scenario: Flow report
     Given these tickets were done in the last 12 weeks, with their cycle times:
       | title   | done       | cycle time |

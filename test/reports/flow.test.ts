@@ -6,7 +6,7 @@ import { createProject } from "../../src/projects/repository.js";
 import { createTicket } from "../../src/tickets/repository.js";
 import { createTag } from "../../src/tags/repository.js";
 import { assignTag, removeTag } from "../../src/tags/assignment.js";
-import { cumulativeFlow, getFlowEvents, MAX_FLOW_POINTS, type FlowEvents } from "../../src/reports/flow.js";
+import { cumulativeFlow, flowEventsIn, getFlowEvents, getScoredFlowEvents, measureOf, MAX_FLOW_POINTS, type FlowEvents } from "../../src/reports/flow.js";
 import { flowChartSvg, flowSummary } from "../../src/reports/flow-chart.js";
 
 const at = (iso: string) => new Date(iso).getTime();
@@ -45,6 +45,15 @@ describe("cumulativeFlow", () => {
   it("has no points without tickets", () => {
     assert.deepEqual(cumulativeFlow({ arrived: [], started: [], done: [] }, 30, NOW).points, []);
     assert.deepEqual(cumulativeFlow({ arrived: [], started: [], done: [] }, 0, NOW).points, []);
+  });
+
+  it("sums what each event weighs in a measure", () => {
+    const flow = cumulativeFlow({ ...events, measure: "value", weights: { arrived: [2, 3, 5, 8], started: [3, 5], done: [5] } }, 3, NOW);
+    assert.equal(flow.measure, "value");
+    assert.deepEqual(flow.start, { arrived: 10, started: 8, done: 5 });
+    assert.deepEqual(flow.points[2], { date: "2026-03-10", arrived: 18, started: 8, done: 5 });
+    assert.equal(flowSummary(flow), "Last 3 days, by value: 8 arrived, 0 started, 0 done. At the end, 3 in progress and 10 not started.");
+    assert.equal(cumulativeFlow(events, 3, NOW).measure, "count");
   });
 
   it("samples a long history every few days, ending today", () => {
@@ -119,6 +128,23 @@ describe("getFlowEvents", () => {
     assert.equal(events.started.length, 3);
     assert.equal(events.done.length, 2);
     assert.ok(events.arrived.every((t, i, all) => i === 0 || all[i - 1] <= t));
+  });
+
+  it("weighs each event by the ticket's score in a measure", async () => {
+    const done = await createTag(db, projectId, "state", "done");
+    const t = await createTicket(db, { projectId, title: "Big", benefit: 13, penalty: 8, estimate: 5, risk: 3 });
+    await createTicket(db, { projectId, title: "Small", benefit: 1, penalty: 1, estimate: 1, risk: 1 });
+    await assignTag(db, t.id, done.id);
+    const scored = await getScoredFlowEvents(db, projectId);
+    const value = flowEventsIn(scored, "value");
+    assert.equal(value.measure, "value");
+    assert.deepEqual([...value.weights!.arrived].sort((a, b) => a - b), [2, 21]);
+    assert.deepEqual(value.weights!.done, [21]);
+    assert.deepEqual(flowEventsIn(scored, "risk").weights!.started, [3]);
+    // Counting needs no weights
+    assert.equal(flowEventsIn(scored, "count").weights, undefined);
+    const scores = { benefit: 13, penalty: 8, estimate: 5, risk: 3 };
+    assert.deepEqual(["count", "benefit", "penalty", "estimate", "risk", "value", "cost"].map((m) => measureOf(m as never, scores)), [1, 13, 8, 5, 3, 21, 8]);
   });
 
   it("counts a ticket on the days it moved, from the change log", async () => {
