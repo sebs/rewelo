@@ -46,10 +46,13 @@ jobs:
             exit 1
           fi
 
-      # Publish exactly the tagged source of the requested version
+      # Publish exactly the tagged source of the requested version. With the
+      # history and the tags, as the release has them: the tests build the
+      # site, whose changelog is made from them
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: v${{ inputs.version }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Verify package.json matches the requested version

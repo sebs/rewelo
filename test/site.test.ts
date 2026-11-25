@@ -82,9 +82,10 @@ describe("website (site/build.mjs)", () => {
 
   it("has a changelog page made from the releases, linked from the landing page", () => {
     const page = readFileSync(join(out, "docs/changelog/index.html"), "utf-8");
-    // A clone with the tags lists the releases; a shallow one (CI) links to them
-    const tags = execFileSync("git", ["tag", "--list", "v*"], { cwd: resolve(__dirname, "../.."), stdio: "pipe" }).toString().trim();
-    if (tags) {
+    // A clone with the history and the tags lists the releases; a shallow one
+    // (CI, or a tag checked out alone, which has that one tag) links to them
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: resolve(__dirname, "../.."), stdio: "pipe" }).toString().trim();
+    if (git("rev-parse", "--is-shallow-repository") === "false" && git("tag", "--list", "v0.10.0")) {
       assert.match(page, /<h2 id="0100"><a class="anchor" href="#0100">0\.10\.0<\/a><\/h2>/);
       assert.match(page, /forecast when tickets will be done/);
       const toc = page.slice(page.indexOf("On this page"), page.indexOf("</aside>"));
