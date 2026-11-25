@@ -77,6 +77,8 @@ describe("MCP App: the dashboard", () => {
     assert.match(app.text, /name: "report_dashboard"/);
     assert.match(app.text, /setInterval\(poll, 5000\)/);
     assert.match(app.text, /"ui\/resource-teardown"/);
+    // A refresh keeps every choice made on the dashboard (window, switches)
+    assert.match(app.text, /const chosen = choices\(\);/);
     assert.doesNotMatch(app.text, /__POLL_MS__|__VERSION__|__PROTOCOL__/);
   });
 

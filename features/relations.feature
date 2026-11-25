@@ -150,3 +150,10 @@ Feature: Ticket Relations
     When I generate the dashboard
     Then the edge from "Low" to "High" should be drawn as an inversion
     And the dashboard should say that "High" waits for "Low"
+
+  Scenario: The dashboard lists only the relations between open tickets on demand
+    Given ticket "Open A" relates to "Open B" and "Open A" relates to "Shipped"
+    And "Shipped" is tagged "state:done"
+    When I generate the dashboard
+    Then its relations should list both relations, with "Shipped" marked done
+    And when I switch on "Only between open tickets" only "Open A" relates to "Open B" should be listed

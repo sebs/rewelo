@@ -36,7 +36,8 @@ export const REFRESH_POLL_MS = 5000;
 // so while it is visible the page asks dashboard_version (one cheap query)
 // every few seconds, and calls report_dashboard again only when the version
 // differs from the one in the dashboard's <meta name="rewelo-version">. The
-// chosen window is kept. A host that refuses the calls leaves it as it was.
+// choices made on it (the flow's window, switches) are kept. A host that
+// refuses the calls leaves it as it was.
 const script = String.raw`
 (() => {
   let nextId = 1;
@@ -129,11 +130,11 @@ const script = String.raw`
 
   document.addEventListener("visibilitychange", () => void poll());
 
-  // The window chosen in the cumulative flow, kept when the dashboard is replaced
-  const chosenWindow = () => {
-    const input = document.querySelector('input[name="flow-window"]:checked');
-    return input ? input.id : undefined;
-  };
+  // The choices made on the dashboard (the flow's window, switches), kept when it is replaced
+  const choices = () =>
+    [...document.querySelectorAll("input[id]")]
+      .filter((input) => input.type === "radio" || input.type === "checkbox")
+      .map((input) => [input.id, input.checked]);
 
   const show = (html, chosen) => {
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -147,13 +148,15 @@ const script = String.raw`
     }
     if (doc.title) document.title = doc.title;
     document.body.replaceChildren(...[...doc.body.childNodes].map((node) => document.importNode(node, true)));
-    const again = chosen && document.getElementById(chosen);
-    if (again) again.checked = true;
+    for (const [id, checked] of chosen || []) {
+      const input = document.getElementById(id);
+      if (input) input.checked = checked;
+    }
     goLive(doc);
   };
 
   const showResult = async (result) => {
-    const chosen = chosenWindow();
+    const chosen = choices();
     const content = (result && result.content) || [];
     const text = content.find((c) => c.type === "text");
     if (result.isError) {

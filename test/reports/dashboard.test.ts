@@ -113,6 +113,34 @@ describe("dashboard report", () => {
     assert.match(html, /Showing 0 of 1 relation;/);
   });
 
+  it("marks relations with a done ticket, which its switch hides", async () => {
+    const a = await createTicket(db, { projectId, title: "Open A" });
+    const b = await createTicket(db, { projectId, title: "Open B" });
+    const shipped = await createTicket(db, { projectId, title: "Shipped" });
+    await createRelation(db, projectId, a.id, b.id, "relates-to");
+    await createRelation(db, projectId, shipped.id, a.id, "blocks");
+    await assignTag(db, shipped.id, (await createTag(db, projectId, "state", "done")).id);
+
+    const html = await renderDashboard(db, projectId, "DashTest");
+    assert.match(html, /<input type="checkbox" id="relations-open">Only between open tickets<\/label>/);
+    assert.match(html, /<tr><td>Open A<\/td><td class="rel">relates-to<\/td><td>Open B<\/td><\/tr>/);
+    assert.match(html, /<tr class="closed"><td>Shipped <span class="badge">done<\/span><\/td><td class="rel">blocks<\/td><td>Open A<\/td><\/tr>/);
+    assert.match(html, /\.relations-card:has\(#relations-open:checked\) tr\.closed \{ display: none; \}/);
+    // Some relation stays when the switch is on
+    assert.doesNotMatch(html, /<tr class="none-open">/);
+    // Still script-free
+    assert.doesNotMatch(html, /<script/);
+  });
+
+  it("says when no relation is between open tickets", async () => {
+    const a = await createTicket(db, { projectId, title: "A" });
+    const b = await createTicket(db, { projectId, title: "B" });
+    await createRelation(db, projectId, a.id, b.id, "blocks");
+    await assignTag(db, b.id, (await createTag(db, projectId, "state", "done")).id);
+    const html = await renderDashboard(db, projectId, "DashTest");
+    assert.match(html, /<tr class="none-open"><td colspan="3" class="empty">No relation between open tickets\.<\/td><\/tr>/);
+  });
+
   it("says there are no open tickets, not no tickets, when all are done", async () => {
     const t = await createTicket(db, { projectId, title: "Finished" });
     await assignTag(db, t.id, (await createTag(db, projectId, "state", "done")).id);
@@ -201,6 +229,8 @@ describe("dashboard for live pages", () => {
     const html = await renderDashboard(db, projectId, "Live", { version: "v1", reloadFrom: "dash.version.js" });
     assert.match(html, /<script>[\s\S]*script\.src = "dash\.version\.js" \+ "\?" \+ Date\.now\(\)[\s\S]*<\/script>/);
     assert.match(html, /window\.reweloDashboardVersion = /);
+    // Every choice made on the page survives the reload, not only the window
+    assert.match(html, /sessionStorage\.setItem\(key, JSON\.stringify\(choices\(\)\)\)/);
     // A file name can't end the script early
     const odd = await renderDashboard(db, projectId, "Live", { version: "v1", reloadFrom: "</script><b>.js" });
     assert.doesNotMatch(odd, /<\/script><b>/);

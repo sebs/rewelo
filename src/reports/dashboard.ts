@@ -39,6 +39,11 @@ export const DEFAULT_DASHBOARD_LIMIT = 500;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 
+export interface DashboardRelation extends ProjectRelationView {
+  sourceDone: boolean;
+  targetDone: boolean;
+}
+
 export interface DashboardModel {
   projectName: string;
   /** Open tickets (not state:done), highest priority first */
@@ -48,7 +53,8 @@ export interface DashboardModel {
   customWeights: boolean;
   distribution: DimensionDistribution[];
   health: BacklogHealth;
-  relations: ProjectRelationView[];
+  /** Every relation, with whether either ticket is done (the card can hide those) */
+  relations: DashboardRelation[];
   /** The cumulative flow, one window per FLOW_WINDOWS entry; no points without tickets */
   flow: FlowWindow[];
   /** When the open tickets will be done, at the recent pace */
@@ -85,7 +91,11 @@ export async function buildDashboardModel(
   const customWeights = (["w1", "w2", "w3", "w4"] as const).some((w) => weights[w] !== DEFAULT_WEIGHTS[w]);
   const distribution = await getDistribution(db, projectId);
   const health = await getBacklogHealth(db, projectId);
-  const relations = await listProjectRelations(db, projectId);
+  const relations = (await listProjectRelations(db, projectId)).map((r) => ({
+    ...r,
+    sourceDone: done.has(r.source_id),
+    targetDone: done.has(r.target_id),
+  }));
   const events = await getFlowEvents(db, projectId);
   const flow = FLOW_WINDOWS.map((days) => cumulativeFlow(events, days, now));
   // From the done times the flow already read
@@ -236,25 +246,29 @@ function stat(label: string, value: string | number, accent: string, share?: num
 export const RELOAD_CHECK_MS = 2000;
 
 // A page opened from a file can't fetch another file, but it can load one as
-// a script: the version file calls reweloDashboardVersion("…"). The chosen
-// window survives the reload in sessionStorage; the browser keeps the scroll
-// position.
+// a script: the version file calls reweloDashboardVersion("…"). The choices
+// made on the page (the flow's window, switches) survive the reload in
+// sessionStorage; the browser keeps the scroll position.
 function reloadScript(versionFile: string): string {
   // JSON is valid JavaScript; "<" escaped so a file name can't end the script
   const src = JSON.stringify(versionFile).replace(/</g, "\\u003c");
   return `<script>
 (() => {
-  const key = "rewelo-flow-window";
+  const key = "rewelo-dashboard-choices";
   const shown = document.querySelector('meta[name="rewelo-version"]').content;
+  const choices = () => [...document.querySelectorAll("input[id]")]
+    .filter((input) => input.type === "radio" || input.type === "checkbox")
+    .map((input) => [input.id, input.checked]);
   try {
-    const chosen = document.getElementById(sessionStorage.getItem(key) || "");
-    if (chosen) chosen.checked = true;
+    for (const [id, checked] of JSON.parse(sessionStorage.getItem(key) || "[]")) {
+      const input = document.getElementById(id);
+      if (input) input.checked = checked;
+    }
   } catch {
-    // No session storage (blocked): the default window it is
+    // No session storage (blocked): the defaults it is
   }
-  document.addEventListener("change", (event) => {
-    if (event.target.name !== "flow-window") return;
-    try { sessionStorage.setItem(key, event.target.id); } catch { /* as above */ }
+  document.addEventListener("change", () => {
+    try { sessionStorage.setItem(key, JSON.stringify(choices())); } catch { /* as above */ }
   });
   window.reweloDashboardVersion = (version) => { if (version !== shown) location.reload(); };
   setInterval(() => {
@@ -302,17 +316,22 @@ export function renderDashboardHtml(model: DashboardModel, options: DashboardOpt
     )
     .join("");
 
+  const shownRelations = relations.slice(0, limit);
   const relationRows =
-    relations
-      .slice(0, limit)
-      .map(
-        (r) =>
-          `<tr><td>${esc(r.source_title)}</td><td class="rel">${esc(
-            r.relation_type
-          )}</td><td>${esc(r.target_title)}</td></tr>`
-      )
+    shownRelations
+      .map((r) => {
+        const title = (text: string, done: boolean) => `${esc(text)}${done ? ` <span class="badge">done</span>` : ""}`;
+        const open = !r.sourceDone && !r.targetDone;
+        return `<tr${open ? "" : ` class="closed"`}><td>${title(r.source_title, r.sourceDone)}</td><td class="rel">${esc(
+          r.relation_type
+        )}</td><td>${title(r.target_title, r.targetDone)}</td></tr>`;
+      })
       .join("") +
-    (relations.length === 0 ? `<tr><td colspan="3" class="empty">No relations defined.</td></tr>` : "");
+    (relations.length === 0 ? `<tr><td colspan="3" class="empty">No relations defined.</td></tr>` : "") +
+    // Shown by the switch when every row it would show is hidden
+    (shownRelations.length > 0 && shownRelations.every((r) => r.sourceDone || r.targetDone)
+      ? `<tr class="none-open"><td colspan="3" class="empty">No relation between open tickets.</td></tr>`
+      : "");
 
   // Says what a capped table leaves out
   const more = (shown: number, total: number, what: string) =>
@@ -437,6 +456,13 @@ ${options.limit !== undefined ? `<meta name="rewelo-limit" content="${options.li
   td.rel { color: var(--muted); }
   td.move { white-space: nowrap; font-variant-numeric: tabular-nums; }
   td.empty { text-align: center; }
+  .badge { display: inline-block; font-size: .7rem; padding: 0 .35rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
+  .toggle { display: inline-flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--muted); cursor: pointer; }
+  .toggle input { accent-color: var(--brand); margin: 0; }
+  /* The switch works without a script, as the flow's window does */
+  .relations-card tr.none-open { display: none; }
+  .relations-card:has(#relations-open:checked) tr.closed { display: none; }
+  .relations-card:has(#relations-open:checked) tr.none-open { display: table-row; }
   abbr { text-decoration: none; }
   footer { color: var(--muted); font-size: .8rem; text-align: center; }
 </style>
@@ -491,8 +517,11 @@ ${model.dependencies ? dependencySection(model.dependencies) : ""}
   </div>
 </section>
 
-<section class="card" aria-labelledby="relations">
-  <h2 id="relations">Relationships</h2>
+<section class="card relations-card" aria-labelledby="relations">
+  <div class="card-head">
+    <h2 id="relations">Relationships</h2>
+    <label class="toggle"><input type="checkbox" id="relations-open">Only between open tickets</label>
+  </div>
   <div class="scroll">
   <table aria-labelledby="relations">
     <thead><tr><th scope="col">Source</th><th scope="col">Type</th><th scope="col">Target</th></tr></thead>
